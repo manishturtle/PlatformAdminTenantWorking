@@ -1,0 +1,12 @@
+export { default as axiosInstance } from './axiosInstance';
+export { default as customerApi } from './customerApi';
+export { default as serviceCategoryApi } from './serviceCategoryApi';
+export { default as serviceAgentApi } from './serviceAgentApi';
+export { default as serviceTicketApi } from './serviceTicketApi';
+export { default as serviceTicketTaskApi } from './serviceTicketTaskApi';
+export { default as documentTypeApi } from './documentTypeApi';
+export { default as credentialTypeApi } from './credentialTypeApi';
+export { default as credentialApi } from './credentialApi';
+export { default as processApi } from './processApi';
+export { default as sopApi } from './sopApi';
+export { default as documentApi } from './documentApi';

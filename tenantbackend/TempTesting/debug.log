@@ -1,0 +1,331 @@
+INFO 2025-04-03 21:00:04,153 autoreload 2052 21664 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:04,159 autoreload 17816 19240 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:04,522 autoreload 14400 19636 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:04,887 autoreload 5788 8988 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:05,083 autoreload 21064 5368 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:05,495 autoreload 18820 17756 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:05,513 autoreload 15228 11404 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:06,601 middleware 2052 404 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:06,603 middleware 17816 7488 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:06,957 middleware 14400 5484 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:07,591 middleware 21064 1500 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:07,609 middleware 5788 4348 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:07,832 middleware 15228 7712 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:07,849 middleware 18820 22080 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:00:14,603 autoreload 3464 15644 Watching for file changes with StatReloader
+INFO 2025-04-03 21:00:15,585 middleware 3464 10908 TenantRoutingMiddleware initialized
+ERROR 2025-04-03 21:00:27,934 middleware 2052 21156 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:00:27,934 middleware 2052 21156 Path: /api/yash/inventory/fulfillment-locations/
+ERROR 2025-04-03 21:00:27,934 middleware 2052 21156 Method: GET
+ERROR 2025-04-03 21:00:27,934 middleware 2052 21156 Headers: {'Content-Length': '', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzc5OTY1LCJpYXQiOjE3NDM2OTM1NjUsImp0aSI6ImRkMjdmNzk1MmM5MDQ1YjFhY2FmZjAyY2IxOGQ2YTJjIiwidXNlcl9pZCI6MSwidGVuYW50X3NsdWciOiJ5YXNoIn0.DvwcVGeF-G-3Xf9NSmPimHzbuk_eh4s8MZ8B2fpMh5g', 'User-Agent': 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-IN) WindowsPowerShell/5.1.26100.2161', 'Host': 'localhost:8000', 'Connection': 'Keep-Alive'}
+ERROR 2025-04-03 21:00:27,935 middleware 2052 21156 GET Params: {}
+ERROR 2025-04-03 21:00:27,935 middleware 2052 21156 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:00:27,935 middleware 2052 21156 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:00:27,935 middleware 2052 21156 MIDDLEWARE ERROR: cannot import name 'create_schema_if_not_exists' from 'django_tenants.utils' (C:\Python\Lib\site-packages\django_tenants\utils.py)
+ERROR 2025-04-03 21:00:27,936 middleware 2052 21156 Traceback (most recent call last):
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 80, in __call__
+    from django_tenants.utils import get_tenant_model, create_schema_if_not_exists
+ImportError: cannot import name 'create_schema_if_not_exists' from 'django_tenants.utils' (C:\Python\Lib\site-packages\django_tenants\utils.py)
+
+ERROR 2025-04-03 21:00:27,961 log 2052 21156 Internal Server Error: /api/yash/inventory/fulfillment-locations/
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 80, in __call__
+    from django_tenants.utils import get_tenant_model, create_schema_if_not_exists
+ImportError: cannot import name 'create_schema_if_not_exists' from 'django_tenants.utils' (C:\Python\Lib\site-packages\django_tenants\utils.py)
+ERROR 2025-04-03 21:00:27,962 basehttp 2052 21156 "GET /api/yash/inventory/fulfillment-locations/ HTTP/1.1" 500 70880
+INFO 2025-04-03 21:01:13,583 autoreload 2052 21664 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:13,602 autoreload 14400 19636 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:13,603 autoreload 17816 19240 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:13,654 autoreload 18820 17756 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:13,658 autoreload 15228 11404 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:14,134 autoreload 21064 5368 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:14,138 autoreload 3464 15644 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:14,158 autoreload 5788 8988 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:01:15,603 autoreload 12880 9724 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:15,689 autoreload 21876 8272 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:15,702 autoreload 22116 21464 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:15,706 autoreload 6432 21340 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:15,894 autoreload 14664 20148 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:15,909 autoreload 21180 21760 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:16,046 autoreload 11092 18268 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:16,105 autoreload 22232 20264 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:18,857 middleware 22116 21956 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:18,907 middleware 6432 100 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:18,911 middleware 12880 19720 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:18,941 middleware 21876 16920 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:19,010 middleware 14664 20336 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:19,052 middleware 22232 19348 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:19,130 middleware 11092 8472 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:19,165 middleware 21180 2732 TenantRoutingMiddleware initialized
+INFO 2025-04-03 21:01:25,986 autoreload 21568 4280 Watching for file changes with StatReloader
+INFO 2025-04-03 21:01:26,977 middleware 21568 1028 TenantRoutingMiddleware initialized
+ERROR 2025-04-03 21:01:44,221 middleware 22116 2720 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 Path: /api/yash/inventory/fulfillment-locations/
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 Method: GET
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 Headers: {'Content-Length': '', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzc5OTY1LCJpYXQiOjE3NDM2OTM1NjUsImp0aSI6ImRkMjdmNzk1MmM5MDQ1YjFhY2FmZjAyY2IxOGQ2YTJjIiwidXNlcl9pZCI6MSwidGVuYW50X3NsdWciOiJ5YXNoIn0.DvwcVGeF-G-3Xf9NSmPimHzbuk_eh4s8MZ8B2fpMh5g', 'User-Agent': 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-IN) WindowsPowerShell/5.1.26100.2161', 'Host': 'localhost:8000', 'Connection': 'Keep-Alive'}
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 GET Params: {}
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:01:44,222 middleware 22116 2720 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:01:44,393 middleware 22116 2720 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:01:44,393 middleware 22116 2720 TENANT ROUTING: Successfully processed tenant yash
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Request Path: /api/yash/inventory/fulfillment-locations/
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Request Method: GET
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Request Headers: {'Content-Length': '', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzc5OTY1LCJpYXQiOjE3NDM2OTM1NjUsImp0aSI6ImRkMjdmNzk1MmM5MDQ1YjFhY2FmZjAyY2IxOGQ2YTJjIiwidXNlcl9pZCI6MSwidGVuYW50X3NsdWciOiJ5YXNoIn0.DvwcVGeF-G-3Xf9NSmPimHzbuk_eh4s8MZ8B2fpMh5g', 'User-Agent': 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-IN) WindowsPowerShell/5.1.26100.2161', 'Host': 'localhost:8000', 'Connection': 'Keep-Alive'}
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Current Schema: public
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Tenant Slug: yash
+INFO 2025-04-03 21:01:44,396 views 22116 2720 Checking if table exists for model FulfillmentLocation
+INFO 2025-04-03 21:01:44,396 models 22116 2720 Checking if table exists in schema public
+INFO 2025-04-03 21:01:44,451 models 22116 2720 Table ecomm_inventory_fulfillmentlocation already exists in schema public
+INFO 2025-04-03 21:01:44,451 views 22116 2720 Table creation result for FulfillmentLocation: True
+INFO 2025-04-03 21:01:44,491 views 22116 2720 Total Fulfillment Locations: 5
+INFO 2025-04-03 21:01:44,492 views 22116 2720 Filtered Fulfillment Locations: 5
+INFO 2025-04-03 21:01:44,499 basehttp 22116 2720 "GET /api/yash/inventory/fulfillment-locations/ HTTP/1.1" 200 1537
+INFO 2025-04-03 21:01:45,093 basehttp 22116 2720 - Broken pipe from ('127.0.0.1', 59031)
+ERROR 2025-04-03 21:02:39,367 middleware 22116 7712 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:02:39,367 middleware 22116 7712 Path: /platform-admin/api/auth/check-user/
+ERROR 2025-04-03 21:02:39,368 middleware 22116 7712 Method: POST
+ERROR 2025-04-03 21:02:39,368 middleware 22116 7712 Headers: {'Content-Length': '35', 'Content-Type': 'application/json', 'Host': 'localhost:8000', 'Connection': 'keep-alive', 'X-Platform-Admin': 'true', 'Sec-Ch-Ua-Platform': '"Windows"', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36', 'Accept': 'application/json', 'Sec-Ch-Ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"', 'Sec-Ch-Ua-Mobile': '?0', 'Origin': 'http://localhost:3000', 'Sec-Fetch-Site': 'same-site', 'Sec-Fetch-Mode': 'cors', 'Sec-Fetch-Dest': 'empty', 'Referer': 'http://localhost:3000/', 'Accept-Encoding': 'gzip, deflate, br, zstd', 'Accept-Language': 'en-US,en;q=0.9'}
+ERROR 2025-04-03 21:02:39,369 middleware 22116 7712 GET Params: {}
+ERROR 2025-04-03 21:02:39,369 middleware 22116 7712 POST Data: <QueryDict: {}>
+INFO 2025-04-03 21:02:39,369 middleware 22116 7712 Setting public schema for platform admin path: /platform-admin/api/auth/check-user/
+ERROR 2025-04-03 21:02:39,369 middleware 22116 7712 MIDDLEWARE ERROR: cannot access local variable 'connection' where it is not associated with a value
+ERROR 2025-04-03 21:02:39,370 middleware 22116 7712 Traceback (most recent call last):
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 65, in __call__
+    connection.set_schema_to_public()
+    ^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'connection' where it is not associated with a value
+
+ERROR 2025-04-03 21:02:39,496 log 22116 7712 Internal Server Error: /platform-admin/api/auth/check-user/
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 65, in __call__
+    connection.set_schema_to_public()
+    ^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'connection' where it is not associated with a value
+ERROR 2025-04-03 21:02:39,499 basehttp 22116 7712 "POST /platform-admin/api/auth/check-user/ HTTP/1.1" 500 22212
+ERROR 2025-04-03 21:02:47,520 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:02:47,521 middleware 22116 18676 Path: /api/yash/inventory/fulfillment-locations/
+ERROR 2025-04-03 21:02:47,521 middleware 22116 18676 Method: POST
+ERROR 2025-04-03 21:02:47,521 middleware 22116 18676 Headers: {'Content-Length': '347', 'Content-Type': 'application/json', 'Authorization': 'Bearer', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'a19d38d3-c06d-42a1-9a13-2c7f276a42de', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:02:47,521 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:02:47,521 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:02:47,522 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:02:47,988 middleware 22116 18676 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:02:47,988 middleware 22116 18676 TENANT ROUTING: Successfully processed tenant yash
+INFO 2025-04-03 21:02:47,989 views 22116 18676 Request Path: /api/yash/inventory/fulfillment-locations/
+INFO 2025-04-03 21:02:47,989 views 22116 18676 Request Method: POST
+INFO 2025-04-03 21:02:47,990 views 22116 18676 Request Headers: {'Content-Length': '347', 'Content-Type': 'application/json', 'Authorization': 'Bearer', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'a19d38d3-c06d-42a1-9a13-2c7f276a42de', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+INFO 2025-04-03 21:02:47,990 views 22116 18676 Current Schema: public
+INFO 2025-04-03 21:02:47,990 views 22116 18676 Tenant Slug: yash
+INFO 2025-04-03 21:02:47,991 views 22116 18676 Checking if table exists for model FulfillmentLocation
+INFO 2025-04-03 21:02:47,991 models 22116 18676 Checking if table exists in schema public
+INFO 2025-04-03 21:02:48,088 models 22116 18676 Table ecomm_inventory_fulfillmentlocation already exists in schema public
+INFO 2025-04-03 21:02:48,088 views 22116 18676 Table creation result for FulfillmentLocation: True
+WARNING 2025-04-03 21:02:48,090 log 22116 18676 Unauthorized: /api/yash/inventory/fulfillment-locations/
+WARNING 2025-04-03 21:02:48,090 basehttp 22116 18676 "POST /api/yash/inventory/fulfillment-locations/ HTTP/1.1" 401 107
+ERROR 2025-04-03 21:02:56,386 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:02:56,387 middleware 22116 18676 Path: /api/yash/inventory/fulfillment-locations/
+ERROR 2025-04-03 21:02:56,387 middleware 22116 18676 Method: POST
+ERROR 2025-04-03 21:02:56,387 middleware 22116 18676 Headers: {'Content-Length': '347', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'de3febdc-ee0e-49e0-83ae-fb5f0d912a5c', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:02:56,387 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:02:56,387 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:02:56,388 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:02:56,547 middleware 22116 18676 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:02:56,548 middleware 22116 18676 TENANT ROUTING: Successfully processed tenant yash
+INFO 2025-04-03 21:02:56,548 views 22116 18676 Request Path: /api/yash/inventory/fulfillment-locations/
+INFO 2025-04-03 21:02:56,548 views 22116 18676 Request Method: POST
+INFO 2025-04-03 21:02:56,549 views 22116 18676 Request Headers: {'Content-Length': '347', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'de3febdc-ee0e-49e0-83ae-fb5f0d912a5c', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+INFO 2025-04-03 21:02:56,549 views 22116 18676 Current Schema: public
+INFO 2025-04-03 21:02:56,549 views 22116 18676 Tenant Slug: yash
+INFO 2025-04-03 21:02:56,549 views 22116 18676 Checking if table exists for model FulfillmentLocation
+INFO 2025-04-03 21:02:56,549 models 22116 18676 Checking if table exists in schema public
+INFO 2025-04-03 21:02:56,613 models 22116 18676 Table ecomm_inventory_fulfillmentlocation already exists in schema public
+INFO 2025-04-03 21:02:56,613 views 22116 18676 Table creation result for FulfillmentLocation: True
+INFO 2025-04-03 21:02:56,618 views 22116 18676 Creating object in tenant: yash, schema: public
+INFO 2025-04-03 21:02:56,621 basehttp 22116 18676 "POST /api/yash/inventory/fulfillment-locations/ HTTP/1.1" 201 305
+ERROR 2025-04-03 21:03:34,228 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:03:34,229 middleware 22116 18676 Path: /api/yash/inventory/1/adjustments/
+ERROR 2025-04-03 21:03:34,229 middleware 22116 18676 Method: GET
+ERROR 2025-04-03 21:03:34,230 middleware 22116 18676 Headers: {'Content-Length': '', 'Content-Type': 'text/plain', 'Authorization': 'Bearer', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': '9433391d-7907-4df3-9336-40e88330c3a9', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:03:34,230 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:03:34,230 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:03:34,230 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:03:34,394 middleware 22116 18676 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:03:34,394 middleware 22116 18676 TENANT ROUTING: Successfully processed tenant yash
+WARNING 2025-04-03 21:03:34,402 log 22116 18676 Not Found: /api/yash/inventory/1/adjustments/
+WARNING 2025-04-03 21:03:34,402 basehttp 22116 18676 "GET /api/yash/inventory/1/adjustments/ HTTP/1.1" 404 16773
+ERROR 2025-04-03 21:03:39,202 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:03:39,202 middleware 22116 18676 Path: /api/yash/inventory/lots/
+ERROR 2025-04-03 21:03:39,203 middleware 22116 18676 Method: POST
+ERROR 2025-04-03 21:03:39,203 middleware 22116 18676 Headers: {'Content-Length': '216', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': '8ed7d73e-1681-42a9-9e47-30714ee73675', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:03:39,203 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:03:39,203 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:03:39,203 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:03:39,377 middleware 22116 18676 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:03:39,377 middleware 22116 18676 TENANT ROUTING: Successfully processed tenant yash
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Request Path: /api/yash/inventory/lots/
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Request Method: POST
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Request Headers: {'Content-Length': '216', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': '8ed7d73e-1681-42a9-9e47-30714ee73675', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Current Schema: public
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Tenant Slug: yash
+INFO 2025-04-03 21:03:39,378 views 22116 18676 Checking if table exists for model Lot
+INFO 2025-04-03 21:03:39,378 models 22116 18676 Checking if table exists in schema public
+INFO 2025-04-03 21:03:39,453 models 22116 18676 Table ecomm_inventory_lot already exists in schema public
+INFO 2025-04-03 21:03:39,454 views 22116 18676 Table creation result for Lot: True
+WARNING 2025-04-03 21:03:39,467 log 22116 18676 Bad Request: /api/yash/inventory/lots/
+WARNING 2025-04-03 21:03:39,468 basehttp 22116 18676 "POST /api/yash/inventory/lots/ HTTP/1.1" 400 78
+ERROR 2025-04-03 21:03:53,797 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:03:53,797 middleware 22116 18676 Path: /api/yash/inventory/inventory/
+ERROR 2025-04-03 21:03:53,798 middleware 22116 18676 Method: POST
+ERROR 2025-04-03 21:03:53,798 middleware 22116 18676 Headers: {'Content-Length': '270', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'a11a615e-56e0-4ed2-a3ac-9a1ad39247e7', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:03:53,798 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:03:53,798 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:03:53,798 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: yash
+ERROR 2025-04-03 21:03:53,995 middleware 22116 18676 MIGRATIONS: Completed for schema yash
+ERROR 2025-04-03 21:03:53,995 middleware 22116 18676 TENANT ROUTING: Successfully processed tenant yash
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Request Path: /api/yash/inventory/inventory/
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Request Method: POST
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Request Headers: {'Content-Length': '270', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'a11a615e-56e0-4ed2-a3ac-9a1ad39247e7', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Current Schema: public
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Tenant Slug: yash
+INFO 2025-04-03 21:03:53,996 views 22116 18676 Checking if table exists for model Inventory
+INFO 2025-04-03 21:03:53,996 models 22116 18676 Checking if table exists in schema public
+INFO 2025-04-03 21:03:54,051 models 22116 18676 Table ecomm_inventory_inventory already exists in schema public
+INFO 2025-04-03 21:03:54,052 views 22116 18676 Table creation result for Inventory: True
+INFO 2025-04-03 21:03:54,055 views 22116 18676 Creating object in tenant: yash, schema: public
+ERROR 2025-04-03 21:03:54,146 log 22116 18676 Internal Server Error: /api/yash/inventory/inventory/
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "location_id" of relation "ecomm_inventory_inventory" violates not-null constraint
+DETAIL:  Failing row contains (5, 2025-04-03 15:33:54.05503+00, 2025-04-03 15:33:54.055562+00, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\views\decorators\csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\views.py", line 94, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\mixins.py", line 19, in create
+    self.perform_create(serializer)
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\views.py", line 132, in perform_create
+    serializer.save()
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\serializers.py", line 212, in save
+    self.instance = self.create(validated_data)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Manish Kumar\AppData\Roaming\Python\Python312\site-packages\rest_framework\serializers.py", line 962, in create
+    instance = ModelClass._default_manager.create(**validated_data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\query.py", line 658, in create
+    obj.save(force_insert=True, using=self.db)
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\models.py", line 159, in save
+    super().save(*args, **kwargs)
+  File "C:\Python\Lib\site-packages\django\db\models\base.py", line 814, in save
+    self.save_base(
+  File "C:\Python\Lib\site-packages\django\db\models\base.py", line 877, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\base.py", line 1020, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\base.py", line 1061, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\query.py", line 1805, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\sql\compiler.py", line 1822, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Python\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Python\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "location_id" of relation "ecomm_inventory_inventory" violates not-null constraint
+DETAIL:  Failing row contains (5, 2025-04-03 15:33:54.05503+00, 2025-04-03 15:33:54.055562+00, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null).
+
+ERROR 2025-04-03 21:03:54,154 basehttp 22116 18676 "POST /api/yash/inventory/inventory/ HTTP/1.1" 500 230763
+ERROR 2025-04-03 21:04:10,793 middleware 22116 18676 FULL REQUEST DETAILS:
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 Path: /api/maen/inventory/fulfillment-locations/
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 Method: POST
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 Headers: {'Content-Length': '347', 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNzYwNTM1LCJpYXQiOjE3NDM2NzQxMzUsImp0aSI6IjY2ZGU0OTg4MjZjNjQwMDI5MDRhZjhjYTM4NDg4ODMyIiwidXNlcl9pZCI6MX0.P7tp0uCkzY5UfnlP-FsL08pDBnu1v-TTFFHOCff9KjA', 'User-Agent': 'PostmanRuntime/7.43.3', 'Accept': '*/*', 'Postman-Token': 'bb7821b3-ae42-4dd1-8b63-3058c5e09306', 'Host': 'localhost:8000', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Cookie': 'csrftoken=PlrT52dIMpOu45nZgEphwl2RgbMC8kWH; sessionid=w6v4bul3ezsiyxowmlbdtnrb2i2m3s43'}
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 GET Params: {}
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 POST Data: <QueryDict: {}>
+ERROR 2025-04-03 21:04:10,794 middleware 22116 18676 TENANT ROUTING: Detected tenant slug: maen
+ERROR 2025-04-03 21:04:10,958 middleware 22116 18676 TENANT ERROR: Tenant with slug maen not found
+ERROR 2025-04-03 21:04:10,958 middleware 22116 18676 MIDDLEWARE ERROR: Tenant maen not found
+ERROR 2025-04-03 21:04:10,959 middleware 22116 18676 Traceback (most recent call last):
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 91, in __call__
+    tenant = Tenant.objects.get(url_suffix=tenant_slug)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\django\db\models\query.py", line 637, in get
+    raise self.model.DoesNotExist(
+ecomm_superadmin.models.Tenant.DoesNotExist: Tenant matching query does not exist.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py", line 94, in __call__
+    raise Http404(f"Tenant {tenant_slug} not found")
+django.http.response.Http404: Tenant maen not found
+
+WARNING 2025-04-03 21:04:10,964 log 22116 18676 Not Found: /api/maen/inventory/fulfillment-locations/
+WARNING 2025-04-03 21:04:10,965 basehttp 22116 18676 "POST /api/maen/inventory/fulfillment-locations/ HTTP/1.1" 404 1942
+INFO 2025-04-03 21:05:55,318 autoreload 21568 4280 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\KeyProductSettings\settings.py changed, reloading.
+INFO 2025-04-03 21:05:55,365 autoreload 14664 20148 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:05:55,749 autoreload 21180 21760 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_superadmin\models.py changed, reloading.
+INFO 2025-04-03 21:05:55,753 autoreload 6432 21340 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\models.py changed, reloading.
+INFO 2025-04-03 21:05:55,769 autoreload 21876 8272 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_tenant\ecomm_tenant_admins\middleware.py changed, reloading.
+INFO 2025-04-03 21:05:55,778 autoreload 22116 21464 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_superadmin\models.py changed, reloading.
+INFO 2025-04-03 21:05:56,153 autoreload 12880 9724 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\serializers.py changed, reloading.
+INFO 2025-04-03 21:05:56,181 autoreload 11092 18268 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\ecomm_inventory\serializers.py changed, reloading.
+INFO 2025-04-03 21:05:56,240 autoreload 22232 20264 C:\Users\Manish Kumar\Downloads\New ERP Code Replica of Ankit Sir User Management\TurtleEComm_Backend\KeyProductSettings\settings.py changed, reloading.

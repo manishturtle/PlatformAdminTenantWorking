@@ -1,0 +1,320 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  CircularProgress,
+  Alert,
+  Tooltip,
+  IconButton,
+  SelectChangeEvent
+} from '@mui/material';
+import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { customerApi } from '../../services/api';
+
+// Define Customer interface to match backend model
+interface Customer {
+  CustomerID: number;
+  FirstName: string;
+  LastName: string;
+  Email: string;
+  Phone: string;
+  AadharCard: string;
+  PANCard: string;
+  CustomerType: string;
+  Source: string;
+}
+
+// Define API response interface
+interface CustomerListResponse {
+  count: number;
+  results: Customer[];
+}
+
+// Define customer type options
+const CUSTOMER_TYPES = [
+  { value: '', label: 'All Types' },
+  { value: 'Lead', label: 'Lead' },
+  { value: 'New', label: 'New' },
+  { value: 'Active', label: 'Active' },
+  { value: 'Dormant', label: 'Dormant' }
+];
+
+// Define source options
+const SOURCE_TYPES = [
+  { value: '', label: 'All Sources' },
+  { value: 'Existing', label: 'Existing' },
+  { value: 'Referral', label: 'Referral' },
+  { value: 'Google Ads', label: 'Google Ads' },
+  { value: 'Website', label: 'Website' },
+  { value: 'Others', label: 'Others' }
+];
+
+// Define the CustomerListScreen component
+const CustomerListScreen: React.FC = () => {
+  const router = useRouter();
+  
+  // State variables
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rowCount, setRowCount] = useState<number>(0);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [customerType, setCustomerType] = useState<string>('');
+  const [source, setSource] = useState<string>('');
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
+    page: 0,
+    pageSize: 5,
+  });
+
+  // Create rows array from customers data
+  const rows = customers.map((customer) => ({
+    ...customer,
+    id: customer.CustomerID, // Ensure each row has an id for DataGrid
+  }));
+
+  // Define columns for the DataGrid
+  const columns: GridColDef[] = [
+    { field: 'CustomerID', headerName: 'ID', width: 90 },
+    {
+      field: 'Name',
+      headerName: 'Name',
+      width: 200,
+      valueGetter: (params: GridRenderCellParams) => {
+        const row = params.row as Customer;
+        return `${row.FirstName || ''} ${row.LastName || ''}`.trim();
+      },
+    },
+    { field: 'Email', headerName: 'Email', width: 250 },
+    { field: 'Phone', headerName: 'Phone', width: 150 },
+    { field: 'AadharCard', headerName: 'Aadhar Card', width: 150 },
+    { field: 'PANCard', headerName: 'PAN Card', width: 150 },
+    { field: 'CustomerType', headerName: 'Type', width: 120 },
+    { field: 'Source', headerName: 'Source', width: 150 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: (params: GridRenderCellParams) => {
+        const customer = params.row as Customer;
+        const customerId = customer.CustomerID;
+        
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Edit Customer">
+              <IconButton
+                size="small"
+                onClick={() => handleEditClick(customerId)}
+                color="primary"
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+            
+            {customer.CustomerType === 'Lead' && (
+              <Tooltip title="Convert to Customer">
+                <IconButton
+                  size="small"
+                  onClick={() => handleConvertToCustomerClick(customerId)}
+                  color="secondary"
+                >
+                  <PersonAddIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        );
+      },
+    },
+  ];
+
+  // Fetch customers data from API
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Use the customerApi from services/api.ts
+      const response = await customerApi.getCustomers({
+        search: searchTerm,
+        customer_type: customerType,
+        source: source,
+        page: paginationModel.page + 1, // API uses 1-based indexing
+        page_size: paginationModel.pageSize,
+      });
+      
+      // Check if we have results
+      if (response && 'results' in response && Array.isArray(response.results)) {
+        setCustomers(response.results);
+        setRowCount(response.count || 0);
+      } else {
+        console.error('Unexpected API response format:', response);
+        setError('Received invalid data format from the server.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching customers:', err);
+      setError(err.message || 'Failed to fetch customers. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, customerType, source, paginationModel]);
+
+  // Fetch customers on component mount and when dependencies change
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
+  // Handle search input change
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+    setPaginationModel({ ...paginationModel, page: 0 }); // Reset to first page on search
+  };
+
+  // Handle customer type filter change
+  const handleCustomerTypeChange = (event: SelectChangeEvent) => {
+    setCustomerType(event.target.value);
+    setPaginationModel({ ...paginationModel, page: 0 }); // Reset to first page on filter change
+  };
+
+  // Handle source filter change
+  const handleSourceChange = (event: SelectChangeEvent) => {
+    setSource(event.target.value);
+    setPaginationModel({ ...paginationModel, page: 0 }); // Reset to first page on filter change
+  };
+  
+  // Handle pagination model change
+  const handlePaginationModelChange = (newModel: GridPaginationModel) => {
+    setPaginationModel(newModel);
+  };
+
+  // Handle add customer button click
+  const handleAddCustomerClick = () => {
+    router.push('/customers/add');
+  };
+
+  // Handle edit customer action
+  const handleEditClick = (id: number) => {
+    router.push(`/customers/edit/${id}`);
+  };
+
+  // Handle convert lead to customer action
+  const handleConvertToCustomerClick = async (id: number) => {
+    console.log(`Convert customer ${id} to customer`);
+    alert(`Convert functionality for ${id} not yet implemented.`);
+    // TODO: Implement API call to convert lead to customer
+  };
+
+  return (
+    <Box sx={{ width: '100%', p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Customer Management
+      </Typography>
+
+      {/* Search and Filter Controls */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="Search by Name or Email"
+            variant="outlined"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            size="small"
+          />
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Customer Type</InputLabel>
+            <Select
+              value={customerType}
+              label="Customer Type"
+              onChange={handleCustomerTypeChange}
+            >
+              {CUSTOMER_TYPES.map((type) => (
+                <MenuItem key={type.value} value={type.value}>
+                  {type.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Source</InputLabel>
+            <Select
+              value={source}
+              label="Source"
+              onChange={handleSourceChange}
+            >
+              {SOURCE_TYPES.map((type) => (
+                <MenuItem key={type.value} value={type.value}>
+                  {type.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={2}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddCustomerClick}
+            fullWidth
+            sx={{ height: '100%' }}
+          >
+            Add Customer
+          </Button>
+        </Grid>
+      </Grid>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Loading Indicator */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {/* Customer DataGrid */}
+      {!loading && !error && (
+        <Box sx={{ height: 400, width: '100%' }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            rowCount={rowCount}
+            loading={loading}
+            pageSizeOptions={[5, 10, 25]}
+            paginationModel={paginationModel}
+            paginationMode="server"
+            onPaginationModelChange={handlePaginationModelChange}
+            getRowId={(row) => row.CustomerID}
+            autoHeight
+            disableRowSelectionOnClick
+            sx={{ '--DataGrid-overlayHeight': '300px' }}
+          />
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+export default CustomerListScreen;

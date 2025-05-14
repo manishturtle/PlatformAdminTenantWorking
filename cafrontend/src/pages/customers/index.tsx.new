@@ -1,0 +1,17 @@
+import React from 'react';
+import Head from 'next/head';
+import CustomerListScreen from '../../components/customers/CustomerListScreen';
+
+const CustomersPage: React.FC = () => {
+  return (
+    <>
+      <Head>
+        <title>Customer Management</title>
+        <meta name="description" content="Customer management system" />
+      </Head>
+      <CustomerListScreen />
+    </>
+  );
+};
+
+export default CustomersPage;

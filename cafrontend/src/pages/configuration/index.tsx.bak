@@ -1,0 +1,660 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
+import { useTheme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
+import { 
+  Box,
+  Button,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Paper,
+  TextField,
+  Typography,
+  useMediaQuery
+} from '@mui/material';
+import type { SxProps } from '@mui/system';
+import axios from 'axios';
+
+// Import icons
+import { 
+  Description as DocumentIcon,
+  VpnKey as CredentialIcon,
+  Settings as ProcessIcon,
+  Assignment as SOPIcon,
+  Category as CategoryIcon,
+  Person as AgentIcon,
+  Add as AddIcon
+} from '@mui/icons-material';
+
+// Import components
+import DocumentMasterScreen from '../../components/documents/DocumentMasterScreen';
+import CredentialMasterScreen from '../../components/credentials/CredentialTypesScreen';
+import ProcessMasterScreen from '../../components/processes/ProcessMasterScreen';
+import SOPMasterScreen from '../../components/sops/SOPMasterScreen';
+import ServiceCategoriesListComponent from '../../components/servicecategory/ServiceCategoriesListComponent';
+import ServiceAgentList from '../../components/serviceagent/ServiceAgentList';
+
+// Type definitions
+interface ServiceCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ServiceAgent {
+  id: number;
+  name: string;
+  email: string;
+  status: string;
+  expertAt: number[];
+  allowPortalAccess: boolean;
+  clientId: number;
+  companyId: number;
+}
+
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType;
+  ref: React.RefObject<HTMLDivElement>;
+}
+
+interface NavItemProps {
+  item: {
+    icon: React.ComponentType;
+    label: string;
+  };
+  active: boolean;
+  onClick: () => void;
+  sx?: SxProps<Theme>;
+}
+
+interface DialogState {
+  open: boolean;
+  mode: 'add' | 'edit';
+}
+
+interface CategoryDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  initialName?: string;
+  mode: 'add' | 'edit';
+}
+
+interface SelectedCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, onClose, onSave, initialName = '', mode }) => {
+  const [name, setName] = useState<string>(initialName);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(name);
+    setName('');
+  };
+
+  useEffect(() => {
+    setName(initialName);
+  }, [initialName]);
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>{mode === 'add' ? 'Add Category' : 'Edit Category'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Category Name"
+            fullWidth
+            value={name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" color="primary">
+            {mode === 'add' ? 'Add' : 'Save'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+};
+
+const NavItem: React.FC<NavItemProps> = React.memo(({ item, active, onClick, sx = {} }) => {
+  const theme = useTheme();
+
+  return (
+    <ListItemButton
+      onClick={onClick}
+      selected={active}
+      sx={{
+        borderRadius: 1,
+        mb: 0.5,
+        ...sx,
+      }}
+    >
+      <ListItemIcon>
+        {React.createElement(item.icon, {
+          sx: { color: active ? theme.palette.primary.main : 'inherit' },
+        })}
+      </ListItemIcon>
+      <ListItemText
+        primary={item.label}
+        sx={{
+          '& .MuiListItemText-primary': {
+            color: active ? theme.palette.primary.main : 'inherit',
+            fontWeight: active ? 600 : 400,
+          },
+        }}
+      />
+    </ListItemButton>
+  );
+});
+
+const ConfigurationPage: React.FC = () => {
+  const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Refs for sections
+  const documentSectionRef = useRef<HTMLDivElement>(null);
+  const credentialSectionRef = useRef<HTMLDivElement>(null);
+  const processSectionRef = useRef<HTMLDivElement>(null);
+  const sopSectionRef = useRef<HTMLDivElement>(null);
+  const categorySectionRef = useRef<HTMLDivElement>(null);
+  const agentSectionRef = useRef<HTMLDivElement>(null);
+
+  // State
+  const [activeSection, setActiveSection] = useState<string>('documents');
+  const [dialogState, setDialogState] = useState<DialogState>({ open: false, mode: 'add' });
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      { id: 'documents', label: 'Document Types', icon: DocumentIcon, ref: documentSectionRef },
+      { id: 'credentials', label: 'Credential Types', icon: CredentialIcon, ref: credentialSectionRef },
+      { id: 'processes', label: 'Process Types', icon: ProcessIcon, ref: processSectionRef },
+      { id: 'sops', label: 'SOP Types', icon: SOPIcon, ref: sopSectionRef },
+      { id: 'categories', label: 'Service Categories', icon: CategoryIcon, ref: categorySectionRef },
+      { id: 'agents', label: 'Service Agents', icon: AgentIcon, ref: agentSectionRef },
+    ],
+    [documentSectionRef, credentialSectionRef, processSectionRef, sopSectionRef, categorySectionRef, agentSectionRef]
+  );
+
+interface ServiceAgent {
+  id: number;
+  name: string;
+  email: string;
+  status: string;
+  expertAt: number[];
+  allowPortalAccess: boolean;
+  clientId: number;
+  companyId: number;
+}
+
+interface CategoryDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  initialName?: string;
+  mode: 'add' | 'edit';
+}
+
+const NavItem = React.memo<NavItemProps>(({ item, active, onClick, sx = {} }) => {
+  const theme = useTheme();
+
+  return (
+    <ListItemButton
+      onClick={onClick}
+      sx={{
+        borderRadius: 1,
+        mb: 0.5,
+        backgroundColor: active ? theme.palette.primary.light : 'transparent',
+        color: active ? theme.palette.primary.contrastText : 'inherit',
+        '&:hover': {
+          backgroundColor: active ? theme.palette.primary.light : theme.palette.action.hover,
+        },
+        ...sx
+      }}
+    >
+      <ListItemIcon sx={{ color: active ? theme.palette.primary.contrastText : 'inherit' }}>
+        {React.createElement(item.icon)}
+      </ListItemIcon>
+      <ListItemText primary={item.label} />
+    </ListItemButton>
+  );
+});
+
+NavItem.displayName = 'NavItem';
+
+const ConfigurationPage: React.FC = () => {
+  const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Refs for sections
+  const documentSectionRef = useRef<HTMLDivElement | null>(null);
+  const credentialSectionRef = useRef<HTMLDivElement | null>(null);
+  const processSectionRef = useRef<HTMLDivElement | null>(null);
+  const sopSectionRef = useRef<HTMLDivElement | null>(null);
+  const categorySectionRef = useRef<HTMLDivElement | null>(null);
+  const agentSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // State
+  const [activeSection, setActiveSection] = useState<string>('documents');
+  const [dialogState, setDialogState] = useState<DialogState>({ open: false, mode: 'add' });
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+
+  // Menu items
+  const menuItems = useMemo<MenuItem[]>(() => [
+    { id: 'documents', label: 'Document Management', icon: DocumentIcon, ref: documentSectionRef },
+    { id: 'credentials', label: 'Credential Types', icon: CredentialIcon, ref: credentialSectionRef },
+    { id: 'process', label: 'Process Management', icon: ProcessIcon, ref: processSectionRef },
+    { id: 'sop', label: 'SOP Management', icon: SOPIcon, ref: sopSectionRef },
+    { id: 'categories', label: 'Categories', icon: CategoryIcon, ref: categorySectionRef },
+    { id: 'agents', label: 'Agent Management', icon: AgentIcon, ref: agentSectionRef },
+  ]), [documentSectionRef, credentialSectionRef, processSectionRef, sopSectionRef, categorySectionRef, agentSectionRef]);
+
+  const handleSectionClick = useCallback((sectionId: string) => {
+    setActiveSection(sectionId);
+    const menuItem = menuItems.find(item => item.id === sectionId);
+    if (menuItem?.ref?.current) {
+      menuItem.ref.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [menuItems, setActiveSection]);
+  const [dialogState, setDialogState] = useState<DialogState>({
+    open: false,
+    mode: 'add'
+  });
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+
+  // Refs for sections
+  const documentSectionRef = useRef<HTMLDivElement | null>(null);
+  const credentialSectionRef = useRef<HTMLDivElement | null>(null);
+  const processSectionRef = useRef<HTMLDivElement | null>(null);
+  const sopSectionRef = useRef<HTMLDivElement | null>(null);
+  const categorySectionRef = useRef<HTMLDivElement | null>(null);
+  const agentSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // Menu items
+  const menuItems = useMemo<MenuItem[]>(() => [
+    { id: 'documents', label: 'Documents', icon: DocumentIcon, ref: documentSectionRef },
+    { id: 'credentials', label: 'Credentials', icon: CredentialIcon, ref: credentialSectionRef },
+    { id: 'processes', label: 'Processes', icon: ProcessIcon, ref: processSectionRef },
+    { id: 'sop', label: 'SOP', icon: SOPIcon, ref: sopSectionRef },
+    { id: 'categories', label: 'Categories', icon: CategoryIcon, ref: categorySectionRef },
+    { id: 'agents', label: 'Agents', icon: AgentIcon, ref: agentSectionRef }
+  ], [documentSectionRef, credentialSectionRef, processSectionRef, sopSectionRef, categorySectionRef, agentSectionRef]);
+
+  // Scroll handler
+  const handleScroll = useCallback(() => {
+    const scrollPosition = window.scrollY + 100;
+    let newActiveSection = activeSection;
+
+    menuItems.forEach(item => {
+      const element = item.ref.current;
+      if (element) {
+        const { top, bottom } = element.getBoundingClientRect();
+        if (top <= 100 && bottom > 100) {
+          newActiveSection = item.id;
+        }
+      }
+    });
+
+    if (newActiveSection !== activeSection) {
+      setActiveSection(newActiveSection);
+    }
+  }, [menuItems, activeSection]);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  const scrollToSection = (sectionRef: React.RefObject<HTMLDivElement | null>) => {
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleAddCategory = async () => {
+    try {
+      await axios.post('/api/categories', {
+        name: newCategoryName,
+        description: ''
+      });
+      setNewCategoryName('');
+      setDialogState({ open: false, mode: 'add' });
+    } catch (error) {
+      console.error('Error adding category:', error);
+    }
+  };
+
+  const handleEditCategory = async () => {
+    try {
+      await axios.put(`/api/categories/${selectedCategory?.id}`, {
+        name: newCategoryName,
+        description: ''
+      });
+      setNewCategoryName('');
+      setDialogState({ open: false, mode: 'add' });
+    } catch (error) {
+      console.error('Error editing category:', error);
+    }
+  };
+
+  return (
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box display="flex" gap={4}>
+        <Box width={280} flexShrink={0}>
+          <Paper elevation={2} sx={{ p: 2, position: 'sticky', top: 24 }}>
+            <List component="nav">
+              {menuItems.map((item: MenuItem) => (
+                <NavItem
+                  key={item.id}
+                  item={{ icon: item.icon, label: item.label }}
+                  active={activeSection === item.id}
+                  onClick={() => handleSectionClick(item.id)}
+                />
+              ))}
+            </List>
+          </Paper>
+              />
+            ))}
+          </List>
+        </Box>
+
+        <Box flex={1}>
+          <Box ref={documentSectionRef} mb={6}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Document Management
+            </Typography>
+            <DocumentMasterScreen />
+          </Box>
+
+          <Box ref={credentialSectionRef} mb={6}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Credential Types
+            </Typography>
+            <CredentialMasterScreen />
+          </Box>
+
+          <Box ref={processSectionRef} mb={6}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Process Management
+            </Typography>
+            <ProcessMasterScreen />
+          </Box>
+
+          <Box ref={sopSectionRef} mb={6}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              SOP Management
+            </Typography>
+            <SOPMasterScreen />
+          </Box>
+
+          <Box ref={categorySectionRef} mb={6}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+              <Typography variant="h5" component="h2">
+                Categories
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => setDialogState({ open: true, mode: 'add' })}
+              >
+                Add Category
+              </Button>
+            </Box>
+            <CategoryMasterScreen />
+          </Box>
+
+          <Box ref={agentSectionRef} mb={6}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Agent Management
+            </Typography>
+            <AgentMasterScreen />
+          </Box>
+        </Box>
+      </Box>
+
+      <Dialog
+        open={dialogState.open}
+        onClose={() => setDialogState({ open: false, mode: 'add' })}
+        aria-labelledby="add-category-dialog-title"
+      >
+        <DialogTitle id="add-category-dialog-title">
+          {dialogState.mode === 'add' ? 'Add New Category' : 'Edit Category'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="category-name"
+            label="Category Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={categoryName}
+            onChange={(e) => setCategoryName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogState({ open: false, mode: 'add' })}>
+            Cancel
+          </Button>
+          <Button onClick={dialogState.mode === 'add' ? handleAddCategory : handleEditCategory} color="primary">
+            {dialogState.mode === 'add' ? 'Add' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+  const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | null>(null);
+
+  // Refs for sections
+  const documentSectionRef = useRef<HTMLDivElement>(null);
+  const credentialSectionRef = useRef<HTMLDivElement>(null);
+  const processSectionRef = useRef<HTMLDivElement>(null);
+  const sopSectionRef = useRef<HTMLDivElement>(null);
+  const categorySectionRef = useRef<HTMLDivElement>(null);
+  const agentSectionRef = useRef<HTMLDivElement>(null);
+
+  // Menu items
+  const menuItems = useMemo<MenuItem[]>(() => [
+    { id: 'documents', label: 'Documents', icon: DocumentIcon, ref: documentSectionRef },
+    { id: 'credentials', label: 'Credentials', icon: CredentialIcon, ref: credentialSectionRef },
+    { id: 'processes', label: 'Processes', icon: ProcessIcon, ref: processSectionRef },
+    { id: 'sops', label: 'Standard Operating Procedures', icon: SOPIcon, ref: sopSectionRef },
+    { id: 'serviceCategories', label: 'Service Categories', icon: CategoryIcon, ref: categorySectionRef },
+    { id: 'serviceAgents', label: 'Service Agents', icon: AgentIcon, ref: agentSectionRef }
+  ], []);
+
+  // Scroll handler
+      } else {
+        await axios.put(`/api/service-categories/${selectedCategory.id}`, {
+          ...selectedCategory,
+          name: newCategoryName.trim()
+        });
+        setServiceCategories(prev =>
+          prev.map(cat =>
+            cat.id === selectedCategory.id
+              ? { ...cat, name: newCategoryName.trim() }
+              : cat
+          )
+        );
+      }
+      handleCloseCategoryDialog();
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+  }, [newCategoryName, selectedCategory, handleCloseCategoryDialog]);
+
+  const scrollToSection = useCallback((id: string) => {
+    const item = menuItems.find(item => item.id === id);
+    if (item?.ref?.current) {
+      item.ref.current.scrollIntoView({ behavior: 'smooth' });
+      setActiveSection(id);
+    }
+  }, [menuItems, setActiveSection]);
+
+  const handleScroll = useCallback(() => {
+    const scrollPosition = window.scrollY + 100;
+    const sections = [
+      { id: 'documents', ref: documentSectionRef },
+      { id: 'credentials', ref: credentialSectionRef },
+      { id: 'processes', ref: processSectionRef },
+      { id: 'sops', ref: sopSectionRef },
+      { id: 'serviceCategories', ref: categorySectionRef },
+      { id: 'serviceAgents', ref: agentSectionRef }
+    ];
+
+    for (const section of sections) {
+      const element = section.ref.current;
+      if (element) {
+        const sectionTop = element.offsetTop;
+        const sectionBottom = sectionTop + element.offsetHeight;
+
+        if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+          setActiveSection(section.id);
+          break;
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Paper elevation={4} sx={{ width: 240, position: 'fixed', height: '100vh', overflow: 'auto', zIndex: 1 }}>
+        <List component="nav">
+          {menuItems.map((item: MenuItem) => (
+            <ListItemButton
+              key={item.id}
+              onClick={() => scrollToSection(item.id)}
+              selected={activeSection === item.id}
+              sx={(theme: Theme) => ({
+                backgroundColor: activeSection === item.id ? theme.palette.primary.light : 'inherit',
+                '&:hover': {
+                  backgroundColor: activeSection === item.id 
+                    ? theme.palette.primary.light 
+                    : theme.palette.action.hover
+                }
+              })}
+            >
+              <ListItemIcon>
+                {React.createElement(item.icon)}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </List>
+      </Paper>
+
+      <Box component="main" sx={{ marginLeft: '240px', width: '100%', padding: '24px' }}>
+        <Box component="section" ref={documentSectionRef}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            Document Types
+          </Typography>
+          <DocumentMasterScreen />
+        </Box>
+
+        <Box component="section" ref={credentialSectionRef} sx={{ mt: 6 }}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            Credential Types
+          </Typography>
+          <CredentialMasterScreen />
+        </Box>
+
+        <Box component="section" ref={processSectionRef} sx={{ mt: 6 }}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            Process Management
+          </Typography>
+          <ProcessMasterScreen />
+        </Box>
+
+        <Box component="section" ref={sopSectionRef} sx={{ mt: 6 }}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            SOP Management
+          </Typography>
+          <SOPMasterScreen />
+        </Box>
+
+        <Box component="section" ref={serviceCategorySectionRef} sx={{ mt: 6 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h2" gutterBottom>
+              Service Categories
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => setCategoryDialogOpen(true)}
+            >
+              Add Category
+            </Button>
+          </Box>
+          <ServiceCategoriesListComponent />
+        </Box>
+
+        <Box component="section" ref={serviceAgentSectionRef} sx={{ mt: 6 }}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            Service Agents
+          </Typography>
+          <ServiceAgentList />
+        </Box>
+      </Box>
+
+      <Dialog
+        open={categoryDialogOpen}
+        onClose={handleCloseCategoryDialog}
+        aria-labelledby="form-dialog-title"
+      >
+        <DialogTitle id="form-dialog-title">
+          {selectedCategory ? 'Edit Category' : 'Add New Category'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="name"
+            label="Category Name"
+            type="text"
+            fullWidth
+            value={newCategoryName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCategoryDialog}>Cancel</Button>
+          <Button onClick={handleSaveCategory} color="primary">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default ConfigurationPage;

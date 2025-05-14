@@ -1,0 +1,48 @@
+{
+  "name": "itrapp-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.11.3",
+    "@emotion/server": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/material-icons": "^5.2.5",
+    "@fontsource/roboto": "^5.2.5",
+    "@mui/icons-material": "^5.11.16",
+    "@mui/material": "^5.11.16",
+    "@mui/styles": "^5.11.16",
+    "@mui/system": "^5.11.16",
+    "@mui/x-data-grid": "^6.0.4",
+    "@mui/x-date-pickers": "^6.0.4",
+    "@types/lodash": "^4.17.16",
+    "axios": "^1.8.4",
+    "date-fns": "^2.29.3",
+    "dayjs": "^1.11.13",
+    "jwt-decode": "^4.0.0",
+    "jwt-encode": "^1.0.1",
+    "lodash": "^4.17.21",
+    "material-ui-confirm": "^4.0.0",
+    "next": "15.2.4",
+    "notistack": "^3.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.5.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/next": "^9.0.0",
+    "@types/node": "^20.17.30",
+    "@types/react": "^19.1.1",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "typescript": "^5"
+  }
+}

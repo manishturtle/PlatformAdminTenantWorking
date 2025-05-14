@@ -1,0 +1,289 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  Box,
+  Alert,
+  CircularProgress,
+  SelectChangeEvent,
+  FormHelperText,
+} from '@mui/material';
+import { ServiceCategory } from '@/types/servicecategory';
+import { SOP } from '@/types/sop';
+import { serviceCategoryApi, sopApi } from '@/services/api';
+
+interface ServiceCategoryDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (category: ServiceCategory) => void;
+  initialData?: ServiceCategory;
+}
+
+interface FormData {
+  servicecategoryname: string;
+  sopid: number | null;
+  status: 'active' | 'inactive';
+}
+
+interface ValidationErrors {
+  servicecategoryname?: string;
+  sopid?: string;
+  status?: string;
+  [key: string]: string | undefined;
+}
+
+const initialFormData: FormData = {
+  servicecategoryname: '',
+  sopid: null,
+  status: 'active',
+};
+
+const ServiceCategoryDialog: React.FC<ServiceCategoryDialogProps> = ({
+  open,
+  onClose,
+  onSave,
+  initialData,
+}) => {
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sops, setSops] = useState<SOP[]>([]);
+  const [loadingSops, setLoadingSops] = useState(false);
+
+  useEffect(() => {
+    if (open && initialData) {
+      setFormData({
+        servicecategoryname: initialData.servicecategoryname || '',
+        sopid: initialData.sopid || null,
+        status: (initialData.status?.toLowerCase() as 'active' | 'inactive') || 'active',
+      });
+    } else if (!open) {
+      setFormData(initialFormData);
+      setErrors({});
+      setErrorMessage(null);
+    }
+  }, [open, initialData]);
+
+  useEffect(() => {
+    if (open) {
+      fetchSops();
+    }
+  }, [open]);
+
+  const fetchSops = async () => {
+    try {
+      setLoadingSops(true);
+      let sopsData = await sopApi.getSops();
+      // If paginated, extract results
+      if (!Array.isArray(sopsData) && sopsData.results) {
+        sopsData = sopsData.results;
+      }
+      // Map backend fields to frontend fields
+      const mappedSops = (sopsData || []).map((sop: any) => ({
+        sopid: sop.SOPId,
+        sopname: sop.SOPName,
+      }));
+      setSops(mappedSops);
+      // If the current sopid is not in the options, reset it
+      if (
+        formData.sopid &&
+        !mappedSops.some((sop) => sop.sopid === formData.sopid)
+      ) {
+        setFormData((prev) => ({ ...prev, sopid: null }));
+      }
+    } catch (error) {
+      console.error('Error fetching SOPs:', error);
+      setErrorMessage('Failed to load SOPs. Some features may be limited.');
+    } finally {
+      setLoadingSops(false);
+    }
+  };
+
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate form
+    const validationErrors: ValidationErrors = {};
+    if (!formData.servicecategoryname.trim()) {
+      validationErrors.servicecategoryname = 'Service category name is required';
+    }
+    if (!formData.status) {
+      validationErrors.status = 'Status is required';
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setErrorMessage(null);
+
+      const dataToSubmit = {
+        servicecategoryname: formData.servicecategoryname.trim(),
+        sopid: formData.sopid || undefined,
+        status: formData.status,
+        clientid: 1,
+        companyid: 1,
+      };
+
+      let savedCategory: ServiceCategory;
+      if (initialData) {
+        savedCategory = await serviceCategoryApi.updateServiceCategory(
+          initialData.servicecategoryid,
+          dataToSubmit,
+        );
+      } else {
+        savedCategory = await serviceCategoryApi.createServiceCategory(dataToSubmit);
+      }
+
+      onSave(savedCategory);
+      onClose();
+    } catch (error: any) {
+      const message = error?.response?.data?.detail || 'Failed to save service category';
+      setErrorMessage(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTextChange = (field: keyof FormData) => (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const value = event.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+      }));
+    }
+  };
+
+  const handleSelectChange = (field: keyof FormData) => (
+    event: SelectChangeEvent<string | number>,
+  ) => {
+    const value = event.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      [field]: field === 'sopid' ? (value === '' ? null : Number(value)) : value,
+    }));
+    // Clear error when user makes a selection
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+      }));
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: { overflowY: 'visible' },
+      }}
+    >
+      <DialogTitle>
+        {initialData ? 'Edit Service Category' : 'Add Service Category'}
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          {errorMessage && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
+          <TextField
+            fullWidth
+            label="Service Category Name"
+            value={formData?.servicecategoryname || ''}
+            onChange={handleTextChange('servicecategoryname')}
+            error={!!errors.servicecategoryname}
+            helperText={errors.servicecategoryname}
+            margin="normal"
+            required
+            inputProps={{
+              maxLength: 100
+            }}
+          />
+          <FormControl fullWidth sx={{ mt: 2 }} error={!!errors.sopid}>
+            <InputLabel id="sop-label">SOP</InputLabel>
+            <Select
+              labelId="sop-label"
+              label="SOP"
+              value={formData?.sopid ?? ''}
+              onChange={handleSelectChange('sopid')}
+              disabled={loadingSops}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {sops.map((sop) => (
+                <MenuItem key={sop.sopid} value={sop.sopid}>
+                  {sop.sopname}
+                </MenuItem>
+              ))}
+            </Select>
+            {errors.sopid && <FormHelperText>{errors.sopid}</FormHelperText>}
+          </FormControl>
+          <FormControl
+            fullWidth
+            margin="normal"
+            error={!!errors.status}
+            required
+          >
+            <InputLabel id="status-label">Status</InputLabel>
+            <Select
+              labelId="status-label"
+              value={formData?.status || 'active'}
+              onChange={handleSelectChange('status')}
+              label="Status"
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+            {errors.status && (
+              <FormHelperText>{errors.status}</FormHelperText>
+            )}
+          </FormControl>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          color="primary"
+          disabled={saving}
+          startIcon={saving && <CircularProgress size={20} />}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default ServiceCategoryDialog;

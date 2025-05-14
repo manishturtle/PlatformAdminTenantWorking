@@ -1,0 +1,36 @@
+application_name: crm
+feature_groups:
+  - name: Contact Management
+    key: contact_management
+    description: Manage customer contacts and details
+    granual_settings:
+      subfeatures:
+        - id: 1001
+          name: Basic Contact Info
+          key: basic_contact
+          description: Basic contact information fields
+          settings:
+            enabled: true
+            fields: [name, email, phone]
+        - id: 1002
+          name: Advanced Contact Info
+          key: advanced_contact
+          description: Advanced contact details
+          settings:
+            enabled: false
+            fields: [social_media, preferences]
+    is_active: true
+    
+  - name: Deal Management
+    key: deal_management
+    description: Track and manage deals
+    granual_settings:
+      subfeatures:
+        - id: 2001
+          name: Pipeline Stages
+          key: pipeline_stages
+          description: Configure sales pipeline stages
+          settings:
+            enabled: true
+            stages: [qualification, proposal, negotiation, closed]
+    is_active: true
