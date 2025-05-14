@@ -17,6 +17,7 @@ node_modules/
 
 # Dependencies
 package-lock.json
+/venv
 
 
 
