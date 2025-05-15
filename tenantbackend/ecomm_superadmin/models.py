@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from datetime import datetime, timedelta
 from subscription_plan.models import SubscriptionPlan  # Import the SubscriptionPlan from subscription_plan app
+import uuid
+from django.utils import timezone
 
 # Create your models here.
 
@@ -278,3 +280,84 @@ class Domain(DomainMixin):
         verbose_name = "Domain"
         verbose_name_plural = "Domains"
         unique_together = ('domain', 'folder')
+
+class TenantSubscriptionLicenses(models.Model):
+    """
+    Model to store tenant subscription details including license key and subscription plan snapshot.
+    """
+    LICENSE_STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('expired', 'Expired'),
+        ('suspended', 'Suspended'),
+        ('revoked', 'Revoked')
+    ]
+
+    tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, related_name='subscriptions')
+    subscription_plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT, related_name='tenant_subscriptions')
+    license_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    license_status = models.CharField(max_length=20, choices=LICENSE_STATUS_CHOICES, default='active')
+    
+    # Store snapshot of subscription plan details
+    subscription_plan_snapshot = models.JSONField(help_text='Snapshot of subscription plan details at time of subscription')
+    features_snapshot = models.JSONField(help_text='Snapshot of features and their settings at time of subscription')
+    
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
+    company_id = models.IntegerField(null=True, blank=True, help_text="ID of the company associated with this record")
+    created_by = models.CharField(max_length=255, null=True, blank=True)
+    updated_by = models.CharField(max_length=255, null=True, blank=True)
+
+    class Meta:
+        db_table = 'ecomm_superadmin_tenant_subscriptions_licenses'
+        verbose_name = 'Tenant Subscription License'
+        verbose_name_plural = 'Tenant Subscription Licenses'
+
+    def __str__(self):
+        return f'{self.tenant.name} - {self.subscription_plan.name} ({self.license_key})'
+
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Only on creation
+            plan = self.subscription_plan
+            
+            # Create subscription plan snapshot
+            self.subscription_plan_snapshot = {
+                'id': plan.id,
+                'name': plan.name,
+                'description': plan.description,
+                'price': str(plan.price),  # Convert Decimal to string
+                'max_users': plan.max_users,
+                'transaction_limit': plan.transaction_limit,
+                'api_call_limit': plan.api_call_limit,
+                'storage_limit': plan.storage_limit,
+                'session_type': plan.session_type,
+                'support_level': plan.support_level
+            }
+            
+            # Create features snapshot with hierarchy
+            features_dict = {}
+            for entitlement in plan.feature_entitlements.all().select_related('feature'):
+                feature = entitlement.feature
+                feature_data = {
+                    'id': feature.id,
+                    'name': feature.name,
+                    'key': feature.key,
+                    'description': feature.description,
+                    'is_active': feature.is_active,
+                    'app_id': feature.app_id,
+                    'subfeatures': []
+                }
+                
+                # Get subfeatures from granual_settings
+                subfeatures = feature.granual_settings.get('subfeatures', [])
+                feature_data['subfeatures'] = subfeatures
+                
+                features_dict[str(feature.id)] = feature_data
+            
+            self.features_snapshot = features_dict
+            
+        super().save(*args, **kwargs)
+

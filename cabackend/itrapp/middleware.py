@@ -91,6 +91,10 @@ class SimpleTenantUser:
         return f"TenantUser(user_id={self._user_id}, tenant={self._tenant_slug}, tenant_id={self._tenant_id})"
 
 from .router import _thread_locals, get_current_schema
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db import connections
+from django.conf import settings
 
 # Using get_current_schema from router.py
 
@@ -134,11 +138,116 @@ def tenant_schema_required(view_func):
     """Decorator to ensure a view has a tenant schema set"""
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        schema = get_current_schema()
-        if not schema:
-            raise AuthenticationFailed('No tenant schema set for this request')
+        schema_name = get_current_schema()
+        if not schema_name:
+            raise AuthenticationFailed('No tenant schema set')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
+
+
+import jwt
+from django.conf import settings
+from django.db import connections
+from django.http import JsonResponse
+from django.utils import timezone
+
+
+# place this middleware into all apis
+class LicenseValidationMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Skip license validation for certain paths (e.g., health checks, static files)
+        skip_paths = ['/api/health/', '/static/', '/media/', '/api/token/']
+        if any(request.path.startswith(path) for path in skip_paths):
+            return self.get_response(request)
+
+        # Get tenant_id from token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return self.get_response(request)
+
+        try:
+            # Split 'Bearer <token>'
+            parts = auth_header.split()
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return self.get_response(request)
+
+            token = parts[1]
+            # Decode the JWT token
+            payload = jwt.decode(
+                token,
+                settings.SIMPLE_JWT['SIGNING_KEY'],
+                algorithms=[settings.SIMPLE_JWT['ALGORITHM']]
+            )
+            tenant_id = payload.get('tenant_id')
+
+            if not tenant_id:
+                return JsonResponse({'error': 'Tenant ID not found in token'}, status=403)
+
+            # Switch to public schema to check license
+            with connections['default'].cursor() as cursor:
+                # Explicitly set search_path to public schema
+                cursor.execute("SET search_path TO public")
+
+                # Query the latest active license for the tenant
+                cursor.execute("""
+                    SELECT tsl.license_key, tsl.license_status, tsl.valid_until, t.status
+                    FROM ecomm_superadmin_tenant_subscriptions_licenses tsl
+                    JOIN ecomm_superadmin_tenants t ON t.id = tsl.tenant_id
+                    WHERE t.id = %s
+                    ORDER BY tsl.created_at DESC
+                    LIMIT 1
+                """, [tenant_id])
+
+                result = cursor.fetchone()
+
+                if not result:
+                    return JsonResponse(
+                        {'error': 'No valid subscription found'},
+                        status=403
+                    )
+
+                license_key, license_status, valid_until, tenant_status = result
+            
+                # Check license status
+                if license_status != 'active':
+                    return JsonResponse(
+                        {'error': f'Subscription license is {license_status}'},
+                        status=403
+                    )
+
+                # Check tenant status
+                if tenant_status not in ['active', 'trial', 'suspended']:
+                    return JsonResponse(
+                        {'error': f'Tenant account is {tenant_status}'},
+                        status=403
+                    )
+
+                
+                # Check if license is expired
+                if valid_until and timezone.now() > valid_until:
+                    # Update license status to expired
+                    cursor.execute("""
+                        UPDATE ecomm_superadmin_tenant_subscriptions_licenses
+                        SET license_status = 'expired'
+                        WHERE license_key = %s
+                    """, [str(license_key)])
+
+                    return JsonResponse(
+                        {'error': 'Subscription license has expired'},
+                        status=403
+                    )
+            return self.get_response(request)
+
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({'error': 'Token has expired'}, status=401)
+        except jwt.InvalidTokenError:
+            return JsonResponse({'error': 'Invalid token'}, status=401)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
 
 class CustomJWTAuthentication(BaseAuthentication):
     def authenticate(self, request):

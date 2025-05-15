@@ -12,11 +12,180 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
+import uuid
+from subscription_plan.models import SubscriptionPlan
+from .models import TenantSubscriptionLicenses
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 from .models import Tenant, User, CrmClient, Application
 from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer
+
+# @method_decorator(csrf_exempt, name='dispatch')
+# class PlatformAdminTenantView(APIView):
+#     """
+#     API endpoint that allows platform admins to manage tenants.
+#     Uses direct database access to avoid model field mapping issues.
+#     """
+#     permission_classes = [IsAuthenticated, IsAdminUser]
+    
+#     def get(self, request, format=None):
+#         """
+#         List all tenants directly from the database.
+#         """
+#         try:
+#             with connection.cursor() as cursor:
+#                 cursor.execute("""
+#                     SELECT 
+#                         id, schema_name, name, url_suffix, created_at, updated_at,
+#                         status, environment, trial_end_date, paid_until,
+#                         subscription_plan_id, client_id
+#                     FROM ecomm_superadmin_tenants
+#                     ORDER BY created_at DESC
+#                 """)
+                
+#                 # Get column names
+#                 columns = [col[0] for col in cursor.description]
+                
+#                 # Fetch all rows
+#                 rows = cursor.fetchall()
+                
+#                 # Convert rows to dictionaries
+#                 tenants = []
+#                 for row in rows:
+#                     tenant_dict = dict(zip(columns, row))
+                    
+#                     # Convert datetime objects to strings for JSON serialization
+#                     if 'created_at' in tenant_dict and tenant_dict['created_at']:
+#                         tenant_dict['created_at'] = tenant_dict['created_at'].isoformat()
+#                     if 'updated_at' in tenant_dict and tenant_dict['updated_at']:
+#                         tenant_dict['updated_at'] = tenant_dict['updated_at'].isoformat()
+#                     if 'trial_end_date' in tenant_dict and tenant_dict['trial_end_date']:
+#                         tenant_dict['trial_end_date'] = tenant_dict['trial_end_date'].isoformat()
+#                     if 'paid_until' in tenant_dict and tenant_dict['paid_until']:
+#                         tenant_dict['paid_until'] = tenant_dict['paid_until'].isoformat()
+                    
+#                     # Add subscription plan details if available
+#                     if tenant_dict.get('subscription_plan_id'):
+#                         cursor.execute("""
+#                             SELECT id, name, description, price, max_users, storage_limit
+#                             FROM subscription_plans
+#                             WHERE id = %s
+#                         """, [tenant_dict['subscription_plan_id']])
+#                         plan_columns = [col[0] for col in cursor.description]
+#                         plan_row = cursor.fetchone()
+#                         if plan_row:
+#                             tenant_dict['subscription_plan'] = dict(zip(plan_columns, plan_row))
+                    
+#                     # Add client details if available
+#                     if tenant_dict.get('client_id'):
+#                         cursor.execute("""
+#                             SELECT id, client_name, contact_person_email
+#                             FROM ecomm_superadmin_crmclients
+#                             WHERE id = %s
+#                         """, [tenant_dict['client_id']])
+#                         client_columns = [col[0] for col in cursor.description]
+#                         client_row = cursor.fetchone()
+#                         if client_row:
+#                             tenant_dict['client'] = dict(zip(client_columns, client_row))
+                    
+#                     # Add assigned applications
+#                     cursor.execute("""
+#                         SELECT a.app_id, a.application_name, a.is_active
+#                         FROM ecomm_superadmin_tenantapplication ta
+#                         JOIN application a ON ta.application_id = a.app_id
+#                         WHERE ta.tenant_id = %s AND ta.is_active = true
+#                     """, [tenant_dict['id']])
+#                     app_columns = [col[0] for col in cursor.description]
+#                     app_rows = cursor.fetchall()
+#                     tenant_dict['assigned_applications'] = [
+#                         dict(zip(app_columns, row)) for row in app_rows
+#                     ]
+                    
+#                     tenants.append(tenant_dict)
+                
+#                 return Response(tenants)
+#         except Exception as e:
+#             import traceback
+#             traceback.print_exc()
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+#     def post(self, request, format=None):
+#         """
+#         Create a new tenant using the TenantSerializer.
+#         """
+#         serializer = TenantSerializer(data=request.data)
+#         if serializer.is_valid():
+#             try:
+#                 tenant = serializer.save()
+#                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+#             except Exception as e:
+#                 import traceback
+#                 traceback.print_exc()
+#                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     def delete(self, request, tenant_id, format=None):
+#         """
+#         Delete a tenant by ID.
+#         This will follow the specific deletion flow:
+#         1. Delete entry from ecomm_superadmin_domain
+#         2. Delete entry from ecomm_superadmin_tenants
+#         3. Drop the schema with CASCADE
+#         """
+#         try:
+#             import traceback
+            
+#             # Use a transaction to ensure atomicity
+#             with transaction.atomic():
+#                 # First, check if the tenant exists using raw SQL
+#                 with connection.cursor() as cursor:
+#                     cursor.execute("""
+#                         SELECT id, schema_name FROM tenants WHERE id = %s
+#                     """, [tenant_id])
+                    
+#                     result = cursor.fetchone()
+#                     if not result:
+#                         return Response(
+#                             {"error": f"Tenant with ID {tenant_id} not found"}, 
+#                             status=status.HTTP_404_NOT_FOUND
+#                         )
+                    
+#                     tenant_id, schema_name = result
+                    
+#                     # 1. First delete entries from ecomm_superadmin_domain
+#                     try:
+#                         cursor.execute("""
+#                             DELETE FROM domains 
+#                             WHERE tenant_id = %s
+#                         """, [tenant_id])
+#                         print(f"Deleted domain entries for tenant ID {tenant_id}")
+#                     except Exception as domain_e:
+#                         print(f"Error deleting from domain table: {str(domain_e)}")
+#                         traceback.print_exc()
+                    
+#                     # 2. Then delete the tenant record from ecomm_superadmin_tenants
+#                     cursor.execute("DELETE FROM tenants WHERE id = %s", [tenant_id])
+#                     print(f"Deleted tenant with ID {tenant_id}")
+                    
+#                     # 3. Finally drop the schema
+#                     try:
+#                         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+#                         print(f"Dropped schema {schema_name}")
+#                     except Exception as schema_e:
+#                         print(f"Error dropping schema: {str(schema_e)}")
+#                         traceback.print_exc()
+            
+#             return Response(status=status.HTTP_204_NO_CONTENT)
+#         except Exception as e:
+#             import traceback
+#             traceback.print_exc()
+#             return Response(
+#                 {"error": f"Error deleting tenant: {str(e)}"}, 
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PlatformAdminTenantView(APIView):
@@ -107,20 +276,78 @@ class PlatformAdminTenantView(APIView):
             traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    def create_tenant_subscription(self, tenant, subscription_plan, client_id=None, company_id=None, created_by=None):
+        """Create a new tenant subscription with license key"""
+        subscription = TenantSubscriptionLicenses.objects.create(
+            tenant=tenant,
+            subscription_plan=subscription_plan,
+            valid_from=timezone.now(),
+            client_id=client_id,
+            company_id=company_id,
+            created_by=created_by
+        )
+        return subscription
+
     def post(self, request, format=None):
         """
-        Create a new tenant using the TenantSerializer.
+        Create a new tenant using the TenantSerializer and assign subscription plan.
         """
         serializer = TenantSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                tenant = serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                # Get subscription plan first
+                subscription_plan_id = request.data.get('subscription_plan')
+                if not subscription_plan_id:
+                    return Response(
+                        {"error": "subscription_plan_id is required"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                try:
+                    subscription_plan = SubscriptionPlan.objects.get(id=subscription_plan_id)
+                except SubscriptionPlan.DoesNotExist:
+                    return Response(
+                        {"error": f"Subscription plan with id {subscription_plan_id} not found"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+             
+                tenant = serializer.save(subscription_plan=subscription_plan)
+                    
+                # Second transaction: Create subscription
+              
+                subscription = self.create_tenant_subscription(
+                    tenant=tenant,
+                    subscription_plan=subscription_plan,
+                    client_id=request.data.get('client_id'),
+                    company_id=request.data.get('company_id'),
+                    created_by=request.user.username if request.user.is_authenticated else None
+                )
+
+                # Prepare response data
+                response_data = {
+                    'tenant': serializer.data,
+                    'subscription': {
+                        'id': subscription.id,
+                        'license_key': subscription.license_key,
+                        'status': subscription.license_status,
+                        'valid_from': subscription.valid_from,
+                        'subscription_plan': {
+                            'id': subscription_plan.id,
+                            'name': subscription_plan.name,
+                            'description': subscription_plan.description
+                        }
+                    }
+                }
+
+                return Response(response_data, status=status.HTTP_201_CREATED)
+
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     def delete(self, request, tenant_id, format=None):
         """
@@ -181,6 +408,7 @@ class PlatformAdminTenantView(APIView):
                 {"error": f"Error deleting tenant: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PlatformAdminLoginView(APIView):

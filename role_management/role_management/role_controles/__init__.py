@@ -1,1 +1,0 @@
-default_app_config = 'role_management.role_controles.apps.RoleControlesConfig'
