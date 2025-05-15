@@ -341,6 +341,13 @@ class TenantSerializer(serializers.ModelSerializer):
                 NULL;
             END;
 
+            BEGIN
+                ALTER TABLE {schema_name}.role_controles_role 
+                ADD COLUMN IF NOT EXISTS company_id INTEGER;
+            EXCEPTION WHEN duplicate_column THEN
+                NULL;
+            END;
+
             -- Create module permission set table
             CREATE TABLE IF NOT EXISTS {schema_name}.role_controles_modulepermissionset (
                 id SERIAL PRIMARY KEY,
@@ -354,7 +361,9 @@ class TenantSerializer(serializers.ModelSerializer):
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
                 created_by INTEGER,
-                updated_by INTEGER
+                updated_by INTEGER,
+                client_id INTEGER,
+                company_id INTEGER
             );
 
             -- Create role assigned permissions table
@@ -365,7 +374,9 @@ class TenantSerializer(serializers.ModelSerializer):
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
                 created_by INTEGER,
-                updated_by INTEGER
+                updated_by INTEGER,
+                client_id INTEGER,
+                company_id INTEGER
             );
 
             -- Create user role assignment table
@@ -378,7 +389,9 @@ class TenantSerializer(serializers.ModelSerializer):
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
                 created_by INTEGER,
-                updated_by INTEGER
+                updated_by INTEGER,
+                client_id INTEGER,
+                company_id INTEGER
             );
 
             -- Add unique constraint if it doesn't exist
@@ -585,9 +598,37 @@ class TenantSerializer(serializers.ModelSerializer):
                                 print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {pf.feature.id}")
                         
                         # Assign role to admin user
+                        # cursor.execute(f"""
+                        #     INSERT INTO \"{schema_name}\".role_controles_userroleassignment
+                        #     (assigned_on, role_id, \"user\",app_id, created_at, updated_at, created_by, updated_by)
+                        #     VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
+                        # """, [
+                        #     role_id,
+                        #     tenant_user_id,
+                        #     app_id,
+                        #     tenant_user_id,
+                        #     tenant_user_id,
+                        #     tenant_user_id
+                        # ])
+
+                        # Check if column exists
                         cursor.execute(f"""
-                            INSERT INTO \"{schema_name}\".role_controles_userroleassignment
-                            (assigned_on, role_id, \"user\", app_id, created_at, updated_at, created_by, updated_by)
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_schema = %s AND table_name = 'role_controles_userroleassignment' AND column_name = 'app_id'
+                        """, [schema_name])
+                        column_exists = cursor.fetchone()
+
+                        # If column doesn't exist, add it
+                        if not column_exists:
+                            cursor.execute(f"""
+                                ALTER TABLE "{schema_name}".role_controles_userroleassignment 
+                                ADD COLUMN app_id INTEGER
+                            """)
+
+                        # Now run the insert
+                        cursor.execute(f"""
+                            INSERT INTO "{schema_name}".role_controles_userroleassignment
+                            (assigned_on, role_id, "user", app_id, created_at, updated_at, created_by, updated_by)
                             VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
                         """, [
                             role_id,
@@ -596,7 +637,8 @@ class TenantSerializer(serializers.ModelSerializer):
                             tenant_user_id,
                             tenant_user_id
                         ])
-                        
+
+                                                
                         print(f"Assigned role {role_id} to user {tenant_user_id} for app {app_id}")
                         
                     except Exception as e:

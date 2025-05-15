@@ -60,7 +60,7 @@ interface TenantFormData {
   admin_first_name: string;
   admin_last_name: string;
   admin_password: string;
-  subscription_plan_id: string;
+  subscription_plan: string;
 }
 
 const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) => {
@@ -81,7 +81,7 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
     admin_first_name: '',
     admin_last_name: '',
     admin_password: '',
-    subscription_plan_id: ''
+    subscription_plan: ''
   });
   
   // Loading state
@@ -195,7 +195,7 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
         admin_first_name: '',
         admin_last_name: '',
         admin_password: '',
-        subscription_plan_id: tenant.subscription_plan_id || ''
+        subscription_plan: tenant.subscription_plan || ''
       });
     }
   }, [tenant]);
@@ -507,11 +507,11 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
               <InputLabel id="subscription-plan-label">Subscription Plan *</InputLabel>
               {/* <InputLabel id="client-id-label">CRM Client</InputLabel> */}
               <Select
-                name="subscription_plan_id"
-                value={formData.subscription_plan_id}
+                name="subscription_plan"
+                value={formData.subscription_plan}
                 onChange={handleSelectChange}
                 label="Subscription Plan"
-                error={Boolean(errors.subscription_plan_id)}
+                error={Boolean(errors.subscription_plan)}
                 disabled={loadingPlans}
               >
                 <MenuItem value="">
@@ -533,8 +533,8 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
                   </MenuItem>
                 )}
               </Select>
-              {errors.subscription_plan_id && (
-                <FormHelperText error>{errors.subscription_plan_id}</FormHelperText>
+              {errors.subscription_plan && (
+                <FormHelperText error>{errors.subscription_plan}</FormHelperText>
               )}
             </FormControl>
           </Grid>

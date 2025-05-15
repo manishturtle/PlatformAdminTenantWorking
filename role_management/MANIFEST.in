@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+include requirements.txt
+recursive-include role_management/role_controles/static *
+recursive-include role_management/role_controles/templates *
+recursive-include role_management/role_controles/migrations *
+recursive-include role_management/role_controles/locale *

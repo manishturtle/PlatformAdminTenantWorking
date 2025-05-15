@@ -2135,6 +2135,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                             id SERIAL PRIMARY KEY,
                             name VARCHAR(100) NOT NULL UNIQUE,
                             description TEXT NOT NULL,
+                            app_id_id INTEGER NULL REFERENCES public.application(app_id),
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                         )
@@ -2149,7 +2150,10 @@ class TenantViewSet(viewsets.ModelViewSet):
                     """)
                     
                     # Get the role ID
+                    print("PP:", cursor.fetchone())
+                    print("PP1:", cursor.fetchall())
                     role_id = cursor.fetchone()[0]
+                    
                     
                     # Create the permission table if it doesn't exist
                     cursor.execute(f"""
@@ -2178,23 +2182,28 @@ class TenantViewSet(viewsets.ModelViewSet):
                     
                     # Create the userrole table if it doesn't exist
                     cursor.execute(f"""
-                        CREATE TABLE IF NOT EXISTS {tenant.schema_name}.ecomm_tenant_admins_userrole (
+                        CREATE TABLE IF NOT EXISTS {tenant.schema_name}.role_controles_userroleassignment (
                             id SERIAL PRIMARY KEY,
-                            user_id INTEGER NOT NULL,
+                            "user" INTEGER NOT NULL,
                             role_id INTEGER NOT NULL,
+                            assigned_on TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                            FOREIGN KEY (user_id) REFERENCES {tenant.schema_name}.auth_user(id),
+                            created_by VARCHAR(255) NULL,
+                            updated_by VARCHAR(255) NULL,
+                            client_id INTEGER,
+                            company_id INTEGER,
+                            FOREIGN KEY ("user") REFERENCES {tenant.schema_name}.auth_user(id),
                             FOREIGN KEY (role_id) REFERENCES {tenant.schema_name}.ecomm_tenant_admins_role(id),
-                            UNIQUE (user_id, role_id)
+                            UNIQUE ("user", role_id)
                         )
                     """)
                     
                     # Insert the user role
                     cursor.execute(f"""
-                        INSERT INTO {tenant.schema_name}.ecomm_tenant_admins_userrole
-                        (user_id, role_id, created_at, updated_at)
-                        VALUES (%s, %s, NOW(), NOW())
+                        INSERT INTO {tenant.schema_name}.role_controles_userroleassignment
+                        ("user", role_id, assigned_on, created_at, updated_at)
+                        VALUES (%s, %s, NOW(), NOW(), NOW())
                     """, [
                         user_id,
                         role_id
@@ -2218,14 +2227,14 @@ class TenantViewSet(viewsets.ModelViewSet):
                         tenant_url = f"{base_url}/{tenant.url_suffix}"
                     
                     # Send the welcome email
-                    send_tenant_admin_welcome_email_direct(
-                        email=admin_email,
-                        first_name=admin_first_name,
-                        password=admin_password,
-                        tenant_name=tenant.name,
-                        tenant_url=tenant_url
-                    )
-                    logger.info(f"Welcome email sent to tenant admin {admin_email} for tenant {tenant.name}")
+                    # send_tenant_admin_welcome_email_direct(
+                    #     email=admin_email,
+                    #     first_name=admin_first_name,
+                    #     password=admin_password,
+                    #     tenant_name=tenant.name,
+                    #     tenant_url=tenant_url
+                    # )
+                    # logger.info(f"Welcome email sent to tenant admin {admin_email} for tenant {tenant.name}")
                 except Exception as email_error:
                     # Log the error but don't fail the tenant creation
                     logger.error(f"Failed to send welcome email: {str(email_error)}")

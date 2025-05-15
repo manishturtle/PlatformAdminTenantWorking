@@ -39,106 +39,297 @@ class Command(BaseCommand):
         """Ensure auth tables exist and are properly set up"""
         with connection.cursor() as cursor:
             cursor.execute(f'SET search_path TO "{schema}"')
-            
-            # Check if django_migrations table exists
-            cursor.execute(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = 'django_migrations')",
-                [schema])
-            
-            has_migrations_table = cursor.fetchone()[0]
-            
-            if not has_migrations_table:
-                self.stdout.write(f"Creating django_migrations table in schema {schema}...")
-                # Only create the django_migrations table
-                cursor.execute(
-                    "CREATE TABLE django_migrations ("
-                    "    id SERIAL PRIMARY KEY,"
-                    "    app VARCHAR(255) NOT NULL,"
-                    "    name VARCHAR(255) NOT NULL,"
-                    "    applied TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
-                    ");"
-                )
-            
-            # Check if content types table exists
-            cursor.execute(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = 'django_content_type')",
-                [schema])
-            has_content_types = cursor.fetchone()[0]
-            
-            # Check if auth tables exist
+            # First check if auth_user exists
             cursor.execute(
                 "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = 'auth_user')",
                 [schema])
+            
             has_auth = cursor.fetchone()[0]
             
-            try:
-                # Migrate contenttypes with --fake if table exists
-                if has_content_types:
-                    self.stdout.write(f"Faking contenttypes migration in {schema} as tables exist...")
-                    call_command('migrate', 'contenttypes', '--fake-initial', schema=schema, interactive=False, verbosity=0)
-                else:
-                    self.stdout.write(f"Running contenttypes migration in {schema}...")
-                    call_command('migrate', 'contenttypes', schema=schema, interactive=False, verbosity=0)
+            if not has_auth:
+                self.stdout.write(f"Creating auth tables in schema {schema}...")
+                # Create tables in the correct order
+                tables = [
+                    # First create independent tables
+                    (
+                        "CREATE TABLE django_migrations ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    app VARCHAR(255) NOT NULL,"
+                        "    name VARCHAR(255) NOT NULL,"
+                        "    applied TIMESTAMP NOT NULL"
+                        ");",
+                        "django_migrations"
+                    ),
+                    (
+                        "CREATE TABLE django_content_type ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    app_label VARCHAR(100) NOT NULL,"
+                        "    model VARCHAR(100) NOT NULL,"
+                        "    CONSTRAINT django_content_type_app_label_model_key UNIQUE (app_label, model)"
+                        ");",
+                        "django_content_type"
+                    ),
+                    (
+                        "CREATE TABLE auth_permission ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    name VARCHAR(255) NOT NULL,"
+                        "    content_type_id INTEGER NOT NULL,"
+                        "    codename VARCHAR(100) NOT NULL,"
+                        "    CONSTRAINT auth_permission_content_type_id_codename_key UNIQUE (content_type_id, codename),"
+                        "    CONSTRAINT auth_permission_content_type_id_fkey FOREIGN KEY (content_type_id)"
+                        "        REFERENCES django_content_type (id) DEFERRABLE INITIALLY DEFERRED"
+                        ");",
+                        "auth_permission"
+                    ),
+                    (
+                        "CREATE TABLE auth_user ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    password VARCHAR(128) NOT NULL,"
+                        "    last_login TIMESTAMP WITH TIME ZONE NULL,"
+                        "    is_superuser BOOLEAN NOT NULL,"
+                        "    username VARCHAR(150) NOT NULL UNIQUE,"
+                        "    first_name VARCHAR(150) NOT NULL,"
+                        "    last_name VARCHAR(150) NOT NULL,"
+                        "    email VARCHAR(254) NOT NULL,"
+                        "    is_staff BOOLEAN NOT NULL,"
+                        "    is_active BOOLEAN NOT NULL,"
+                        "    date_joined TIMESTAMP WITH TIME ZONE NOT NULL"
+                        ");",
+                        "auth_user"
+                    ),
+                    (
+                        "CREATE TABLE auth_group ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    name VARCHAR(150) NOT NULL UNIQUE"
+                        ");",
+                        "auth_group"
+                    )
+                ]
                 
-                # Migrate auth with --fake if tables exist
-                if has_auth:
-                    self.stdout.write(f"Faking auth migration in {schema} as tables exist...")
-                    call_command('migrate', 'auth', '--fake-initial', schema=schema, interactive=False, verbosity=0)
-                else:
-                    self.stdout.write(f"Running auth migration in {schema}...")
-                    call_command('migrate', 'auth', schema=schema, interactive=False, verbosity=0)
-                    
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f"Warning during initial migrations in {schema}: {str(e)}"))
+                # Create tables one by one if they don't exist
+                for sql, table_name in tables:
+                    # Check if table exists
+                    cursor.execute(
+                        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
+                        [schema, table_name])
+                    if not cursor.fetchone()[0]:
+                        cursor.execute(sql)
+                        # Verify table was created
+                        cursor.execute(
+                            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
+                            [schema, table_name])
+                        if not cursor.fetchone()[0]:
+                            raise Exception(f"Failed to create {table_name} table")
+                
+                # Now create tables with foreign keys
+                fk_tables = [
+                    (
+                        "CREATE TABLE auth_group_permissions ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    group_id INTEGER NOT NULL,"
+                        "    permission_id INTEGER NOT NULL,"
+                        "    CONSTRAINT auth_group_permissions_group_id_permission_id_key UNIQUE (group_id, permission_id),"
+                        "    CONSTRAINT auth_group_permissions_group_id_fkey FOREIGN KEY (group_id)"
+                        "        REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED,"
+                        "    CONSTRAINT auth_group_permissions_permission_id_fkey FOREIGN KEY (permission_id)"
+                        "        REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED"
+                        ");",
+                        "auth_group_permissions"
+                    ),
+                    (
+                        "CREATE TABLE auth_user_groups ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    user_id INTEGER NOT NULL,"
+                        "    group_id INTEGER NOT NULL,"
+                        "    CONSTRAINT auth_user_groups_user_id_group_id_key UNIQUE (user_id, group_id),"
+                        "    CONSTRAINT auth_user_groups_user_id_fkey FOREIGN KEY (user_id)"
+                        "        REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,"
+                        "    CONSTRAINT auth_user_groups_group_id_fkey FOREIGN KEY (group_id)"
+                        "        REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED"
+                        ");",
+                        "auth_user_groups"
+                    ),
+                    (
+                        "CREATE TABLE auth_user_user_permissions ("
+                        "    id SERIAL PRIMARY KEY,"
+                        "    user_id INTEGER NOT NULL,"
+                        "    permission_id INTEGER NOT NULL,"
+                        "    CONSTRAINT auth_user_user_permissions_user_id_permission_id_key UNIQUE (user_id, permission_id),"
+                        "    CONSTRAINT auth_user_user_permissions_user_id_fkey FOREIGN KEY (user_id)"
+                        "        REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,"
+                        "    CONSTRAINT auth_user_user_permissions_permission_id_fkey FOREIGN KEY (permission_id)"
+                        "        REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED"
+                        ");",
+                        "auth_user_user_permissions"
+                    )
+                ]
+                
+                for sql, table_name in fk_tables:
+                    # Check if table exists
+                    cursor.execute(
+                        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
+                        [schema, table_name])
+                    if not cursor.fetchone()[0]:
+                        cursor.execute(sql)
+                        # Verify table was created
+                        cursor.execute(
+                            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
+                            [schema, table_name])
+                        if not cursor.fetchone()[0]:
+                            raise Exception(f"Failed to create {table_name} table")
+                
+                cursor.execute('COMMIT')
+                self.stdout.write("Auth tables created successfully")
 
     def migrate_tenant_apps(self, schema):
         """Migrate tenant-specific apps in the given schema"""
         self.stdout.write(f"\nMigrating tenant apps in schema: {schema}")
         
+        # Create schema if it doesn't exist
+        self.create_schema_if_not_exists(schema)
+        
+        # Ensure auth tables exist before migrations
+        self.ensure_auth_tables(schema)
+        
         try:
-            # Create schema if it doesn't exist
-            self.create_schema_if_not_exists(schema)
-            
-            # Ensure auth tables exist before migrations
-            self.ensure_auth_tables(schema)
-            
-            # Run migrations for all tenant apps
+            # Set search path to tenant schema
             with connection.cursor() as cursor:
                 cursor.execute(f'SET search_path TO "{schema}"')
                 
-                for app in settings.TENANT_APPS:
-                    if app.startswith('django.') or app in ['rest_framework', 'corsheaders', 'django_filters']:
-                        continue  # Skip Django internal apps
-                        
+                # Create essential tables first
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS django_migrations (
+                        id SERIAL PRIMARY KEY,
+                        app VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        applied TIMESTAMP NOT NULL
+                    );
+                """)
+                
+                # Create django_content_type table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS django_content_type (
+                        id SERIAL PRIMARY KEY,
+                        app_label VARCHAR(100) NOT NULL,
+                        model VARCHAR(100) NOT NULL,
+                        CONSTRAINT django_content_type_app_label_model_key UNIQUE (app_label, model)
+                    );
+                """)
+                
+                # Create auth_permission table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_permission (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        content_type_id INTEGER NOT NULL,
+                        codename VARCHAR(100) NOT NULL,
+                        CONSTRAINT auth_permission_content_type_id_codename_key UNIQUE (content_type_id, codename),
+                        CONSTRAINT auth_permission_content_type_id_fkey FOREIGN KEY (content_type_id)
+                            REFERENCES django_content_type (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                """)
+
+                # Create auth_user table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_user (
+                        id SERIAL PRIMARY KEY,
+                        password VARCHAR(128) NOT NULL,
+                        last_login TIMESTAMP WITH TIME ZONE NULL,
+                        is_superuser BOOLEAN NOT NULL,
+                        username VARCHAR(150) NOT NULL UNIQUE,
+                        first_name VARCHAR(150) NOT NULL,
+                        last_name VARCHAR(150) NOT NULL,
+                        email VARCHAR(254) NOT NULL,
+                        is_staff BOOLEAN NOT NULL,
+                        is_active BOOLEAN NOT NULL,
+                        date_joined TIMESTAMP WITH TIME ZONE NOT NULL
+                    );
+                """)
+
+                # Create auth_group table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_group (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(150) NOT NULL UNIQUE
+                    );
+                """)
+
+                # Create auth_group_permissions table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_group_permissions (
+                        id SERIAL PRIMARY KEY,
+                        group_id INTEGER NOT NULL,
+                        permission_id INTEGER NOT NULL,
+                        CONSTRAINT auth_group_permissions_group_id_permission_id_key UNIQUE (group_id, permission_id),
+                        CONSTRAINT auth_group_permissions_group_id_fkey FOREIGN KEY (group_id)
+                            REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_group_permissions_permission_id_fkey FOREIGN KEY (permission_id)
+                            REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                """)
+
+                # Create auth_user_groups table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_user_groups (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        group_id INTEGER NOT NULL,
+                        CONSTRAINT auth_user_groups_user_id_group_id_key UNIQUE (user_id, group_id),
+                        CONSTRAINT auth_user_groups_user_id_fkey FOREIGN KEY (user_id)
+                            REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_user_groups_group_id_fkey FOREIGN KEY (group_id)
+                            REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                """)
+
+                # Create auth_user_user_permissions table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS auth_user_user_permissions (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        permission_id INTEGER NOT NULL,
+                        CONSTRAINT auth_user_user_permissions_user_id_permission_id_key UNIQUE (user_id, permission_id),
+                        CONSTRAINT auth_user_user_permissions_user_id_fkey FOREIGN KEY (user_id)
+                            REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_user_user_permissions_permission_id_fkey FOREIGN KEY (permission_id)
+                            REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                """)
+
+            # First migrate auth and contenttypes
+            core_apps = ['contenttypes', 'auth']
+            for app in core_apps:
+                self.stdout.write(f"  Migrating core app {app}...")
+                try:
+                    # Ensure we're in the right schema before each migration
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'SET search_path TO "{schema}"')
+                    call_command('migrate', app, interactive=False, verbosity=0)
+                except Exception as e:
+                    self.stdout.write(f"    Warning: {str(e)}")
+                    raise  # Re-raise to trigger rollback
+
+            # Then migrate other tenant apps
+            for app in settings.TENANT_APPS:
+                # Skip already migrated apps
+                if app in ['django.contrib.auth', 'django.contrib.contenttypes']:
+                    continue
+
+                if app.startswith('role_management'):
+                    app_name = 'role_controles'
+                else:
                     app_name = app.split('.')[-1]
-                    
-                    # Check if app tables exist
-                    cursor.execute(
-                        """SELECT COUNT(*) FROM information_schema.tables 
-                        WHERE table_schema = %s 
-                        AND table_name LIKE %s""",
-                        [schema, f"{app_name}_%"]
-                    )
-                    table_count = cursor.fetchone()[0]
-                    
-                    self.stdout.write(f"  Migrating {app_name}...")
-                    try:
-                        if table_count > 0:
-                            self.stdout.write(f"    Faking initial migration as tables exist...")
-                            call_command('migrate', app_name, '--fake-initial', interactive=False, verbosity=0)
-                        else:
-                            call_command('migrate', app_name, interactive=False, verbosity=0)
-                    except Exception as e:
-                        self.stdout.write(self.style.WARNING(f"    Warning migrating {app_name}: {str(e)}"))
-                        continue
                 
-                # Reset search path
-                cursor.execute('SET search_path TO public')
-                
-            self.stdout.write(self.style.SUCCESS(f"Successfully migrated schema: {schema}"))
-            
+                self.stdout.write(f"  Migrating tenant app {app_name}...")
+                try:
+                    call_command('migrate', app_name, interactive=False, verbosity=0)
+                except Exception as e:
+                    self.stdout.write(f"    Warning: {str(e)}")
+                    raise  # Re-raise to trigger rollback
+
+            self.stdout.write(f"  Successfully migrated schema: {schema}")
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error migrating schema {schema}: {str(e)}"))
+            self.stdout.write(f"  Error migrating schema {schema}: {str(e)}")
             # Rollback any pending transactions
             connection.rollback()
             raise

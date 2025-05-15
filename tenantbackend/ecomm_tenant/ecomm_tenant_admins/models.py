@@ -239,7 +239,9 @@ class Role(models.Model):
     app_id = models.ForeignKey(
         'ecomm_superadmin.Application',
         on_delete=models.CASCADE,
-        related_name='roles'
+        related_name='roles',
+        null=True,
+        blank=True
     )
     client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -361,6 +363,8 @@ class UserRole(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who created this record")
     updated_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who last updated this record")
+    client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
+    company_id = models.IntegerField(null=True, blank=True, help_text="ID of the company associated with this record")
     
     def __str__(self):
         return f"{self.user.email} - {self.role.name}"

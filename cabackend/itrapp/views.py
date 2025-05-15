@@ -41,38 +41,116 @@ def migrate_tenant_schema(request):
                        if app_config.name in tenant_apps]
         
         try:
-            # Set search path to the tenant schema
+            # Create tables for each app in the tenant schema
             with connection.cursor() as cursor:
+                # Set search path to the tenant schema
                 cursor.execute(f"SET search_path TO {tenant_schema}, public")
                 
-                # Check if django_migrations table exists
-                cursor.execute("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_schema = %s
-                        AND table_name = 'django_migrations'
-                    )
-                """, [tenant_schema])
-                migrations_table_exists = cursor.fetchone()[0]
+                # First create essential tables
+                tables = [
+                    # django_migrations table
+                    """
+                    CREATE TABLE IF NOT EXISTS django_migrations (
+                        id serial PRIMARY KEY,
+                        app VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        applied TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                    """,
+                    # django_content_type table
+                    """
+                    CREATE TABLE IF NOT EXISTS django_content_type (
+                        id serial PRIMARY KEY,
+                        app_label VARCHAR(100) NOT NULL,
+                        model VARCHAR(100) NOT NULL,
+                        CONSTRAINT django_content_type_app_label_model_key UNIQUE (app_label, model)
+                    );
+                    """,
+                    # auth_permission table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_permission (
+                        id serial PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        content_type_id INTEGER NOT NULL,
+                        codename VARCHAR(100) NOT NULL,
+                        CONSTRAINT auth_permission_content_type_id_codename_key UNIQUE (content_type_id, codename),
+                        CONSTRAINT auth_permission_content_type_id_fkey FOREIGN KEY (content_type_id)
+                            REFERENCES django_content_type (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                    """,
+                    # auth_user table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_user (
+                        id serial PRIMARY KEY,
+                        password VARCHAR(128) NOT NULL,
+                        last_login TIMESTAMP WITH TIME ZONE NULL,
+                        is_superuser BOOLEAN NOT NULL,
+                        username VARCHAR(150) NOT NULL UNIQUE,
+                        first_name VARCHAR(150) NOT NULL,
+                        last_name VARCHAR(150) NOT NULL,
+                        email VARCHAR(254) NOT NULL,
+                        is_staff BOOLEAN NOT NULL,
+                        is_active BOOLEAN NOT NULL,
+                        date_joined TIMESTAMP WITH TIME ZONE NOT NULL
+                    );
+                    """,
+                    # auth_group table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_group (
+                        id serial PRIMARY KEY,
+                        name VARCHAR(150) NOT NULL UNIQUE
+                    );
+                    """,
+                    # auth_group_permissions table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_group_permissions (
+                        id serial PRIMARY KEY,
+                        group_id INTEGER NOT NULL,
+                        permission_id INTEGER NOT NULL,
+                        CONSTRAINT auth_group_permissions_group_id_permission_id_key UNIQUE (group_id, permission_id),
+                        CONSTRAINT auth_group_permissions_group_id_fkey FOREIGN KEY (group_id)
+                            REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_group_permissions_permission_id_fkey FOREIGN KEY (permission_id)
+                            REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                    """,
+                    # auth_user_groups table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_user_groups (
+                        id serial PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        group_id INTEGER NOT NULL,
+                        CONSTRAINT auth_user_groups_user_id_group_id_key UNIQUE (user_id, group_id),
+                        CONSTRAINT auth_user_groups_user_id_fkey FOREIGN KEY (user_id)
+                            REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_user_groups_group_id_fkey FOREIGN KEY (group_id)
+                            REFERENCES auth_group (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                    """,
+                    # auth_user_user_permissions table
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_user_user_permissions (
+                        id serial PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        permission_id INTEGER NOT NULL,
+                        CONSTRAINT auth_user_user_permissions_user_id_permission_id_key UNIQUE (user_id, permission_id),
+                        CONSTRAINT auth_user_user_permissions_user_id_fkey FOREIGN KEY (user_id)
+                            REFERENCES auth_user (id) DEFERRABLE INITIALLY DEFERRED,
+                        CONSTRAINT auth_user_user_permissions_permission_id_fkey FOREIGN KEY (permission_id)
+                            REFERENCES auth_permission (id) DEFERRABLE INITIALLY DEFERRED
+                    );
+                    """
+                ]
                 
-                if not migrations_table_exists:
-                    # Create django_migrations table if it doesn't exist
-                    cursor.execute("""
-                        CREATE TABLE django_migrations (
-                            id serial PRIMARY KEY,
-                            app VARCHAR(255) NOT NULL,
-                            name VARCHAR(255) NOT NULL,
-                            applied TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """)
+                # Create all tables
+                for sql in tables:
+                    try:
+                        cursor.execute(sql)
+                    except Exception as e:
+                        if 'already exists' not in str(e):
+                            raise e
                 
-                # First migrate contenttypes
-                try:
-                    call_command('migrate', 'contenttypes', interactive=False)
-                except Exception as e:
-                    print(f"Warning migrating contenttypes: {str(e)}")
-                
-                # Then migrate auth
+                # First migrate auth since it's in TENANT_APPS
                 try:
                     call_command('migrate', 'auth', interactive=False)
                 except Exception as e:
@@ -81,10 +159,10 @@ def migrate_tenant_schema(request):
                 # Then migrate other apps
                 for app_config in project_apps:
                     try:
-                        # Get the app label
+                        # Get the app label (last part of the app name)
                         app_label = app_config.label
                         
-                        # Skip already handled apps
+                        # Skip already migrated apps
                         if app_label in ['contenttypes', 'auth']:
                             continue
                         
@@ -95,12 +173,12 @@ def migrate_tenant_schema(request):
                             # Run migrate for this app
                             call_command('migrate', app_label, interactive=False)
                         except ImportError:
+                            # Skip apps without migrations
                             print(f"Skipping {app_config.name}: No migrations found")
                             continue
                     except Exception as migration_error:
                         print(f"Error migrating {app_config.name}: {str(migration_error)}")
-                        # Log the error but continue with other apps
-                        continue
+                        raise migration_error
                 
                 # Reset search path to public
                 cursor.execute("SET search_path TO public")
