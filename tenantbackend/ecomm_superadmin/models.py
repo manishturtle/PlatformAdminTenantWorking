@@ -75,10 +75,11 @@ class Tenant(TenantMixin):
         help_text="Environment where this tenant is deployed"
     )
     
-    trial_end_date = models.DateField(
-        null=True, 
-        blank=True, 
-        help_text='Date when the trial period ends'
+    default_url = models.URLField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Default URL for this tenant (e.g., https://tenantdomain.com)'
     )
     
     paid_until = models.DateField(
@@ -270,6 +271,7 @@ class Domain(DomainMixin):
     created_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who created this record")
     updated_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who last updated this record")
     
+    
     def __str__(self):
         if self.folder:
             return f"{self.domain}/{self.folder}"
@@ -304,6 +306,14 @@ class TenantSubscriptionLicenses(models.Model):
     valid_from = models.DateTimeField(default=timezone.now)
     valid_until = models.DateTimeField(null=True, blank=True)
     
+    billing_cycle = models.CharField(
+        max_length=20,
+        choices=SubscriptionPlan.BILLING_CYCLE_CHOICES,
+        help_text='Billing cycle at the time of subscription',
+        null=True,
+        blank=True
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
@@ -334,8 +344,13 @@ class TenantSubscriptionLicenses(models.Model):
                 'api_call_limit': plan.api_call_limit,
                 'storage_limit': plan.storage_limit,
                 'session_type': plan.session_type,
-                'support_level': plan.support_level
+                'support_level': plan.support_level,
+                'billing_cycle': plan.billing_cycle
             }
+            
+            # Set billing_cycle on the subscription if not already set
+            if not self.billing_cycle:
+                self.billing_cycle = plan.billing_cycle
             
             # Create features snapshot with hierarchy
             features_dict = {}
@@ -361,3 +376,19 @@ class TenantSubscriptionLicenses(models.Model):
             
         super().save(*args, **kwargs)
 
+class LineOfBusiness(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.IntegerField(null=True, blank=True)
+    updated_by = models.IntegerField(null=True, blank=True)
+
+
+    class Meta:
+        verbose_name_plural = "Lines of Business"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name

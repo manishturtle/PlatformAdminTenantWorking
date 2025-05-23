@@ -4,6 +4,8 @@ from ecomm_superadmin.models import Application
 import yaml
 from django.db import transaction
 
+
+
 class FeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feature
@@ -119,11 +121,59 @@ class YAMLFeatureSerializer(serializers.Serializer):
         }
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
+    line_of_business_name = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = SubscriptionPlan
         fields = '__all__'
+    def get_line_of_business_name(self, obj):
+        if obj.line_of_business:
+            return obj.line_of_business.name
+        return None
+        
+    def validate_name(self, value):
+        """
+        Check that the subscription plan name is unique.
+        """
+        # Get the current instance if we're updating an existing record
+        instance = getattr(self, 'instance', None)
+        
+        # Check if a plan with this name already exists
+        if SubscriptionPlan.objects.filter(name=value).exists():
+            # If we're updating and the name hasn't changed, it's valid
+            if instance and instance.name == value:
+                return value
+            # Otherwise, it's a duplicate name
+            raise serializers.ValidationError("A subscription plan with this name already exists.")
+        
+        return value
 
 class PlanFeatureEntitlementSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlanFeatureEntitlement
         fields = '__all__'
+
+
+class SubscriptionPlanChangeSerializer(serializers.Serializer):
+    tenant_id = serializers.IntegerField(required=True)
+    new_plan_id = serializers.IntegerField(required=True)
+    
+    def validate(self, data):
+        from ecomm_superadmin.models import Tenant
+        from .models import SubscriptionPlan
+        
+        try:
+            tenant = Tenant.objects.get(id=data['tenant_id'])
+            data['tenant'] = tenant
+        except Tenant.DoesNotExist:
+            raise serializers.ValidationError({'tenant_id': 'Tenant not found'})
+            
+        try:
+            new_plan = SubscriptionPlan.objects.get(id=data['new_plan_id'])
+            if new_plan.status != 'active':
+                raise serializers.ValidationError({'new_plan_id': 'Selected plan is not active'})
+            data['new_plan'] = new_plan
+        except SubscriptionPlan.DoesNotExist:
+            raise serializers.ValidationError({'new_plan_id': 'Subscription plan not found'})
+            
+        return data

@@ -46,6 +46,7 @@ SHARED_APPS = (
     'rest_framework_simplejwt', # Links to ecomm_superadmin.User (shared)
   
     'subscription_plan',  # Add the new app
+    'external_tenants',  # Add the new app
     
 )
 

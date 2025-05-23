@@ -100,8 +100,19 @@ class TenantRoutingMiddleware(MiddlewareMixin):
         """
         Check if path should skip tenant processing
         """
-        skip_prefixes = ['/admin/', '/static/', '/media/', '/platform-admin/', '/api/platform-admin/']
-        return any(path.startswith(prefix) for prefix in skip_prefixes)
+        skip_prefixes = [
+            '/admin/', 
+            '/static/', 
+            '/media/', 
+            '/platform-admin/', 
+            '/api/platform-admin/', 
+            '/api/ecommerce/'  # Add ecommerce API to skip list
+        ]
+        logger.info(f"Checking if path should be skipped: {path}")
+        result = any(path.startswith(prefix) for prefix in skip_prefixes)
+        if result:
+            logger.info(f"Path {path} will skip tenant processing")
+        return result
     
     def _extract_tenant_slug(self, request):
         """

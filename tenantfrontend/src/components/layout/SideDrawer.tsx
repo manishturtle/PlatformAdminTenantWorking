@@ -46,6 +46,7 @@ export default function SideDrawer({ open, onClose, userType, isAuthenticated, i
         { text: 'Plans', icon: <PlansIcon />, path: '/platform-admin/plans' },
         { text: 'Features', icon: <SettingsIcon />, path: '/platform-admin/features' },
         { text: 'Applications', icon: <AppsIcon />, path: '/platform-admin/applications' },
+        { text: 'Lines of Business', icon: <BusinessIcon />, path: '/platform-admin/lines-of-business' },
         { text: 'Settings', icon: <SettingsIcon />, path: '/platform-admin/settings' },
       ]
     : [

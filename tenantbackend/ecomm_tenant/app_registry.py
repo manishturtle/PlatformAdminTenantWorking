@@ -88,13 +88,32 @@ class TenantAppRegistry:
 
 # Register core tenant-aware applications
 def register_default_apps():
-    """Register default tenant-aware applications"""
+    """Register default tenant-aware applications from settings.TENANT_APPS"""
     try:
-        TenantAppRegistry.register_app('ecomm_inventory')
-        TenantAppRegistry.register_app('ecomm_product')
-        TenantAppRegistry.register_app('ecomm_tenant.ecomm_tenant_admins')
-        # Add other core apps here
-        logger.info("Registered default tenant-aware applications")
+        from django.conf import settings
+        
+        # Register all tenant apps from settings
+        tenant_apps = getattr(settings, 'TENANT_APPS', [])
+        for app_label in tenant_apps:
+            # Skip commented out apps and django built-in apps
+            if app_label.startswith('#') or app_label.startswith('django.'):
+                continue
+                
+            # Skip apps that are already registered
+            if TenantAppRegistry.is_app_registered(app_label):
+                continue
+                
+            try:
+                # Remove any comments after the app name
+                app_label = app_label.split('#')[0].strip()
+                if app_label:  # Only register if app_label is not empty
+                    TenantAppRegistry.register_app(app_label)
+                    logger.info(f"Registered tenant app: {app_label}")
+            except Exception as app_error:
+                logger.error(f"Error registering tenant app {app_label}: {str(app_error)}")
+                continue
+        
+        logger.info("Completed registering tenant-aware applications")
     except Exception as e:
         logger.error(f"Error registering default apps: {str(e)}")
 

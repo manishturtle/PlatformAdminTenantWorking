@@ -17,7 +17,9 @@ import {
   DialogActions,
   TextField,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,20 +40,26 @@ interface Application {
   updated_at: string;
   created_by: string;
   updated_by: string | null;
-  default_url?: string;
-  secret_key?: string;
-  endpoint_url?: string;
-  app_description?: string;
+  app_default_url?: string;
+  app_secret_key?: string;
+  app_endpoint_route?: string;
+  description?: string;
+  app_backend_url?: string;
+  migrate_schema_endpoint?: string;
 }
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [newAppName, setNewAppName] = useState('');
   const [defaultUrl, setDefaultUrl] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [endpointUrl, setEndpointUrl] = useState('');
   const [appDescription, setAppDescription] = useState('');
+  const [appBackendUrl, setAppBackendUrl] = useState('');
+  const [migrateSchemaEndpoint, setMigrateSchemaEndpoint] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -75,7 +83,11 @@ export default function ApplicationsPage() {
       }
 
       const data = await response.json();
-      setApplications(data.results);
+      // Sort applications by updated_at in descending order
+      const sortedApps = data.results.sort((a: Application, b: Application) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+      setApplications(sortedApps);
       setError('');
     } catch (err) {
       setError('Error fetching applications');
@@ -114,8 +126,77 @@ export default function ApplicationsPage() {
       newErrors.app_endpoint_route = 'Endpoint must start with a slash (/)';
     }
 
+    if (!appBackendUrl.trim()) {
+      newErrors.app_backend_url = 'Backend URL is required';
+    } else if (!appBackendUrl.startsWith('http://') && !appBackendUrl.startsWith('https://')) {
+      newErrors.app_backend_url = 'Backend URL must start with http:// or https://';
+    } else if (!appBackendUrl.endsWith('/')) {
+      newErrors.app_backend_url = 'Backend URL must end with a slash (/)';
+    }
+
+    if (!migrateSchemaEndpoint.trim()) {
+      newErrors.migrate_schema_endpoint = 'Migration schema endpoint is required';
+    } else if (!migrateSchemaEndpoint.endsWith('/')) {
+      newErrors.migrate_schema_endpoint = 'Migration schema endpoint must end with a slash (/)';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const resetForm = () => {
+    setNewAppName('');
+    setDefaultUrl('');
+    setSecretKey('');
+    setEndpointUrl('');
+    setAppDescription('');
+    setAppBackendUrl('');
+    setMigrateSchemaEndpoint('');
+    setIsActive(true);
+    setEditingApp(null);
+  };
+
+  const handleEdit = (app: Application) => {
+    setEditingApp(app);
+    setNewAppName(app.application_name);
+    setDefaultUrl(app.app_default_url || '');
+    setSecretKey(app.app_secret_key || '');
+    setEndpointUrl(app.app_endpoint_route || '');
+    setAppDescription(app.description || '');
+    setAppBackendUrl(app.app_backend_url || '');
+    setMigrateSchemaEndpoint(app.migrate_schema_endpoint || '');
+    setIsActive(app.is_active);
+    setOpenDialog(true);
+  };
+
+  const handleDelete = async (appId: number) => {
+    if (!window.confirm('Are you sure you want to delete this application?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch(`http://localhost:8000/platform-admin/api/applications/${appId}/`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete application');
+      }
+
+      // Refresh the applications list
+      fetchApplications();
+    } catch (err) {
+      setError('Error deleting application');
+      console.error('Error:', err);
+    }
   };
 
   const handleSubmit = async () => {
@@ -129,8 +210,12 @@ export default function ApplicationsPage() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:8000/platform-admin/api/applications/', {
-        method: 'POST',
+      const url = editingApp 
+        ? `http://localhost:8000/platform-admin/api/applications/${editingApp.app_id}/`
+        : 'http://localhost:8000/platform-admin/api/applications/';
+
+      const response = await fetch(url, {
+        method: editingApp ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -141,6 +226,9 @@ export default function ApplicationsPage() {
           app_secret_key: secretKey,
           app_endpoint_route: endpointUrl,
           description: appDescription,
+          app_backend_url: appBackendUrl.endsWith('/') ? appBackendUrl : `${appBackendUrl}/`,
+          migrate_schema_endpoint: migrateSchemaEndpoint.endsWith('/') ? migrateSchemaEndpoint : `${migrateSchemaEndpoint}/`,
+          is_active: isActive,
         }),
       });
 
@@ -148,13 +236,7 @@ export default function ApplicationsPage() {
         // Refresh the applications list
         fetchApplications();
         // Reset form fields
-        setNewAppName('');
-        setDefaultUrl('');
-        setSecretKey('');
-        setEndpointUrl('');
-        setAppDescription('');
-        setErrors({});
-        // Close the modal
+        resetForm();
         setOpenDialog(false);
       } else {
         const errorData = await response.json();
@@ -210,6 +292,7 @@ export default function ApplicationsPage() {
               <TableCell>Status</TableCell>
               <TableCell>Created At</TableCell>
               <TableCell>Updated At</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -219,6 +302,14 @@ export default function ApplicationsPage() {
                 <TableCell>{app.is_active ? 'Active' : 'Inactive'}</TableCell>
                 <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{new Date(app.updated_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <IconButton onClick={() => handleEdit(app)} color="primary" title="Edit">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(app.app_id)} color="error" title="Delete">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -226,7 +317,7 @@ export default function ApplicationsPage() {
       </TableContainer>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Add New Application</DialogTitle>
+        <DialogTitle>{editingApp ? 'Edit Application' : 'Add New Application'}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -276,8 +367,40 @@ export default function ApplicationsPage() {
             fullWidth
             value={endpointUrl}
             onChange={(e) => setEndpointUrl(e.target.value)}
-            helperText={errors.app_endpoint_route || "Enter the endpoint URL of your application (e.g., '/login')"}
+            helperText={errors.app_endpoint_route || "Enter the first route of your application (e.g., '/login')"}
             error={!!errors.app_endpoint_route}
+          />
+
+          <TextField
+            margin="dense"
+            label="Backend URL"
+            fullWidth
+            value={appBackendUrl}
+            onChange={(e) => setAppBackendUrl(e.target.value)}
+            helperText={errors.app_backend_url || "Enter the backend URL (e.g., https://api.myapp.com/)"}
+            error={!!errors.app_backend_url}
+          />
+
+          <TextField
+            margin="dense"
+            label="Migration Schema Endpoint"
+            fullWidth
+            value={migrateSchemaEndpoint}
+            onChange={(e) => setMigrateSchemaEndpoint(e.target.value)}
+            helperText={errors.migrate_schema_endpoint || "Enter the migration schema endpoint (e.g., api/migrate/)"}
+            error={!!errors.migrate_schema_endpoint}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                color="primary"
+              />
+            }
+            label={`Status: ${isActive ? 'Active' : 'Inactive'}`}
+            sx={{ my: 2 }}
           />
 
           <TextField
@@ -314,7 +437,7 @@ export default function ApplicationsPage() {
             startIcon={<AddIcon />}
             sx={{ ml: 2 }}
           >
-            Create Application
+            {editingApp ? 'Update Application' : 'Create Application'}
           </Button>
         </DialogActions>
       </Dialog>

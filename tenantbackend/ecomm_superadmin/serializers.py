@@ -14,6 +14,7 @@ from subscription_plan.models import PlanFeatureEntitlement
 from ecomm_tenant.ecomm_tenant_admins.models import UserProfile, Role, UserRole
 from subscription_plan.models import SubscriptionPlan
 from django.utils import timezone
+from .models import LineOfBusiness
 
 User = get_user_model() # Get the active User model (ecomm_superadmin.User)
 
@@ -185,7 +186,7 @@ class TenantSerializer(serializers.ModelSerializer):
         model = Tenant
         fields = [
             'id', 'name', 'schema_name', 'url_suffix', 'status', 'environment',
-            'trial_end_date', 'created_at', 'updated_at',
+            'default_url', 'created_at', 'updated_at',
             'subscription_plan', 'assigned_applications',
             'client', 'client_id', 'admin_email', 'admin_first_name', 
             'admin_last_name', 'admin_password', 'contact_email'
@@ -811,5 +812,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Secret key must be at least 6 characters long")
         return value
 
-# --- Add other serializers needed by ecomm_superadmin views ---
-# e.g., PasswordResetRequestSerializer, ChangePasswordSerializer (if handled globally)
+class LineOfBusinessSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LineOfBusiness
+        fields = '__all__'
+        read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
+
+    def create(self, validated_data):
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)

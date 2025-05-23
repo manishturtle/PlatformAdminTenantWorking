@@ -6,11 +6,14 @@ from .models import Feature, FeatureGroup, SubscriptionPlan, PlanFeatureEntitlem
 from .serializers import (
     FeatureSerializer, FeatureGroupSerializer, 
     ApplicationFeaturesSerializer, YAMLFeatureSerializer,
-    SubscriptionPlanSerializer, PlanFeatureEntitlementSerializer
+    SubscriptionPlanSerializer, PlanFeatureEntitlementSerializer,
+    SubscriptionPlanChangeSerializer
 )
+from django.utils import timezone
+import uuid
 import yaml
 from django.db import transaction
-from ecomm_superadmin.models import Application, Tenant
+from ecomm_superadmin.models import Application, Tenant, TenantSubscriptionLicenses
 from django.db import connection
 from rest_framework.decorators import api_view
 from rest_framework import status
@@ -19,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
+import json 
 
 # Create your views here.
 
@@ -232,19 +236,31 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new subscription plan and its feature entitlements"""
         with transaction.atomic():
-            # Get granular settings from request data
-            granular_settings = self.request.data.get('detailed_entitlements', {})
+            # Get detailed_entitlements from request data
+            detailed_entitlements = self.request.data.get('detailed_entitlements', {})
+            
+            # Convert detailed_entitlements to the format expected by granular_settings
+            granular_settings = {}
+            for feature_id, settings in detailed_entitlements.items():
+                try:
+                    feature_id = int(feature_id)  # Ensure feature_id is an integer
+                    granular_settings[feature_id] = settings
+                except (ValueError, TypeError):
+                    continue
             
             # Update the serializer data with granular_settings
             serializer.validated_data['granular_settings'] = granular_settings
             
-            # Save the subscription plan
+            # Save the subscription plan first to get the ID
             plan = serializer.save()
             
-            # Create or update feature entitlements for each feature in granular settings
+            # Create or update feature entitlements for each feature in detailed_entitlements
             for feature_id, settings in granular_settings.items():
                 try:
                     feature = Feature.objects.get(id=feature_id)
+                    
+                    # Prepare granual_settings for PlanFeatureEntitlement
+                    granual_settings = settings.get('granual_settings', {}) if isinstance(settings, dict) else {}
                     
                     # First try to get existing entitlement
                     entitlement = PlanFeatureEntitlement.objects.filter(
@@ -254,22 +270,74 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
                     
                     if entitlement:
                         # Update existing entitlement
-                        entitlement.granual_settings = settings
+                        entitlement.granual_settings = granual_settings
                         entitlement.save()
                     else:
-                        # Create new entitlement with auto-generated ID
+                        # Create new entitlement
                         PlanFeatureEntitlement.objects.create(
                             plan=plan,
                             feature=feature,
-                            granual_settings=settings
+                            granual_settings=granual_settings
                         )
                         
-                except Feature.DoesNotExist:
+                except (Feature.DoesNotExist, ValueError, TypeError) as e:
+                    print(f"Error processing feature {feature_id}: {str(e)}")
                     continue
 
     def perform_update(self, serializer):
-        """Update an existing subscription plan"""
-        serializer.save()
+        """Update an existing subscription plan and its feature entitlements"""
+        with transaction.atomic():
+            # Get detailed_entitlements from request data if provided
+            if 'detailed_entitlements' in self.request.data:
+                detailed_entitlements = self.request.data.get('detailed_entitlements', {})
+                
+                # Convert detailed_entitlements to the format expected by granular_settings
+                granular_settings = {}
+                for feature_id, settings in detailed_entitlements.items():
+                    try:
+                        feature_id = int(feature_id)  # Ensure feature_id is an integer
+                        granular_settings[feature_id] = settings
+                    except (ValueError, TypeError):
+                        continue
+                
+                # Update the serializer data with granular_settings
+                serializer.validated_data['granular_settings'] = granular_settings
+                
+                # Save the subscription plan first to get the ID
+                plan = serializer.save()
+                
+                # Update feature entitlements for each feature in detailed_entitlements
+                for feature_id, settings in granular_settings.items():
+                    try:
+                        feature = Feature.objects.get(id=feature_id)
+                        
+                        # Prepare granual_settings for PlanFeatureEntitlement
+                        granual_settings = settings.get('granual_settings', {}) if isinstance(settings, dict) else {}
+                        
+                        # First try to get existing entitlement
+                        entitlement = PlanFeatureEntitlement.objects.filter(
+                            plan=plan,
+                            feature=feature
+                        ).first()
+                        
+                        if entitlement:
+                            # Update existing entitlement
+                            entitlement.granual_settings = granual_settings
+                            entitlement.save()
+                        else:
+                            # Create new entitlement
+                            PlanFeatureEntitlement.objects.create(
+                                plan=plan,
+                                feature=feature,
+                                granual_settings=granual_settings
+                            )
+                            
+                    except (Feature.DoesNotExist, ValueError, TypeError) as e:
+                        print(f"Error processing feature {feature_id}: {str(e)}")
+                        continue
+            else:
+                # Just save without modifying entitlements if not provided in the update
+                serializer.save()
 
     @action(detail=True, methods=['post'])
     def add_feature(self, request, pk=None):
@@ -323,148 +391,289 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
             )
 
 
-# @api_view(['POST'])
-# @csrf_exempt
-# def check_tenant_exist(request):
-#     """
-#     Check if a tenant exists based on the schema_name.
-#     Returns tenant details if found, otherwise appropriate error messages.
-#     """
-#     if request.method != 'POST':
-#         return Response({'error': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-#     try:
-#         # Get the data from request
-#         data = request.data
-#         application_url = data.get('application_url')
-
-#         if not application_url:
-#             return Response({'error': 'application_url is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Parse URL to get schema_name
-#         url_obj = urlparse(application_url)
-#         schema_name = url_obj.path.split('/')[1].lower()
-#         default_url = f"{url_obj.scheme}://{url_obj.netloc}/"
-#         # Query the tenants table
-#         with connection.cursor() as cursor:
-#             cursor.execute("""
-#                 SELECT id, name, schema_name, status, 
-#                        subscription_plan_id
-#                 FROM ecomm_superadmin_tenants
-#                 WHERE schema_name = %s
-#             """, [schema_name])
-            
-#             tenant = cursor.fetchone()
-#         if not tenant:
-#             return Response({'message': 'Tenant not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#         # Get subscription plan details if exists 5 is not hardcoded its column index
-#         subscription_plan = None
-#         if tenant[5]:  # subscription_plan_id
-#             cursor.execute("""
-#                 SELECT id, name, price, 
-#                 FROM subscription_plans
-#                 WHERE id = %s
-#             """, [tenant[3]])
-#             subscription_plan = cursor.fetchone()
-
-#         print("subscription_plan:", subscription_plan)
-#         # Prepare response
-#         response_data = {
-#             'message': f"Tenant with schema_name '{schema_name}' exists",
-#             'tenant_id': tenant[0],
-#             'tenant_name': tenant[1],
-#             'schema_name': tenant[2],
-#             'status': tenant[3],
-#             'environment': tenant[4],
-#             'default_url': default_url,
-#             'redirect_to_iam': f"https://portal.turtleit.in/?currentUrl={application_url}"
-#         }
-
-#         if subscription_plan:
-#             response_data['subscription_plan'] = {
-#                 'id': subscription_plan[0],
-#                 'name': subscription_plan[1],
-#                 'price': subscription_plan[2],
-#                 'max_users': subscription_plan[3],
-#                 'max_storage': subscription_plan[4]
-#             }
-
-#         return Response(response_data, status=status.HTTP_200_OK)
-
-#     except Exception as e:
-#         print("Error:", e)
-#         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-# @csrf_exempt
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def check_tenant_exist(request):
-#     if request.method != 'POST':
-#         return Response({'error': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-#     try:
-#         data = request.data
-#         application_url = data.get('application_url')
-
-#         if not application_url:
-#             return Response({'error': 'application_url is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         url_obj = urlparse(application_url)
-#         schema_name = url_obj.path.split('/')[1].lower()
-#         default_url = f"{url_obj.scheme}://{url_obj.netloc}/"
-
-#         with connection.cursor() as cursor:
-#             cursor.execute("""
-#                 SELECT id, name, schema_name, status, subscription_plan_id
-#                 FROM ecomm_superadmin_tenants
-#                 WHERE schema_name = %s
-#             """, [schema_name])
-#             tenant = cursor.fetchone()
-
-#             if not tenant:
-#                 return Response({'message': 'Tenant not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#             subscription_plan = None
-#             subscription_plan_id = tenant[4]
-
-#             if subscription_plan_id:
-#                 cursor.execute("""
-#                     SELECT id, name, price, max_users, storage_limit
-#                     FROM subscription_plans
-#                     WHERE id = %s
-#                 """, [subscription_plan_id])
-#                 subscription_plan = cursor.fetchone()
-
-      
-
-#         response_data = {
-#             'message': f"Tenant with schema_name '{schema_name}' exists",
-#             'tenant_id': tenant[0],
-#             'tenant_name': tenant[1],
-#             'schema_name': tenant[2],
-#             'status': tenant[3],
-#             'default_url': default_url,
-#             'redirect_to_iam': f"http://localhost:3000/?currentUrl={application_url}"
-#         }
-
-#         if subscription_plan:
-#             response_data['subscription_plan'] = {
-#                 'id': subscription_plan[0],
-#                 'name': subscription_plan[1],
-#                 'price': subscription_plan[2],
-#                 'max_users': subscription_plan[3],
-#                 'max_storage': subscription_plan[4]
-#             }
-
-#         return Response(response_data, status=status.HTTP_200_OK)
-
-#     except Exception as e:
-#         print("Error:", e)
-#         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 from urllib.parse import urlparse
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def change_subscription_plan(request):
+    """Change a tenant's subscription plan (upgrade/downgrade/renewal)
+    
+    Request body:
+    - tenant_id: ID of the tenant
+    - new_plan_id: ID of the new subscription plan
+    
+    Cases handled:
+    1. Same plan_id, different LOB -> Renewal with LOB change (new license)
+    2. Same plan_id and LOB -> Simple Renewal (update snapshots)
+    3. Different plan_id, different LOB -> New Subscription (new license)
+    4. Different plan_id, same LOB -> Upgrade/Downgrade (update existing)
+    5. No current subscription -> New Subscription
+    """
+    serializer = SubscriptionPlanChangeSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    tenant = serializer.validated_data['tenant']
+    new_plan = serializer.validated_data['new_plan']
+    
+    try:
+        # Get current active subscription if exists
+        current_subscription = TenantSubscriptionLicenses.objects.filter(
+            tenant=tenant,
+            license_status='active'
+        ).first()
+        
+        print("current_subscription", current_subscription)
+        
+        if current_subscription:
+            current_plan_id = current_subscription.subscription_plan.id
+            current_lob = current_subscription.subscription_plan.line_of_business
+            new_lob = new_plan.line_of_business
+            
+            print(f"Current Plan ID: {current_plan_id}, New Plan ID: {new_plan.id}")
+            print(f"Current LOB: {current_lob}, New LOB: {new_lob}")
+
+            
+            # Case 1: Same plan_id, different LOB (Renewal with LOB change)
+            if current_plan_id == new_plan.id and current_lob != new_lob:
+                print("Case 1: Same plan_id, different LOB - Renewal with LOB change")
+                # Create new license with new snapshots
+                client_id = tenant.client.client_id if tenant.client else None
+                new_subscription = create_new_subscription(
+                    tenant=tenant,
+                    new_plan=new_plan,
+                    client_id=client_id,
+                    created_by=request.user.id if request.user.is_authenticated else None
+                )
+                # Deactivate old subscription
+                current_subscription.license_status = 'inactive'
+                current_subscription.save()
+                
+                return Response({
+                    'message': 'Successfully renewed subscription with new line of business',
+                    'new_subscription_id': new_subscription.id,
+                    'change_type': 'renewal'
+                })
+
+             
+            # Case 2: Same plan_id and LOB (Simple Renewal)
+            elif current_plan_id == new_plan.id and current_lob == new_lob:
+                print("Case 2: Same plan_id and LOB - Simple Renewal")
+
+                # Just update snapshots
+                update_subscription_snapshots(current_subscription, new_plan)
+                return Response({
+                    'message': 'Successfully renewed subscription',
+                    'subscription_id': current_subscription.id,
+                    'change_type': 'renewal'
+                })
+            
+            # Case 3: Different plan_id, different LOB (New Subscription)
+            elif current_plan_id != new_plan.id and current_lob != new_lob:
+                print("Case 3: Different plan_id and LOB - New Subscription")
+                # Create new license with new snapshots
+                client_id = tenant.client.client_id if tenant.client else None
+                new_subscription = create_new_subscription(
+                    tenant=tenant,
+                    new_plan=new_plan,
+                    client_id=client_id,
+                    created_by=request.user.id if request.user.is_authenticated else None
+                )
+                # Deactivate old subscription
+                current_subscription.license_status = 'inactive'
+                current_subscription.save()
+                
+                return Response({
+                    'message': 'Successfully created new subscription',
+                    'new_subscription_id': new_subscription.id,
+                    'change_type': 'new'
+                })
+            
+            # Case 4: Different plan_id, same LOB (Upgrade/Downgrade)
+            else:
+                print("Case 4: Different plan_id, same LOB - Upgrade/Downgrade")
+                # Update existing subscription
+                current_subscription.subscription_plan = new_plan
+                update_subscription_snapshots(current_subscription, new_plan)
+                
+                # Determine if it's an upgrade or downgrade
+                # change_type = 'upgrade' if new_plan.price > current_subscription.subscription_plan.price else 'downgrade'
+                change_type = 'upgrade/downgrade'
+
+                return Response({
+                    'message': f'Successfully {change_type}d subscription plan',
+                    'subscription_id': current_subscription.id,
+                    'change_type': change_type
+                })
+        
+        else:
+            # Case 5: No current subscription - create new one
+            print("Case 5: No current subscription - creating new one")
+            client_id = tenant.client.client_id if tenant.client else None
+            new_subscription = create_new_subscription(
+                tenant=tenant,
+                new_plan=new_plan,
+                client_id=client_id,
+                created_by=request.user.id if request.user.is_authenticated else None
+            )
+            
+            return Response({
+                'message': 'Successfully created new subscription',
+                'new_subscription_id': new_subscription.id,
+                'change_type': 'new'
+            })
+
+    except Exception as e:
+        print("Error:", e)
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+def create_subscription_snapshots(new_plan):
+    """Create subscription plan and features snapshots for a plan using raw SQL"""
+    with connection.cursor() as cursor:
+        # Get subscription plan details
+        cursor.execute("""
+            SELECT 
+                id, name, price, max_users, storage_limit,
+                transaction_limit, api_call_limit, session_type,
+                support_level, line_of_business_id
+            FROM subscription_plans
+            WHERE id = %s
+        """, [new_plan.id])
+        
+        plan_columns = [col[0] for col in cursor.description]
+        plan_data = cursor.fetchone()
+        
+        if not plan_data:
+            raise ValueError(f"Subscription plan with id {new_plan.id} not found")
+            
+        plan_dict = dict(zip(plan_columns, plan_data))
+        
+        # Create subscription plan snapshot
+        subscription_plan_snapshot = {
+            'id': plan_dict['id'],
+            'name': plan_dict['name'],
+            'price': str(plan_dict['price']),
+            'max_users': plan_dict['max_users'],
+            'storage_limit': plan_dict['storage_limit'],
+            'transaction_limit': plan_dict['transaction_limit'],
+            'api_call_limit': plan_dict['api_call_limit'],
+            'session_type': plan_dict['session_type'],
+            'support_level': plan_dict['support_level']
+        }
+        
+        # Add line of business if available
+        if plan_dict['line_of_business_id']:
+            cursor.execute("""
+                SELECT id, name FROM ecomm_superadmin_lineofbusiness 
+                WHERE id = %s
+            """, [plan_dict['line_of_business_id']])
+            lob_data = cursor.fetchone()
+            if lob_data:
+                subscription_plan_snapshot['line_of_business'] = {
+                    'id': lob_data[0],
+                    'name': lob_data[1]
+                }
+
+        # Get features for this plan
+        cursor.execute("""
+            SELECT 
+                f.id, f.key, f.name, f.description, 
+                f.granual_settings::text as granual_settings_json,
+                a.app_id, a.application_name
+            FROM features f
+            INNER JOIN plan_feature_entitlements pfe ON f.id = pfe.feature_id
+            LEFT JOIN application a ON f.app_id = a.app_id
+            WHERE pfe.plan_id = %s
+        """, [new_plan.id])
+        
+        feature_columns = [col[0] for col in cursor.description]
+        feature_rows = cursor.fetchall()
+        
+        # Transform features into the desired format
+        features_dict = {}
+        for row in feature_rows:
+            feature_dict = dict(zip(feature_columns, row))
+            feature_id = str(feature_dict['id'])
+            
+            # Parse granual_settings JSON
+            granual_settings = {}
+            try:
+                if feature_dict.get('granual_settings_json'):
+                    granual_settings = json.loads(feature_dict['granual_settings_json'])
+            except (TypeError, json.JSONDecodeError) as e:
+                print(f"Error parsing granual_settings for feature {feature_id}: {e}")
+                granual_settings = {}
+            
+            # Extract subfeatures from granual_settings
+            subfeatures = []
+            if isinstance(granual_settings, dict) and 'subfeatures' in granual_settings:
+                subfeatures = granual_settings['subfeatures']
+            
+            # Build the feature structure
+            features_dict[feature_id] = {
+                'id': feature_dict['id'],
+                'key': feature_dict['key'],
+                'name': feature_dict['name'],
+                'app_id': feature_dict['app_id'],
+                'is_active': True,  # Assuming all features from plan are active
+                'description': feature_dict['description'],
+                'subfeatures': subfeatures
+            }
+            
+            # Add application info if available
+            if feature_dict.get('app_id'):
+                features_dict[feature_id]['application'] = {
+                    'app_id': feature_dict['app_id'],
+                    'name': feature_dict['application_name']
+                }
+
+        # Create the final features snapshot
+        features_snapshot = features_dict
+        
+        return subscription_plan_snapshot, features_snapshot
+
+def update_subscription_snapshots(subscription, new_plan):
+    """Update subscription with new plan and feature snapshots using raw SQL"""
+    subscription_plan_snapshot, features_snapshot = create_subscription_snapshots(new_plan)
+    print("features:", features_snapshot)
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            UPDATE ecomm_superadmin_tenant_subscriptions_licenses
+            SET 
+                subscription_plan_snapshot = %s,
+                features_snapshot = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id
+        """, [
+            json.dumps(subscription_plan_snapshot),
+            json.dumps(features_snapshot),
+            subscription.id
+        ])
+        
+        if not cursor.fetchone():
+            raise Exception("Failed to update subscription snapshots")
+
+def create_new_subscription(tenant, new_plan, client_id, created_by):
+    """Create a new subscription with snapshots"""
+    subscription_plan_snapshot, features_snapshot = create_subscription_snapshots(new_plan)
+    
+    return TenantSubscriptionLicenses.objects.create(
+        tenant=tenant,
+        subscription_plan=new_plan,
+        license_key=str(uuid.uuid4()),
+        license_status='active',
+        valid_from=timezone.now(),
+        client_id=client_id,
+        company_id=1,  # Default company ID
+        created_by=created_by,
+        subscription_plan_snapshot=subscription_plan_snapshot,
+        features_snapshot=features_snapshot
+    )
+
 
 @csrf_exempt
 @api_view(['POST'])
@@ -637,3 +846,5 @@ def check_tenant_exist(request):
     except Exception as e:
         print("Error:", e)
         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

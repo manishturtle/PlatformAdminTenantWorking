@@ -14,6 +14,8 @@ import {
   SelectChangeEvent,
   TextField,
   Typography,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import { Info as InfoIcon } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -21,7 +23,18 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { getAuthHeader } from '../../../utils/authUtils';
 import { plansService } from './plans.service';
-import { Feature } from './plans.types';
+import { getActiveLineOfBusinesses } from '../../../services/lineOfBusinessService';
+
+interface LineOfBusiness {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: number | null;
+  updated_by: number | null;
+}
 
 interface SubFeature {
   id: number;
@@ -61,8 +74,9 @@ interface CreatePlanFormProps {
 interface FormData {
   name: string;
   description: string;
-  status: 'active' | 'inactive' | 'deprecated';
+  status: 'active' | 'inactive' | 'draft';
   price: string;
+  billing_cycle: 'monthly' | 'quarterly' | 'annually' | 'one_time' | 'weekly';
   max_users: string;
   transaction_limit: string;
   api_call_limit: string;
@@ -71,6 +85,7 @@ interface FormData {
   support_level: 'basic' | 'standard' | 'premium';
   valid_from: Date;
   valid_until: Date | null;
+  line_of_business: number | null;
   detailed_entitlements: Record<string, any>;
 }
 
@@ -80,6 +95,7 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
     description: '',
     status: 'active',
     price: '',
+    billing_cycle: 'monthly',
     max_users: '',
     transaction_limit: '',
     api_call_limit: '',
@@ -88,6 +104,7 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
     support_level: 'basic',
     valid_from: new Date(),
     valid_until: null,
+    line_of_business: null,
     detailed_entitlements: {},
   });
 
@@ -95,10 +112,24 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
   const [selectedApps, setSelectedApps] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linesOfBusiness, setLinesOfBusiness] = useState<LineOfBusiness[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
     fetchFeatures();
+    fetchLinesOfBusiness();
   }, []);
+  
+  const fetchLinesOfBusiness = async () => {
+    try {
+      const data = await getActiveLineOfBusinesses();
+      setLinesOfBusiness(data);
+    } catch (err) {
+      console.error('Error fetching lines of business:', err);
+    }
+  };
 
   const fetchFeatures = async () => {
     setLoading(true);
@@ -231,19 +262,85 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setLoading(true);
+    setFormErrors({});
     
     try {
       await onSubmit(formData);
-    } catch (error) {
+      // Clear form errors on success
+      setFormErrors({});
+    } catch (error: any) {
       console.error('Failed to submit form:', error);
+      
+      // Handle API error responses
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+        
+        // Check for field-specific errors
+        if (typeof errorData === 'object') {
+          const newFormErrors: Record<string, string> = {};
+          
+          // Handle name field error specifically for duplicate plans
+          if (errorData.name) {
+            if (Array.isArray(errorData.name)) {
+              newFormErrors.name = errorData.name[0];
+            } else {
+              newFormErrors.name = errorData.name;
+            }
+            
+            // Show snackbar for duplicate plan name
+            if (newFormErrors.name.includes('already exists')) {
+              setSnackbarMessage('A subscription plan with this name already exists');
+              setSnackbarOpen(true);
+            }
+          }
+          
+          // Handle other field errors
+          Object.keys(errorData).forEach(key => {
+            if (key !== 'name') {
+              if (Array.isArray(errorData[key])) {
+                newFormErrors[key] = errorData[key][0];
+              } else {
+                newFormErrors[key] = errorData[key];
+              }
+            }
+          });
+          
+          setFormErrors(newFormErrors);
+        } else {
+          // Generic error message
+          setSnackbarMessage('Failed to create subscription plan');
+          setSnackbarOpen(true);
+        }
+      } else {
+        // Generic error message for non-API errors
+        setSnackbarMessage('An error occurred while creating the subscription plan');
+        setSnackbarOpen(true);
+      }
+    } finally {
+      setLoading(false);
     }
+  };
+  
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
   };
 
   return (
     <Grid container component="form" onSubmit={handleSubmit} spacing={3} sx={{ width: '100%' }}>
-      <Grid item xs={12} component="div">
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+      <Grid item xs={12} component="div" width={1}>
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Grid container justifyContent="space-between" alignItems="center">
+          <Grid container justifyContent="space-between" alignItems="center" >
             <Grid item>
               <Typography variant="h5">Create New Plan</Typography>
             </Grid>
@@ -277,6 +374,8 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                 value={formData.name}
                 onChange={handleTextFieldChange}
                 required
+                error={!!formErrors.name}
+                helperText={formErrors.name || ''}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -309,6 +408,24 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
               />
             </Grid>
             <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Billing Cycle</InputLabel>
+                <Select
+                  name="billing_cycle"
+                  value={formData.billing_cycle}
+                  onChange={handleSelectChange}
+                  label="Billing Cycle"
+                  required
+                >
+                  <MenuItem value="monthly">Monthly</MenuItem>
+                  <MenuItem value="quarterly">Quarterly</MenuItem>
+                  <MenuItem value="annually">Annually</MenuItem>
+                  <MenuItem value="one_time">One Time</MenuItem>
+                  <MenuItem value="weekly">Weekly</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Valid From"
@@ -337,6 +454,28 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                   sx={{ width: '100%' }}
                 />
               </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth sx={{ minWidth: 200 }}>
+                <InputLabel>Line of Business</InputLabel>
+                <Select
+                  name="line_of_business"
+                  value={formData.line_of_business || ''}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? null : Number(e.target.value);
+                    setFormData(prev => ({
+                      ...prev,
+                      line_of_business: value
+                    }));
+                  }}
+                  label="Line of Business"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {linesOfBusiness.map((lob) => (
+                    <MenuItem key={lob.id} value={lob.id}>{lob.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             {/* <Grid item xs={12}>
               <TextField

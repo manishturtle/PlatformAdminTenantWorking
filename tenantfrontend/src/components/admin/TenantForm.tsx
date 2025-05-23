@@ -50,9 +50,9 @@ interface TenantFormData {
   name: string;
   schema_name: string;
   url_suffix: string;
-  status: string;
+  default_url: string;
+  status?: string; // Optional since it's not in the form but needed for API
   environment: string;
-  trial_end_date: Date;
   contact_email: string;
   is_active: boolean;
   client_id: string;
@@ -71,9 +71,8 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
     name: '',
     schema_name: '',
     url_suffix: '',
-    status: 'trial',
+    default_url: '',
     environment: 'production',
-    trial_end_date: new Date(),
     contact_email: '',
     is_active: true,
     client_id: '',
@@ -185,9 +184,8 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
         name: tenant.name || '',
         schema_name: tenant.schema_name || '',
         url_suffix: tenant.url_suffix || '',
-        status: tenant.status || 'trial',
+        default_url: tenant.default_url || '',
         environment: tenant.environment || 'production',
-        trial_end_date: tenant.trial_end_date ? new Date(tenant.trial_end_date) : addMonths(new Date(), 1),
         contact_email: tenant.contact_email || '',
         is_active: tenant.is_active !== undefined ? tenant.is_active : true,
         client_id: tenant.client_id ? tenant.client_id.toString() : '',
@@ -356,8 +354,8 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
       // Prepare data for API
       const apiData = {
         ...formData,
+        status: 'active', // Set default status to active
         client_id: formData.client_id && formData.client_id !== '' ? parseInt(formData.client_id) : null,
-        trial_end_date: formData.trial_end_date.toISOString().split('T')[0], // Format as YYYY-MM-DD
       };
       
       console.log('Submitting tenant data:', apiData);
@@ -406,11 +404,31 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
   
   return (
     <Paper sx={{ p: 4 }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        {isEditing ? 'Edit Tenant' : 'Create New Tenant'}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5">
+          {isEditing ? 'Edit Tenant' : 'Create New Tenant'}
+        </Typography>
+        <Box>
+          <Button 
+            onClick={onCancel} 
+            sx={{ mr: 2 }}
+            variant="outlined"
+          >
+            CANCEL
+          </Button>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            color="primary"
+            form="tenant-form"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : (isEditing ? 'UPDATE TENANT' : 'CREATE TENANT')}
+          </Button>
+        </Box>
+      </Box>
       
-      <form onSubmit={handleSubmit} autoComplete="off">
+      <form id="tenant-form" onSubmit={handleSubmit} autoComplete="off">
         {/* Tenant Information Section */}
         <Typography variant="h6" sx={{ mb: 2, borderBottom: '1px solid #e0e0e0', pb: 1 }}>
           Tenant Information
@@ -540,30 +558,15 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
           </Grid>
           
           <Grid item xs={12} sm={6} md={6}>
-            <FormControl fullWidth>
-              <InputLabel id="status-label">Status</InputLabel>
-              <Select
-                labelId="status-label"
-                label="Status"
-                name="status"
-                value={formData.status}
-                onChange={handleSelectChange}
-              >
-                <MenuItem value="trial">Trial</MenuItem>
-                <MenuItem value="active">Active</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Trial End Date"
-                value={formData.trial_end_date}
-                onChange={handleDateChange}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </LocalizationProvider>
+            <TextField
+              label="Default URL"
+              name="default_url"
+              value={formData.default_url}
+              onChange={handleInputChange}
+              placeholder="https://tenantdomain.com"
+              helperText="Default URL for this tenant (e.g., https://tenantdomain.com)"
+              fullWidth
+            />
           </Grid>
           
           <Grid item xs={12} sm={6} md={6}>
@@ -641,12 +644,12 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
               
               <Grid item xs={12} sm={6} md={6}>
                 <TextField
-                  label="Admin Password (Optional)"
+                  label="Admin Password"
                   name="admin_password"
                   value={formData.admin_password}
                   onChange={handleInputChange}
                   error={Boolean(errors.admin_password)}
-                  helperText={errors.admin_password || 'Leave blank to auto-generate a secure password'}
+                  helperText={errors.admin_password || 'Set a default password'}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   InputProps={{
@@ -677,23 +680,8 @@ const TenantForm: React.FC<TenantFormProps> = ({ tenant, onSubmit, onCancel }) =
           </Alert>
         )}
         
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          <Button 
-            onClick={onCancel} 
-            sx={{ mr: 2 }}
-            variant="outlined"
-          >
-            CANCEL
-          </Button>
-          
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : (isEditing ? 'UPDATE TENANT' : 'CREATE TENANT')}
-          </Button>
+        <Box sx={{ display: 'none' }}>
+          <Button type="submit">Submit</Button>
         </Box>
       </form>
     </Paper>

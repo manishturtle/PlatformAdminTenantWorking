@@ -422,7 +422,7 @@ class TenantUserLoginView(APIView):
         # Log successful login
         logger.info(f"TenantUserLoginView - Login successful for user: {user.id}")
 
-        final_redirect_url = f'{default_url}{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant_slug}&app_id={app_id}'
+        final_redirect_url = f'{default_url}{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant.schema_name}&app_id={app_id}'
         
         # Return token and user data along with application details
         return Response({

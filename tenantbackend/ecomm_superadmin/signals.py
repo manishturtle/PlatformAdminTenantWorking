@@ -148,7 +148,7 @@ def create_tenant_schema(sender, instance, created, **kwargs):
                         url = f"{base_url}/{endpoint}/"
                         
                         logger.info(f"Attempting to call schema migration for app '{app.application_name}' at URL: {url}")
-                        
+
                         # Make the API call with timeout
                         response = requests.post(
                             url=url,
@@ -161,7 +161,7 @@ def create_tenant_schema(sender, instance, created, **kwargs):
                                 "Content-Type": "application/json",
                                 "Accept": "application/json"
                             },
-                            timeout=30  # 30 seconds timeout
+                            # timeout=30  # 30 seconds timeout
                         )
                         
                         response.raise_for_status()  # Raise exception for 4XX/5XX status codes

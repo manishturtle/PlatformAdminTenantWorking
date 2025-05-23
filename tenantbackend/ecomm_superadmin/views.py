@@ -14,13 +14,15 @@ from django.utils.decorators import method_decorator
 import logging
 import uuid
 from subscription_plan.models import SubscriptionPlan
-from .models import TenantSubscriptionLicenses
+from .models import TenantSubscriptionLicenses, LineOfBusiness
 from django.utils import timezone
-
+from datetime import timedelta
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.exceptions import NotFound
 logger = logging.getLogger(__name__)
 
 from .models import Tenant, User, CrmClient, Application
-from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer
+from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer, LineOfBusinessSerializer
 
 # @method_decorator(csrf_exempt, name='dispatch')
 # class PlatformAdminTenantView(APIView):
@@ -194,6 +196,77 @@ class PlatformAdminTenantView(APIView):
     Uses direct database access to avoid model field mapping issues.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, format=None):
+        """
+        Create a new tenant with proper transaction handling and rollback.
+        """
+        from django.db import transaction
+        from .models import Tenant, Domain
+        from .signals import create_tenant_schema
+        import traceback
+
+        try:
+            # Start transaction
+            with transaction.atomic():
+                # Validate required fields
+                required_fields = ['name', 'schema_name', 'subscription_plan_id']
+                for field in required_fields:
+                    if field not in request.data:
+                        return Response(
+                            {"error": f"Missing required field: {field}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                # Create tenant instance
+                tenant = Tenant(
+                    name=request.data['name'],
+                    schema_name=request.data['schema_name'],
+                    subscription_plan_id=request.data['subscription_plan_id'],
+                    created_by=request.user,
+                    # Add other fields from request.data as needed
+                )
+
+                try:
+                    # Save tenant - this will trigger the signal
+                    tenant.save()
+                except Exception as e:
+                    # Log the specific error
+                    logger.error(f"Error creating tenant: {str(e)}\n{traceback.format_exc()}")
+                    raise Exception(f"Failed to create tenant: {str(e)}")
+
+                # Return success response
+                return Response(
+                    {
+                        "message": "Tenant created successfully",
+                        "tenant_id": tenant.id,
+                        "schema_name": tenant.schema_name
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+
+        except Exception as e:
+            # Transaction will automatically rollback
+            error_msg = str(e)
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error in tenant creation: {error_msg}\n{stack_trace}")
+
+            # Return error response with appropriate status
+            if "already exists" in error_msg.lower():
+                return Response(
+                    {"error": "A tenant with this name or schema already exists"},
+                    status=status.HTTP_409_CONFLICT
+                )
+            elif "migration" in error_msg.lower():
+                return Response(
+                    {"error": f"Migration error: {error_msg}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            else:
+                return Response(
+                    {"error": f"Failed to create tenant: {error_msg}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
     
     def get(self, request, format=None):
         """
@@ -204,7 +277,7 @@ class PlatformAdminTenantView(APIView):
                 cursor.execute("""
                     SELECT 
                         id, schema_name, name, url_suffix, created_at, updated_at,
-                        status, environment, trial_end_date, paid_until,
+                        status, environment, default_url, paid_until,
                         subscription_plan_id, client_id
                     FROM ecomm_superadmin_tenants
                     ORDER BY created_at DESC
@@ -226,8 +299,7 @@ class PlatformAdminTenantView(APIView):
                         tenant_dict['created_at'] = tenant_dict['created_at'].isoformat()
                     if 'updated_at' in tenant_dict and tenant_dict['updated_at']:
                         tenant_dict['updated_at'] = tenant_dict['updated_at'].isoformat()
-                    if 'trial_end_date' in tenant_dict and tenant_dict['trial_end_date']:
-                        tenant_dict['trial_end_date'] = tenant_dict['trial_end_date'].isoformat()
+                    
                     if 'paid_until' in tenant_dict and tenant_dict['paid_until']:
                         tenant_dict['paid_until'] = tenant_dict['paid_until'].isoformat()
                     
@@ -276,14 +348,35 @@ class PlatformAdminTenantView(APIView):
             traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def create_tenant_subscription(self, tenant, subscription_plan, client_id=None, company_id=None, created_by=None):
+    def create_tenant_subscription(self, tenant, subscription_plan, client_id=None, company_id=None, created_by=None, start_date=None):
         """Create a new tenant subscription with license key"""
+
+        if start_date is None:
+            start_date = timezone.now()
+        
+        # Calculate end date based on billing cycle
+        if subscription_plan.billing_cycle == 'monthly':
+            end_date = start_date + timedelta(days=30)
+        elif subscription_plan.billing_cycle == 'quarterly':
+            end_date = start_date + timedelta(days=90)
+        elif subscription_plan.billing_cycle == 'annually':
+            end_date = start_date + timedelta(days=365)
+        elif subscription_plan.billing_cycle == 'weekly':
+            end_date = start_date + timedelta(weeks=1)
+        elif subscription_plan.billing_cycle == 'one_time':
+            # For one-time, you might want to set a far future date or handle differently
+            end_date = start_date + timedelta(days=365*10)  # 10 years
+        else:
+            end_date = start_date + timedelta(days=30)  # Default to monthly
+
         subscription = TenantSubscriptionLicenses.objects.create(
             tenant=tenant,
             subscription_plan=subscription_plan,
-            valid_from=timezone.now(),
+            valid_from=start_date,
+            valid_until=end_date,
             client_id=client_id,
             company_id=company_id,
+            billing_cycle=subscription_plan.billing_cycle,
             created_by=created_by
         )
         return subscription
@@ -745,7 +838,7 @@ class TenantSubscriptionDetailsView(APIView):
                         t.name as tenant_name,
                         t.subscription_plan_id,
                         t.status as tenant_status,
-                        t.trial_end_date,
+                        t.default_url,
                         t.paid_until,
                         sp.id as plan_id,
                         sp.name as plan_name,
@@ -871,3 +964,96 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TenantByDefaultUrlView(APIView):
+    """
+    API endpoint to get tenant schema and URL suffix by default URL.
+    Returns only the tenant_schema and url_suffix based on the default URL.
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, format=None):
+        default_url = request.query_params.get('default_url')
+        
+        if not default_url:
+            return Response(
+                {'error': 'default_url parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Try to find a tenant with the exact default_url
+            tenant = Tenant.objects.using('default').get(default_url=default_url)
+            
+            response_data = {
+                'tenant_id': tenant.id,
+                'tenant_schema': tenant.schema_name,
+                # 'url_suffix': tenant.url_suffix,
+                'default_url': tenant.default_url
+            }
+            
+            return Response(response_data)
+            
+        except Tenant.DoesNotExist:
+            try:
+                # Check if the URL exists in the tenant domains
+                from django_tenants.utils import get_tenant_domain_model
+                domain = get_tenant_domain_model().objects.get(domain=default_url)
+                tenant = domain.tenant
+                
+                response_data = {
+                    'tenant_id': tenant.id,
+                    'tenant_schema': tenant.schema_name,
+                    # 'url_suffix': tenant.url_suffix,
+                    'default_url': default_url,
+                    'found_via': 'domain_lookup'
+                }
+                return Response(response_data)
+                
+            except Exception:
+                return Response(
+                    {'error': 'No tenant found for the provided URL'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+                
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LineOfBusinessViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows Lines of Business to be viewed or edited.
+    Provides CRUD operations for LineOfBusiness objects with appropriate permissions.
+    """
+    queryset = LineOfBusiness.objects.all()
+    serializer_class = LineOfBusinessSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Filter based on query parameters
+        queryset = super().get_queryset()
+        is_active = self.request.query_params.get('is_active')
+        
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+            
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Custom endpoint to get only active lines of business"""
+        queryset = self.get_queryset().filter(is_active=True)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        # Set created_by and updated_by to the current user's ID
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Update only the updated_by field
+        serializer.save()

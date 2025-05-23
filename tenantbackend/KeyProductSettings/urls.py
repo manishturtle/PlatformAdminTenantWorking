@@ -16,11 +16,16 @@ admin.site.index_title = "Welcome to Turtle ERP Admin Portal"
 
 # These URL patterns will be available at the root level
 urlpatterns = [
+    # External tenants routes - ecommerce order processing
+    path('api/ecommerce/', include('external_tenants.urls')),
+    
     # Django admin (not tenant-specific)
     path('admin/', admin.site.urls),
     
     # Platform admin routes (not tenant-specific)
     path('platform-admin/api/', include('ecomm_superadmin.admin_urls', namespace='platform_admin')),
+    
+    # Public API endpoint to get tenant by default URL (must be before tenant-specific routes)
     
     # Add additional route for platform admin to support frontend API calls
     path('api/platform-admin/api/users/', include('ecomm_superadmin.admin_urls', namespace='platform_admin_with_api_prefix')),

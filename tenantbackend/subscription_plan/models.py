@@ -72,13 +72,35 @@ class SubscriptionPlan(models.Model):
         ('inactive', 'Inactive'),
         ('deprecated', 'Deprecated')
     ]
-
+    
+    BILLING_CYCLE_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('annually', 'Annually'),
+        ('one_time', 'One Time'),
+        ('weekly', 'Weekly')
+    ]
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    line_of_business = models.ForeignKey(
+        'ecomm_superadmin.LineOfBusiness',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subscription_plans',
+        help_text='The line of business this subscription plan belongs to'
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     valid_from = models.DateTimeField(default=timezone.now)
     valid_until = models.DateTimeField(null=True, blank=True)
+    billing_cycle = models.CharField(
+        max_length=20,
+        choices=BILLING_CYCLE_CHOICES,
+        help_text='Billing cycle for the subscription plan',
+        null=False,
+        blank=False
+    )
     
     # System-wide settings
     max_users = models.IntegerField(validators=[MinValueValidator(1)])
