@@ -796,7 +796,7 @@ def check_tenant_exist(request):
 
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT id, name, schema_name, status, subscription_plan_id
+                SELECT id, name, schema_name, status
                 FROM ecomm_superadmin_tenants
                 WHERE schema_name = %s
             """, [schema_name])
@@ -805,16 +805,16 @@ def check_tenant_exist(request):
             if not tenant:
                 return Response({'message': 'Tenant not found'}, status=status.HTTP_404_NOT_FOUND)
 
-            subscription_plan = None
-            subscription_plan_id = tenant[4]
+            # subscription_plan = None
+            # subscription_plan_id = tenant[4]
 
-            if subscription_plan_id:
-                cursor.execute("""
-                    SELECT id, name, price, max_users, storage_limit
-                    FROM subscription_plans
-                    WHERE id = %s
-                """, [subscription_plan_id])
-                subscription_plan = cursor.fetchone()
+            # if subscription_plan_id:
+            #     cursor.execute("""
+            #         SELECT id, name, price, max_users, storage_limit
+            #         FROM subscription_plans
+            #         WHERE id = %s
+            #     """, [subscription_plan_id])
+            #     subscription_plan = cursor.fetchone()
 
         # Decide the login redirect path based on URL
         if is_tenant_admin:
@@ -832,14 +832,14 @@ def check_tenant_exist(request):
             'redirect_to_iam': redirect_path
         }
 
-        if subscription_plan:
-            response_data['subscription_plan'] = {
-                'id': subscription_plan[0],
-                'name': subscription_plan[1],
-                'price': subscription_plan[2],
-                'max_users': subscription_plan[3],
-                'max_storage': subscription_plan[4]
-            }
+        # if subscription_plan:
+        #     response_data['subscription_plan'] = {
+        #         'id': subscription_plan[0],
+        #         'name': subscription_plan[1],
+        #         'price': subscription_plan[2],
+        #         'max_users': subscription_plan[3],
+        #         'max_storage': subscription_plan[4]
+        #     }
 
         return Response(response_data, status=status.HTTP_200_OK)
 

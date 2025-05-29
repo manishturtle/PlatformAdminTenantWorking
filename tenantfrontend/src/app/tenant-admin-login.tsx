@@ -1,44 +1,55 @@
-import React, { useState } from 'react';
-import { Box, Button, Card, CardContent, TextField, Typography, Alert } from '@mui/material';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
+import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  TextField,
+  Typography,
+  Alert,
+} from "@mui/material";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 
 export default function TenantAdminLoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setSuccess(false);
 
     try {
-      const response = await fetch('http://localhost:8000/api/qa/tenant/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
-      });
+      const response = await fetch(
+        "https://bedevcockpit.turtleit.in/api/qa/tenant/auth/login/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Invalid credentials');
+        throw new Error(errorData.message || "Invalid credentials");
       }
 
       const data = await response.json();
-      
+
       // Store the token
-      localStorage.setItem('token', data.token);
-      
+      localStorage.setItem("token", data.token);
+
       setSuccess(true);
     } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Failed to login. Please try again.');
+      console.error("Login error:", error);
+      setError(error.message || "Failed to login. Please try again.");
     }
   };
 
@@ -48,15 +59,25 @@ export default function TenantAdminLoginPage() {
         <CardContent>
           <Box display="flex" alignItems="center" mb={2}>
             <LockOpenIcon color="primary" sx={{ fontSize: 40, mr: 2 }} />
-            <Typography variant="h4" fontWeight="bold">Tenant Admin Login</Typography>
+            <Typography variant="h4" fontWeight="bold">
+              Tenant Admin Login
+            </Typography>
           </Box>
-          {success && <Alert severity="success" sx={{ mb: 2 }}>Login successful!</Alert>}
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Login successful!
+            </Alert>
+          )}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <form onSubmit={handleSubmit}>
             <TextField
               label="Email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               fullWidth
               required
               margin="normal"
@@ -66,7 +87,7 @@ export default function TenantAdminLoginPage() {
             <TextField
               label="Password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               fullWidth
               required
               margin="normal"
@@ -79,7 +100,7 @@ export default function TenantAdminLoginPage() {
               color="primary"
               size="large"
               fullWidth
-              sx={{ mt: 2, fontWeight: 'bold' }}
+              sx={{ mt: 2, fontWeight: "bold" }}
             >
               Login
             </Button>

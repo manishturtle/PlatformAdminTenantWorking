@@ -1,16 +1,17 @@
-import axios from 'axios';
-import { LineOfBusiness } from '@/types/lineOfBusiness';
-import { getAuthToken } from '@/utils/auth';
+import axios from "axios";
+import { LineOfBusiness } from "@/types/lineOfBusiness";
+import { getAuthToken } from "@/utils/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://bedevcockpit.turtleit.in";
 const BASE_URL = `${API_URL}/platform-admin/api/lines-of-business`;
 
 // Helper function to get headers with auth token
 const getHeaders = () => {
   const token = getAuthToken();
   return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
   };
 };
 
@@ -21,32 +22,36 @@ export const getLineOfBusinesses = async (): Promise<LineOfBusiness[]> => {
     // Handle different response formats
     if (Array.isArray(response.data)) {
       return response.data;
-    } else if (response.data && typeof response.data === 'object') {
+    } else if (response.data && typeof response.data === "object") {
       // Check if response has results property (common in DRF pagination)
       if (Array.isArray(response.data.results)) {
         return response.data.results;
       }
       // If it's an object but not paginated, it might be a single item
       // or another structure, log it for debugging
-      console.log('API Response structure:', response.data);
+      console.log("API Response structure:", response.data);
       return [];
     }
     // Default to empty array if response format is unexpected
     return [];
   } catch (error) {
-    console.error('Error fetching lines of business:', error);
+    console.error("Error fetching lines of business:", error);
     throw error;
   }
 };
 
 // Get active lines of business
-export const getActiveLineOfBusinesses = async (): Promise<LineOfBusiness[]> => {
+export const getActiveLineOfBusinesses = async (): Promise<
+  LineOfBusiness[]
+> => {
   try {
-    const response = await axios.get(`${BASE_URL}/active/`, { headers: getHeaders() });
+    const response = await axios.get(`${BASE_URL}/active/`, {
+      headers: getHeaders(),
+    });
     // Handle different response formats
     if (Array.isArray(response.data)) {
       return response.data;
-    } else if (response.data && typeof response.data === 'object') {
+    } else if (response.data && typeof response.data === "object") {
       // Check if response has results property (common in DRF pagination)
       if (Array.isArray(response.data.results)) {
         return response.data.results;
@@ -55,15 +60,19 @@ export const getActiveLineOfBusinesses = async (): Promise<LineOfBusiness[]> => 
     }
     return [];
   } catch (error) {
-    console.error('Error fetching active lines of business:', error);
+    console.error("Error fetching active lines of business:", error);
     throw error;
   }
 };
 
 // Get a single line of business by ID
-export const getLineOfBusinessById = async (id: number): Promise<LineOfBusiness> => {
+export const getLineOfBusinessById = async (
+  id: number
+): Promise<LineOfBusiness> => {
   try {
-    const response = await axios.get(`${BASE_URL}/${id}/`, { headers: getHeaders() });
+    const response = await axios.get(`${BASE_URL}/${id}/`, {
+      headers: getHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error(`Error fetching line of business with ID ${id}:`, error);
@@ -72,20 +81,29 @@ export const getLineOfBusinessById = async (id: number): Promise<LineOfBusiness>
 };
 
 // Create a new line of business
-export const createLineOfBusiness = async (data: Partial<LineOfBusiness>): Promise<LineOfBusiness> => {
+export const createLineOfBusiness = async (
+  data: Partial<LineOfBusiness>
+): Promise<LineOfBusiness> => {
   try {
-    const response = await axios.post(BASE_URL + '/', data, { headers: getHeaders() });
+    const response = await axios.post(BASE_URL + "/", data, {
+      headers: getHeaders(),
+    });
     return response.data;
   } catch (error) {
-    console.error('Error creating line of business:', error);
+    console.error("Error creating line of business:", error);
     throw error;
   }
 };
 
 // Update an existing line of business
-export const updateLineOfBusiness = async (id: number, data: Partial<LineOfBusiness>): Promise<LineOfBusiness> => {
+export const updateLineOfBusiness = async (
+  id: number,
+  data: Partial<LineOfBusiness>
+): Promise<LineOfBusiness> => {
   try {
-    const response = await axios.put(`${BASE_URL}/${id}/`, data, { headers: getHeaders() });
+    const response = await axios.put(`${BASE_URL}/${id}/`, data, {
+      headers: getHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error(`Error updating line of business with ID ${id}:`, error);

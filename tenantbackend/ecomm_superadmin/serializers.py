@@ -1,3 +1,4 @@
+#mseri
 # ecomm_superadmin/serializers.py
 
 from rest_framework import serializers
@@ -5,7 +6,7 @@ from .models import User, Tenant, Domain, Application, CrmClient, TenantApplicat
 from django.contrib.auth import get_user_model
 from .models import (  # Import SHARED models from this app
     Tenant, Domain, User, Application,
-    CrmClient, TenantApplication
+    CrmClient, TenantApplication, TenantSubscriptionLicenses
 )
 
 from subscription_plan.models import PlanFeatureEntitlement
@@ -15,6 +16,7 @@ from ecomm_tenant.ecomm_tenant_admins.models import UserProfile, Role, UserRole
 from subscription_plan.models import SubscriptionPlan
 from django.utils import timezone
 from .models import LineOfBusiness
+import requests
 
 User = get_user_model() # Get the active User model (ecomm_superadmin.User)
 
@@ -153,15 +155,8 @@ class CrmClientSerializer(serializers.ModelSerializer):
 class TenantSerializer(serializers.ModelSerializer):
     """
     Serializer for the SHARED Tenant model (tenants).
-    Handles displaying the plan and receiving plan ID for writes.
     Includes write-only fields for creating the initial tenant admin.
     """
-    subscription_plan = serializers.PrimaryKeyRelatedField(
-        queryset=SubscriptionPlan.objects.all(),
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
     assigned_applications = serializers.SerializerMethodField()
 
     client = CrmClientSerializer(read_only=True)
@@ -187,9 +182,9 @@ class TenantSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'schema_name', 'url_suffix', 'status', 'environment',
             'default_url', 'created_at', 'updated_at',
-            'subscription_plan', 'assigned_applications',
-            'client', 'client_id', 'admin_email', 'admin_first_name', 
-            'admin_last_name', 'admin_password', 'contact_email'
+            'assigned_applications', 'client', 'client_id', 
+            'admin_email', 'admin_first_name', 'admin_last_name', 
+            'admin_password', 'contact_email'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'assigned_applications']
         extra_kwargs = {
@@ -515,198 +510,359 @@ class TenantSerializer(serializers.ModelSerializer):
             VALUES (%s, TRUE, TRUE, TRUE, FALSE, FALSE, NOW(), NOW())
             """, [tenant_user_id])
 
-            # Get subscription plan features and their applications
-            if tenant.subscription_plan:
-                print(f"Fetching features for subscription plan: {tenant.subscription_plan.id}")
-                
-                # Get all features for this subscription plan
-                plan_features = PlanFeatureEntitlement.objects.filter(plan=tenant.subscription_plan)
-                print(f"Found {len(plan_features)} plan features")
-                
-                # Get unique app_ids from features
-                app_ids = set()
-                for pf in plan_features:
-                    if pf.feature and pf.feature.app_id:
-                        app_ids.add(pf.feature.app_id)
-                        print(f"Added app_id: {pf.feature.app_id} from feature: {pf.feature.name}")
-                    else:
-                        print(f"Warning: Feature {pf.id} has no app_id")
+            # Initialize app_ids and features
+            app_ids = set([1])  # Default app_id
+            features = []
+            subscriptions = []
+            
+            # Get subscription plans if provided
+            subscription_plan_ids = validated_data.get('subscription_plan', [])
+            if not isinstance(subscription_plan_ids, list):
+                subscription_plan_ids = [subscription_plan_ids]
+            
+            if subscription_plan_ids:
+                for plan_id in subscription_plan_ids:
+                    try:
+                        subscription_plan = SubscriptionPlan.objects.get(id=plan_id)
+                        
+                        # Create subscription plan snapshot
+                        subscription_plan_snapshot = {
+                            'id': subscription_plan.id,
+                            'name': subscription_plan.name,
+                            'description': subscription_plan.description,
+                            'price': str(subscription_plan.price),
+                            'max_users': subscription_plan.max_users,
+                            'transaction_limit': subscription_plan.transaction_limit,
+                            'api_call_limit': subscription_plan.api_call_limit,
+                            'storage_limit': subscription_plan.storage_limit,
+                            'session_type': subscription_plan.session_type,
+                            'support_level': subscription_plan.support_level,
+                            'billing_cycle': subscription_plan.billing_cycle
+                        }
+                        
+                        # Create features snapshot
+                        features_dict = {}
+                        for entitlement in subscription_plan.feature_entitlements.all().select_related('feature'):
+                            feature = entitlement.feature
+                            feature_data = {
+                                'id': feature.id,
+                                'name': feature.name,
+                                'key': feature.key,
+                                'description': feature.description,
+                                'is_active': feature.is_active,
+                                'app_id': feature.app_id,
+                                'settings': feature.granual_settings if feature.granual_settings else {}
+                            }
+                            features_dict[str(feature.id)] = feature_data
+                            
+                            # Add app_id to set for role creation
+                            if feature.app_id:
+                                app_ids.add(feature.app_id)
+                            
+                            # Add to features list for role creation
+                            features.append(feature_data)
+                        
+                        # Create subscription license
+                        subscription = TenantSubscriptionLicenses.objects.create(
+                            tenant=tenant,
+                            subscription_plan=subscription_plan,
+                            license_key=uuid.uuid4(),
+                            license_status='active',
+                            client_id=validated_data.get('client_id'),
+                            company_id=validated_data.get('company_id'),
+                            created_by=validated_data.get('created_by'),
+                            valid_from=timezone.now(),
+                            subscription_plan_snapshot=subscription_plan_snapshot,
+                            features_snapshot=features_dict
+                        )
+                        
+                        print(f"Created subscription license with key: {subscription.license_key}")
+                        subscriptions.append(subscription)
+                        
+                    except SubscriptionPlan.DoesNotExist:
+                        print(f"Subscription plan with id {plan_id} does not exist")
+                        continue
                 
                 if not app_ids:
-                    print("Warning: No valid app_ids found in subscription plan features")
+                    print("Warning: No valid app_ids found in subscription features")
                     # Add a default app_id of 1 if none found
                     app_ids.add(1)
                     print("Added default app_id: 1")
+            else:
+                print("No subscription plans provided, using default app_id: 1")
                 
-                # Create SuperRole for each application
-                print(f"Creating SuperRoles for schema: {schema_name}")
-                print(f"Found app_ids: {app_ids}")
+            # Get unique app_ids from features
+            #     app_ids = set()
+            #     for pf in plan_features:
+            #         if pf.feature and pf.feature.app_id:
+            #             app_ids.add(pf.feature.app_id)
+            #             print(f"Added app_id: {pf.feature.app_id} from feature: {pf.feature.name}")
+            #         else:
+            #             print(f"Warning: Feature {pf.id} has no app_id")
                 
-                for app_id in app_ids:
-                    try:
-                        # First try with all columns
-                        sql = """
-                            INSERT INTO \"{}\".role_controles_role 
-                            (name, description, is_active, app_id, client_id, created_at, updated_at, created_by, updated_by)
-                            VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), %s, %s)
-                            RETURNING id
-                        """.format(schema_name)
+            #     if not app_ids:
+            #         print("Warning: No valid app_ids found in subscription plan features")
+            #         # Add a default app_id of 1 if none found
+            #         app_ids.add(1)
+            #         print("Added default app_id: 1")
+                
+            #     # Create SuperRole for each application
+            #     print(f"Creating SuperRoles for schema: {schema_name}")
+            #     print(f"Found app_ids: {app_ids}")
+                
+            #     for app_id in app_ids:
+            #         try:
+            #             # First try with all columns
+            #             sql = """
+            #                 INSERT INTO \"{}\".role_controles_role 
+            #                 (name, description, is_active, app_id, client_id, created_at, updated_at, created_by, updated_by)
+            #                 VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), %s, %s)
+            #                 RETURNING id
+            #             """.format(schema_name)
                         
-                        params = [
-                            'SuperRole',
-                            'Default super role with all access',
-                            True,
-                            app_id,
-                            None,
-                            1,
-                            1
+            #             params = [
+            #                 'SuperRole',
+            #                 'Default super role with all access',
+            #                 True,
+            #                 app_id,
+            #                 None,
+            #                 1,
+            #                 1
 
-                        ]
+            #             ]
                         
-                        print(f"Executing SQL: {sql} with params: {params}")
-                        cursor.execute(sql, params)
-                        role_id = cursor.fetchone()[0]
-                        print(f"Created SuperRole with ID: {role_id}")
+            #             print(f"Executing SQL: {sql} with params: {params}")
+            #             cursor.execute(sql, params)
+            #             role_id = cursor.fetchone()[0]
+            #             print(f"Created SuperRole with ID: {role_id}")
                         
-                        # Create ModulePermissionSet with full access for each feature
-                        for pf in plan_features:
-                            if pf.feature and pf.feature.app_id == app_id:
-                                # Create ModulePermissionSet
+            #             # Create ModulePermissionSet with full access for each feature
+            #             for pf in plan_features:
+            #                 if pf.feature and pf.feature.app_id == app_id:
+            #                     # Create ModulePermissionSet
+            #                     cursor.execute(f"""
+            #                         INSERT INTO \"{schema_name}\".role_controles_modulepermissionset
+            #                         (module_id, can_create, can_read, can_update, can_delete, field_permissions, app_id, created_at, updated_at)
+            #                         VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            #                         RETURNING id
+            #                     """, [
+            #                         pf.feature.id,  # module_id is the feature id
+            #                         True,  # can_create
+            #                         True,  # can_read
+            #                         True,  # can_update
+            #                         True,  # can_delete
+            #                         '{}',  # field_permissions (empty JSON)
+            #                         app_id
+            #                     ])
+                                
+            #                     permission_set_id = cursor.fetchone()[0]
+                                
+            #                     # Assign ModulePermissionSet to Role
+            #                     cursor.execute(f"""
+            #                         INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
+            #                         (role_id, modulepermissionset_id)
+            #                         VALUES (%s, %s)
+            #                     """, [role_id, permission_set_id])
+                                
+            #                     print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {pf.feature.id}")
+                        
+            #             # Assign role to admin user
+            #             # cursor.execute(f"""
+            #             #     INSERT INTO \"{schema_name}\".role_controles_userroleassignment
+            #             #     (assigned_on, role_id, \"user\",app_id, created_at, updated_at, created_by, updated_by)
+            #             #     VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
+            #             # """, [
+            #             #     role_id,
+            #                 cursor.execute(sql, params)
+            #                 role_id = cursor.fetchone()[0]
+            #                 print(f"Created SuperRole with ID: {role_id}")
+                            
+            #                 # Create ModulePermissionSet with full access for each feature
+            #                 for pf in plan_features:
+            #                     if pf.feature and pf.feature.app_id == app_id:
+            #                         # Create ModulePermissionSet
+            #                         cursor.execute(f"""
+            #                             INSERT INTO \"{schema_name}\".role_controles_modulepermissionset
+            #                             (module_id, can_create, can_read, can_update, can_delete, field_permissions, app_id, created_at, updated_at)
+            #                             VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            #                             RETURNING id
+            #                         """, [
+            #                             pf.feature.id,  # module_id is the feature id
+            #                             True,  # can_create
+            #                             True,  # can_read
+            #                             True,  # can_update
+            #                             True,  # can_delete
+            #                             '{}',  # field_permissions (empty JSON)
+            #                             app_id
+            #                         ])
+                                    
+            #                         permission_set_id = cursor.fetchone()[0]
+                                    
+            #                         # Assign ModulePermissionSet to Role
+            #                         cursor.execute(f"""
+            #                             INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
+            #                             (role_id, modulepermissionset_id)
+            #                             VALUES (%s, %s)
+            #                         """, [role_id, permission_set_id])
+                                    
+            #                         print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {pf.feature.id}")
+                            
+            #                 # Assign role to admin user
+            #                 cursor.execute(f"""
+            #                     INSERT INTO \"{schema_name}\".role_controles_userroleassignment
+            #                     (assigned_on, role_id, \"user\", app_id, created_at, updated_at, created_by, updated_by)
+            #                     VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
+            #                 """, [role_id, tenant_user_id, app_id, tenant_user_id, tenant_user_id])
+                            
+            #                 print(f"Assigned role {role_id} to user {tenant_user_id} for app {app_id}")
+            #             else:
+            #                 raise
+
+
+            # Create SuperRole for each application
+            print(f"Creating SuperRoles for schema: {schema_name}")
+            print(f"Found app_ids: {app_ids}")
+            
+            for app_id in app_ids:
+                try:
+                    # Create SuperRole
+                    cursor.execute(f"""
+                        INSERT INTO \"{schema_name}\".role_controles_role 
+                        (name, description, is_active, app_id, created_at, updated_at, created_by, updated_by)
+                        VALUES (%s, %s, %s, %s, NOW(), NOW(), %s, %s)
+                        RETURNING id
+                    """, [
+                        'SuperRole',
+                        'Default super role with all access',
+                        True,
+                        app_id,
+                        admin_email if admin_email else 'system',
+                        admin_email if admin_email else 'system'
+                    ])
+                    role_id = cursor.fetchone()[0]
+                    print(f"Created SuperRole with ID: {role_id}")
+                    
+                    # Create ModulePermissionSet for each feature if we have subscriptions
+                    if subscriptions:
+                        for feature in features:
+                            if feature.get('app_id') == app_id:
+                                # Get permissions from feature settings
+                                field_permissions = feature.get('settings', {}).get('field_permissions', {})
                                 cursor.execute(f"""
                                     INSERT INTO \"{schema_name}\".role_controles_modulepermissionset
                                     (module_id, can_create, can_read, can_update, can_delete, field_permissions, app_id, created_at, updated_at)
                                     VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                                     RETURNING id
                                 """, [
-                                    pf.feature.id,  # module_id is the feature id
-                                    True,  # can_create
-                                    True,  # can_read
-                                    True,  # can_update
-                                    True,  # can_delete
-                                    '{}',  # field_permissions (empty JSON)
+                                    feature['id'],  # module_id is the feature id
+                                    feature.get('settings', {}).get('can_create', True),  # can_create
+                                    feature.get('settings', {}).get('can_read', True),   # can_read
+                                    feature.get('settings', {}).get('can_update', True),  # can_update
+                                    feature.get('settings', {}).get('can_delete', True),  # can_delete
+                                    field_permissions,  # field_permissions from feature settings
                                     app_id
                                 ])
-                                
-                                permission_set_id = cursor.fetchone()[0]
-                                
-                                # Assign ModulePermissionSet to Role
-                                cursor.execute(f"""
-                                    INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
-                                    (role_id, modulepermissionset_id)
-                                    VALUES (%s, %s)
-                                """, [role_id, permission_set_id])
-                                
-                                print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {pf.feature.id}")
-                        
-                        # Assign role to admin user
-                        # cursor.execute(f"""
-                        #     INSERT INTO \"{schema_name}\".role_controles_userroleassignment
-                        #     (assigned_on, role_id, \"user\",app_id, created_at, updated_at, created_by, updated_by)
-                        #     VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
-                        # """, [
-                        #     role_id,
-                        #     tenant_user_id,
-                        #     app_id,
-                        #     tenant_user_id,
-                        #     tenant_user_id,
-                        #     tenant_user_id
-                        # ])
-
-                        # Check if column exists
-                        cursor.execute(f"""
-                            SELECT column_name FROM information_schema.columns 
-                            WHERE table_schema = %s AND table_name = 'role_controles_userroleassignment' AND column_name = 'app_id'
-                        """, [schema_name])
-                        column_exists = cursor.fetchone()
-
-                        # If column doesn't exist, add it
-                        if not column_exists:
+                            
+                            permission_set_id = cursor.fetchone()[0]
+                            
+                            # Assign ModulePermissionSet to Role
                             cursor.execute(f"""
-                                ALTER TABLE "{schema_name}".role_controles_userroleassignment 
-                                ADD COLUMN app_id INTEGER
-                            """)
+                                INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
+                                (role_id, modulepermissionset_id)
+                                VALUES (%s, %s)
+                            """, [role_id, permission_set_id])
+                            
+                            print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {feature['id']}")
+                    
+                    # Check if app_id column exists in userroleassignment table
+                    cursor.execute(f"""
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_schema = %s AND table_name = 'role_controles_userroleassignment' AND column_name = 'app_id'
+                    """, [schema_name])
+                    column_exists = cursor.fetchone()
 
-                        # Now run the insert
+                    # Add app_id column if it doesn't exist
+                    if not column_exists:
+                        print(f"Adding app_id column to {schema_name}.role_controles_userroleassignment")
                         cursor.execute(f"""
-                            INSERT INTO "{schema_name}".role_controles_userroleassignment
-                            (assigned_on, role_id, "user", app_id, created_at, updated_at, created_by, updated_by)
-                            VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
-                        """, [
-                            role_id,
-                            tenant_user_id,
-                            app_id,
-                            tenant_user_id,
-                            tenant_user_id
-                        ])
+                            ALTER TABLE \"{schema_name}\".role_controles_userroleassignment 
+                            ADD COLUMN app_id INTEGER
+                        """)
 
-                                                
-                        print(f"Assigned role {role_id} to user {tenant_user_id} for app {app_id}")
-                        
-                    except Exception as e:
-                        print(f"Error creating SuperRole: {str(e)}")
-                        if 'column "client_id" of relation "role_controles_role" does not exist' in str(e):
-                            # Fallback insert without client_id
-                            sql = """
-                                INSERT INTO \"{}\".role_controles_role 
-                                (name, description, is_active, app_id, created_by, updated_by)
-                                VALUES (%s, %s, %s, %s, %s, %s)
-                                RETURNING id
-                            """.format(schema_name)
+                    # Assign role to admin user
+                    cursor.execute(f"""
+                        INSERT INTO \"{schema_name}\".role_controles_userroleassignment
+                        (assigned_on, role_id, \"user\", app_id, created_at, updated_at, created_by, updated_by)
+                        VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
+                    """, [role_id, tenant_user_id, app_id, tenant_user_id, tenant_user_id])
+                    
+                    print(f"Assigned role {role_id} to user {tenant_user_id} for app {app_id}")
+                    
+                    # Get app details and call migration endpoint
+                    try:
+                        app = Application.objects.get(app_id=app_id)
+                        if app.app_backend_url and app.migrate_schema_endpoint:
+                            # Clean and validate URLs
+                            base_url = app.app_backend_url.strip().rstrip('/')
+                            endpoint = app.migrate_schema_endpoint.strip().strip('/')
                             
-                            params = [
-                                'SuperRole',
-                                'Default super role with all access',
-                                True,
-                                app_id,
-                                admin_email if admin_email else 'system',
-                                admin_email if admin_email else 'system'
-                            ]
+                            if not base_url.startswith(('http://', 'https://')):
+                                base_url = f'http://{base_url}'
                             
-                            print(f"Retrying without client_id. SQL: {sql} with params: {params}")
-                            cursor.execute(sql, params)
-                            role_id = cursor.fetchone()[0]
-                            print(f"Created SuperRole with ID: {role_id}")
+                            # Construct the full URL
+                            url = f"{base_url}/{endpoint}/"
                             
-                            # Create ModulePermissionSet with full access for each feature
-                            for pf in plan_features:
-                                if pf.feature and pf.feature.app_id == app_id:
-                                    # Create ModulePermissionSet
-                                    cursor.execute(f"""
-                                        INSERT INTO \"{schema_name}\".role_controles_modulepermissionset
-                                        (module_id, can_create, can_read, can_update, can_delete, field_permissions, app_id, created_at, updated_at)
-                                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-                                        RETURNING id
-                                    """, [
-                                        pf.feature.id,  # module_id is the feature id
-                                        True,  # can_create
-                                        True,  # can_read
-                                        True,  # can_update
-                                        True,  # can_delete
-                                        '{}',  # field_permissions (empty JSON)
-                                        app_id
-                                    ])
-                                    
-                                    permission_set_id = cursor.fetchone()[0]
-                                    
-                                    # Assign ModulePermissionSet to Role
-                                    cursor.execute(f"""
-                                        INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
-                                        (role_id, modulepermissionset_id)
-                                        VALUES (%s, %s)
-                                    """, [role_id, permission_set_id])
-                                    
-                                    print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {pf.feature.id}")
+                            print(f"Calling schema migration for app '{app.application_name}' at URL: {url}")
+
+                            # Start app migration in background
+                            from concurrent.futures import ThreadPoolExecutor
+                            from functools import partial
                             
-                            # Assign role to admin user
-                            cursor.execute(f"""
-                                INSERT INTO \"{schema_name}\".role_controles_userroleassignment
-                                (assigned_on, role_id, \"user\", app_id, created_at, updated_at, created_by, updated_by)
-                                VALUES (NOW(), %s, %s, %s, NOW(), NOW(), %s, %s)
-                            """, [role_id, tenant_user_id, app_id, tenant_user_id, tenant_user_id])
+                            def call_migration_endpoint(url, data):
+                                try:
+                                    response = requests.post(
+                                        url=url,
+                                        json=data,
+                                        headers={
+                                            "Content-Type": "application/json",
+                                            "Accept": "application/json"
+                                        },
+                                        timeout=60  # 5 seconds timeout
+                                    )
+                                    response.raise_for_status()
+                                    print(f"Successfully migrated schema for app '{app.application_name}' at {url}")
+                                except Exception as e:
+                                    print(f"Background migration failed for app '{app.application_name}': {str(e)}")
                             
-                            print(f"Assigned role {role_id} to user {tenant_user_id} for app {app_id}")
+                            # Prepare request data
+                            migration_data = {
+                                "tenant_schema": schema_name,
+                                "tenant_id": tenant.id,
+                                "app_id": app.app_id
+                            }
+                            
+                            # Start migration in background thread
+                            with ThreadPoolExecutor(max_workers=1) as executor:
+                                future = executor.submit(call_migration_endpoint, url, migration_data)
+                            print(f"Started background migration for app '{app.application_name}' at {url}")
+                                
                         else:
-                            raise
+                            print(f"Skipping migration for app {app_id} - missing backend URL or migrate endpoint")
+                            
+                    except Application.DoesNotExist:
+                        print(f"Application with ID {app_id} not found")
+                    except requests.Timeout:
+                        print(f"Timeout while calling schema migration for app {app_id}")
+                    except requests.ConnectionError:
+                        print(f"Connection error while calling schema migration for app {app_id}. Please check if the service is running.")
+                    except requests.RequestException as app_error:
+                        print(f"Failed to call schema migration for app {app_id}: {str(app_error)}")
+                    except Exception as e:
+                        print(f"Error migrating app {app_id}: {str(e)}")
+                    
+                except Exception as e:
+                    print(f"Error creating SuperRole: {str(e)}")
+                    raise
 
             # Set contact email if provided
             if contact_email:

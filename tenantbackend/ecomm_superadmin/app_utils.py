@@ -1,25 +1,57 @@
 import requests
 import logging
 from django.conf import settings
-from .models import Tenant, Application, TenantApplication
+from django.db import connection
+from .models import (
+    Tenant, 
+    Application, 
+    TenantApplication, 
+    TenantSubscriptionLicenses
+)
 
 logger = logging.getLogger(__name__)
 
 def get_subscription_apps(tenant_id):
     """
-    Get all applications associated with a tenant's subscription plan.
+    Get all applications associated with a tenant's subscription plans.
     """
     try:
         tenant = Tenant.objects.get(id=tenant_id)
-        if not tenant.subscription_plan:
-            logger.error(f"No subscription plan found for tenant {tenant.name}")
+        
+        # Get active subscription licenses for the tenant
+        subscriptions = TenantSubscriptionLicenses.objects.filter(
+            tenant=tenant,
+            license_status='active'
+        ).select_related('subscription_plan')
+        
+        if not subscriptions.exists():
+            logger.error(f"No active subscription plans found for tenant {tenant.name}")
             return []
 
-        # Get all applications associated with the tenant's subscription plan features
+        # Get feature IDs from all subscription plans
+        cursor = connection.cursor()
+        try:
+            plan_ids = [sub.subscription_plan_id for sub in subscriptions]
+            placeholders = ','.join(['%s'] * len(plan_ids))
+            cursor.execute(f"""
+                SELECT DISTINCT feature_id 
+                FROM public.plan_feature_entitlements 
+                WHERE plan_id IN ({placeholders})
+            """, plan_ids)
+            feature_ids = [row[0] for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+
+        if not feature_ids:
+            logger.warning(f"No features found in subscription plans for tenant {tenant.name}")
+            return []
+
+        # Get all applications associated with the features from all subscription plans
         applications = Application.objects.filter(
             tenant_applications__tenant=tenant,
-            tenant_applications__is_active=True
-        )
+            tenant_applications__is_active=True,
+            app_features__feature_id__in=feature_ids
+        ).distinct()
         
         return applications
     except Tenant.DoesNotExist:

@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { getAuthHeader } from '../utils/authUtils';
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { getAuthHeader } from "../utils/authUtils";
 interface Application {
   app_id: string;
   application_name: string;
@@ -26,8 +26,8 @@ import {
   SelectChangeEvent,
   FormControlLabel,
   Switch,
-  Checkbox
-} from '@mui/material';
+  Checkbox,
+} from "@mui/material";
 
 interface FormData {
   email: string;
@@ -46,32 +46,38 @@ interface AddTenantUserFormProps {
   onUserCreated: () => void;
 }
 
-const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormProps) => {
+const AddTenantUserForm = ({
+  open,
+  onClose,
+  onUserCreated,
+}: AddTenantUserFormProps) => {
   const params = useParams();
   const tenantSlug = params?.tenantSlug as string;
-  
+
   const [formData, setFormData] = useState<FormData>({
-    email: '',
-    first_name: '',
-    last_name: '',
+    email: "",
+    first_name: "",
+    last_name: "",
     role: [],
     applications: [],
     isSuperAdmin: false, // Default to not a super admin
-    password: '',
-    password_confirm: ''
+    password: "",
+    password_confirm: "",
   });
 
-  const [roles, setRoles] = useState<Array<{id: number, name: string, description: string}>>([]);
-  const [roleAppName, setRoleAppName] = useState('');
+  const [roles, setRoles] = useState<
+    Array<{ id: number; name: string; description: string }>
+  >([]);
+  const [roleAppName, setRoleAppName] = useState("");
   const [rolesLoading, setRolesLoading] = useState(false);
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [applications, setApplications] = useState<Application[]>([]); 
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
   const [appsLoading, setAppsLoading] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [generatedPassword, setGeneratedPassword] = useState("");
 
   // Load applications and roles when the dialog is open and tenant is available
   useEffect(() => {
@@ -85,19 +91,19 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
   useEffect(() => {
     if (!open) {
       setFormData({
-        email: '',
-        first_name: '',
-        last_name: '',
+        email: "",
+        first_name: "",
+        last_name: "",
         role: [],
         applications: [],
         isSuperAdmin: false,
-        password: '',
-        password_confirm: ''
+        password: "",
+        password_confirm: "",
       });
       setErrors({});
-      setSubmitError('');
+      setSubmitError("");
       setSuccess(false);
-      setGeneratedPassword('');
+      setGeneratedPassword("");
     }
   }, [open]);
 
@@ -107,8 +113,8 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
       // We'll load roles after an application is selected
       setRoles([]);
     } catch (error) {
-      console.error('Error fetching roles:', error);
-      setSubmitError('Failed to load roles. Please try again.');
+      console.error("Error fetching roles:", error);
+      setSubmitError("Failed to load roles. Please try again.");
       setRoles([]);
     } finally {
       setRolesLoading(false);
@@ -118,24 +124,27 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
   const loadApplications = async () => {
     setAppsLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/platform-admin/api/tenant-applications/${tenantSlug}/`, {
-        headers: {
-          ...getAuthHeader(),
-          'Content-Type': 'application/json',
-        },
-      });
-      
+      const response = await fetch(
+        `https://bedevcockpit.turtleit.in/platform-admin/api/tenant-applications/${tenantSlug}/`,
+        {
+          headers: {
+            ...getAuthHeader(),
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
       if (!response.ok) {
-        throw new Error('Failed to fetch applications');
+        throw new Error("Failed to fetch applications");
       }
-      
+
       const data = await response.json();
-      console.log('Applications loaded:', data);
-      const activeApps = data.filter(app => app.is_active);
+      console.log("Applications loaded:", data);
+      const activeApps = data.filter((app) => app.is_active);
       setApplications(activeApps);
     } catch (error) {
-      console.error('Error fetching applications:', error);
-      setSubmitError('Failed to load applications. Please try again.');
+      console.error("Error fetching applications:", error);
+      setSubmitError("Failed to load applications. Please try again.");
       setApplications([]);
     } finally {
       setAppsLoading(false);
@@ -146,14 +155,14 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
-    
+
     // Clear error for this field
     if (errors[name]) {
       setErrors({
         ...errors,
-        [name]: ''
+        [name]: "",
       });
     }
   };
@@ -162,46 +171,52 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: typeof value === 'string' ? value.split(',') : value
+      [name]: typeof value === "string" ? value.split(",") : value,
     });
-    
+
     // Clear error for this field
     if (errors[name]) {
       setErrors({
         ...errors,
-        [name]: ''
+        [name]: "",
       });
     }
 
     // If applications changed and there's exactly one application selected, load roles
-    if (name === 'applications' && Array.isArray(value) && value.length === 1) {
+    if (name === "applications" && Array.isArray(value) && value.length === 1) {
       setRolesLoading(true);
       try {
-        const response = await fetch(`http://localhost:8000/platform-admin/api/tenant/${tenantSlug}/roles/?app_id=${value[0]}`, {
-          headers: {
-            ...getAuthHeader(),
-            'Content-Type': 'application/json',
-          },
-        });
-        
+        const response = await fetch(
+          `https://bedevcockpit.turtleit.in/platform-admin/api/tenant/${tenantSlug}/roles/?app_id=${value[0]}`,
+          {
+            headers: {
+              ...getAuthHeader(),
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
         if (!response.ok) {
-          throw new Error('Failed to fetch roles');
+          throw new Error("Failed to fetch roles");
         }
-        
+
         const data = await response.json();
         setRoles(data.roles);
         setRoleAppName(data.app_name);
       } catch (error) {
-        console.error('Error fetching roles:', error);
-        setSubmitError('Failed to load roles. Please try again.');
+        console.error("Error fetching roles:", error);
+        setSubmitError("Failed to load roles. Please try again.");
         setRoles([]);
       } finally {
         setRolesLoading(false);
       }
-    } else if (name === 'applications' && (!Array.isArray(value) || value.length !== 1)) {
+    } else if (
+      name === "applications" &&
+      (!Array.isArray(value) || value.length !== 1)
+    ) {
       // Clear roles if no application or multiple applications are selected
       setRoles([]);
-      setFormData(prev => ({ ...prev, role: [] }));
+      setFormData((prev) => ({ ...prev, role: [] }));
     }
   };
 
@@ -209,68 +224,72 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
     const { name, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: checked
+      [name]: checked,
     });
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     // Email validation
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = "Email is required";
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
+    ) {
+      newErrors.email = "Email is invalid";
     }
-    
+
     // Applications validation
     if (!formData.applications || formData.applications.length === 0) {
-      newErrors.applications = 'Please select at least one application';
+      newErrors.applications = "Please select at least one application";
     }
-    
+
     // First name validation
     if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required';
+      newErrors.first_name = "First name is required";
     }
-    
+
     // Last name validation
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required';
+      newErrors.last_name = "Last name is required";
     }
-    
+
     // Password validation
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+      newErrors.password = "Password must be at least 8 characters";
     } else if (!/(?=.*[a-z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one lowercase letter';
+      newErrors.password =
+        "Password must contain at least one lowercase letter";
     } else if (!/(?=.*[A-Z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter';
+      newErrors.password =
+        "Password must contain at least one uppercase letter";
     } else if (!/(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one number';
+      newErrors.password = "Password must contain at least one number";
     }
-    
+
     if (!formData.password_confirm) {
-      newErrors.password_confirm = 'Please confirm your password';
+      newErrors.password_confirm = "Please confirm your password";
     } else if (formData.password !== formData.password_confirm) {
-      newErrors.password_confirm = 'Passwords do not match';
+      newErrors.password_confirm = "Passwords do not match";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError('');
+    setSubmitError("");
 
     // Validate form
     if (!validateForm()) {
       // Scroll to the first error field
-      const firstErrorField = document.querySelector('.Mui-error');
+      const firstErrorField = document.querySelector(".Mui-error");
       if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstErrorField.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       return;
     }
@@ -279,18 +298,21 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
 
     try {
       // First check if user exists in this tenant
-      const checkResponse = await fetch(`http://localhost:8000/api/${tenantSlug}/tenant-admin/check-email/`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeader(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: formData.email })
-      });
+      const checkResponse = await fetch(
+        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/check-email/`,
+        {
+          method: "POST",
+          headers: {
+            ...getAuthHeader(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: formData.email }),
+        }
+      );
 
       if (!checkResponse.ok) {
         const errorData = await checkResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to check if user exists');
+        throw new Error(errorData.message || "Failed to check if user exists");
       }
 
       const checkData = await checkResponse.json();
@@ -298,45 +320,51 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
 
       // If user exists, just assign applications
       if (userExists) {
-        const assignResponse = await fetch(`http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${checkData.user_id}/applications/assign/`, {
-          method: 'POST',
-          headers: {
-            ...getAuthHeader(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            application_ids: formData.applications,
-          }),
-        });
+        const assignResponse = await fetch(
+          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${checkData.user_id}/applications/assign/`,
+          {
+            method: "POST",
+            headers: {
+              ...getAuthHeader(),
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              application_ids: formData.applications,
+            }),
+          }
+        );
 
         if (!assignResponse.ok) {
-          throw new Error('Failed to assign applications to existing user');
+          throw new Error("Failed to assign applications to existing user");
         }
       } else {
         // Create new user with applications
-        const createResponse = await fetch(`http://localhost:8000/api/${tenantSlug}/tenant-admin/users/`, {
-          method: 'POST',
-          headers: {
-            ...getAuthHeader(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            user_type: 'internal', // Always internal
-            role_id: 1, // Default role for new users
-            application_ids: formData.applications,
-            is_super_admin: formData.isSuperAdmin, // Add the isSuperAdmin field
-            password: formData.password,
-            password_confirm: formData.password_confirm,
-          }),
-        });
+        const createResponse = await fetch(
+          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/`,
+          {
+            method: "POST",
+            headers: {
+              ...getAuthHeader(),
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              first_name: formData.first_name,
+              last_name: formData.last_name,
+              user_type: "internal", // Always internal
+              role_id: 1, // Default role for new users
+              application_ids: formData.applications,
+              is_super_admin: formData.isSuperAdmin, // Add the isSuperAdmin field
+              password: formData.password,
+              password_confirm: formData.password_confirm,
+            }),
+          }
+        );
 
         const data = await createResponse.json();
 
         if (!createResponse.ok) {
-          throw new Error(data.message || 'Failed to create user');
+          throw new Error(data.message || "Failed to create user");
         }
 
         // If a password was generated, store it
@@ -347,15 +375,16 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
 
       setSuccess(true);
       onUserCreated(); // Notify parent component
-      
+
       // Close dialog after a delay to show success state
       setTimeout(() => {
         onClose();
       }, 2000);
-
     } catch (error) {
-      console.error('Error creating/updating user:', error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to create/update user');
+      console.error("Error creating/updating user:", error);
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to create/update user"
+      );
     } finally {
       setLoading(false);
     }
@@ -370,7 +399,7 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
             {submitError}
           </Alert>
         )}
-        
+
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
             User created successfully!
@@ -386,7 +415,7 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
             )}
           </Alert>
         )}
-        
+
         <Box component="form" noValidate sx={{ mt: 1 }}>
           <TextField
             margin="normal"
@@ -405,8 +434,8 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
             }}
             disabled={loading || success}
           />
-          
-          <Box sx={{ display: 'flex', gap: 2 }}>
+
+          <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               margin="normal"
               fullWidth
@@ -417,7 +446,7 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               onChange={handleInputChange}
               disabled={loading || success}
             />
-            
+
             <TextField
               margin="normal"
               fullWidth
@@ -429,10 +458,10 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               disabled={loading || success}
             />
           </Box>
-          
-          <FormControl 
-            fullWidth 
-            margin="normal" 
+
+          <FormControl
+            fullWidth
+            margin="normal"
             required
             error={!!errors.applications}
             disabled={loading || appsLoading || success}
@@ -448,19 +477,19 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               multiple
               displayEmpty
               renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {(selected as string[]).map((value) => {
-                    const app = applications.find(a => a.app_id === value);
+                    const app = applications.find((a) => a.app_id === value);
                     return app ? (
                       <Box
                         key={value}
                         sx={{
-                          bgcolor: 'primary.light',
-                          color: 'white',
+                          bgcolor: "primary.light",
+                          color: "white",
                           px: 1,
                           py: 0.5,
                           borderRadius: 1,
-                          fontSize: '0.875rem',
+                          fontSize: "0.875rem",
                         }}
                       >
                         {app.application_name}
@@ -477,10 +506,12 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               ) : (
                 applications.map((app: Application) => (
                   <MenuItem value={app.app_id}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography>{app.application_name}</Typography>
                       {app.is_active && (
-                        <Typography sx={{ color: 'success.main', fontSize: '0.875rem' }}>
+                        <Typography
+                          sx={{ color: "success.main", fontSize: "0.875rem" }}
+                        >
                           Active
                         </Typography>
                       )}
@@ -489,7 +520,9 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
                 ))
               )}
             </Select>
-            {errors.applications && <FormHelperText>{errors.applications}</FormHelperText>}
+            {errors.applications && (
+              <FormHelperText>{errors.applications}</FormHelperText>
+            )}
           </FormControl>
 
           <FormControl fullWidth margin="normal">
@@ -502,21 +535,26 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               value={formData.role}
               label="Roles"
               onChange={handleSelectChange}
-              disabled={loading || success || !formData.applications.length || formData.applications.length > 1}
+              disabled={
+                loading ||
+                success ||
+                !formData.applications.length ||
+                formData.applications.length > 1
+              }
               renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {(selected as string[]).map((roleId) => {
-                    const role = roles.find(r => r.id.toString() === roleId);
+                    const role = roles.find((r) => r.id.toString() === roleId);
                     return (
                       <Box
                         key={roleId}
                         sx={{
-                          bgcolor: 'primary.light',
-                          color: 'white',
+                          bgcolor: "primary.light",
+                          color: "white",
                           px: 1,
                           py: 0.5,
                           borderRadius: 1,
-                          fontSize: '0.875rem',
+                          fontSize: "0.875rem",
                         }}
                       >
                         {role?.name || roleId}
@@ -529,13 +567,19 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               {rolesLoading ? (
                 <MenuItem disabled>Loading roles...</MenuItem>
               ) : roles.length === 0 ? (
-                <MenuItem disabled>{formData.applications.length === 1 ? 'No roles available' : 'Select exactly one application'}</MenuItem>
+                <MenuItem disabled>
+                  {formData.applications.length === 1
+                    ? "No roles available"
+                    : "Select exactly one application"}
+                </MenuItem>
               ) : (
                 roles.map((role) => (
                   <MenuItem key={role.id} value={role.id.toString()}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography>{role.name}</Typography>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                      <Typography
+                        sx={{ color: "text.secondary", fontSize: "0.875rem" }}
+                      >
                         ({roleAppName})
                       </Typography>
                     </Box>
@@ -544,7 +588,9 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
               )}
             </Select>
             {formData.applications.length > 1 && (
-              <FormHelperText>Please select exactly one application to manage roles</FormHelperText>
+              <FormHelperText>
+                Please select exactly one application to manage roles
+              </FormHelperText>
             )}
           </FormControl>
 
@@ -566,7 +612,7 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
             }}
             disabled={loading || success}
           />
-          
+
           <TextField
             margin="normal"
             required
@@ -586,7 +632,7 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
             disabled={loading || success}
           />
 
-<Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-start", mt: 2 }}>
             <FormControlLabel
               control={
                 <Checkbox
@@ -607,14 +653,14 @@ const AddTenantUserForm = ({ open, onClose, onUserCreated }: AddTenantUserFormPr
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
           color="primary"
           disabled={loading || success}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
-          {loading ? 'Creating...' : 'Create User'}
+          {loading ? "Creating..." : "Create User"}
         </Button>
       </DialogActions>
     </Dialog>

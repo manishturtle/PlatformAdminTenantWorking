@@ -3,10 +3,12 @@
  * Handles API requests for tenant management and other admin functions
  */
 
-import { getToken } from './authService';
+import { getToken } from "./authService";
 
 // Base API URL from environment variables
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/api$/, '');
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "https://bedevcockpit.turtleit.in"
+).replace(/\/api$/, "");
 
 /**
  * Fetch all tenants from the API
@@ -14,40 +16,45 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
  */
 export const fetchTenants = async (): Promise<any[]> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
-    console.log('Fetching tenants with token:', token.substring(0, 5) + '...');
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/tenants/`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
+    console.log("Fetching tenants with token:", token.substring(0, 5) + "...");
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/tenants/`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
       }
-    });
-    
-    console.log('Tenant API response status:', response.status);
-    
+    );
+
+    console.log("Tenant API response status:", response.status);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error response data:', errorData);
-      throw new Error(errorData.detail || `Error fetching tenants: ${response.status}`);
+      console.error("Error response data:", errorData);
+      throw new Error(
+        errorData.detail || `Error fetching tenants: ${response.status}`
+      );
     }
-    
+
     const responseData = await response.json();
-    console.log('Tenant response received:', responseData);
-    
+    console.log("Tenant response received:", responseData);
+
     // Check if the response has a results property (DRF pagination)
     const tenants = responseData.results || responseData;
-    console.log('Extracted tenant data:', tenants);
-    
+    console.log("Extracted tenant data:", tenants);
+
     return Array.isArray(tenants) ? tenants : [];
   } catch (error) {
-    console.error('Error fetching tenants:', error);
+    console.error("Error fetching tenants:", error);
     throw error;
   }
 };
@@ -59,52 +66,57 @@ export const fetchTenants = async (): Promise<any[]> => {
  */
 export const createTenant = async (tenantData: any): Promise<any> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
     // Format date fields to YYYY-MM-DD
     const formattedData = { ...tenantData };
-    
+
     // Format trial_end_date if it exists
     if (formattedData.trial_end_date) {
       const date = new Date(formattedData.trial_end_date);
       if (!isNaN(date.getTime())) {
-        formattedData.trial_end_date = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        formattedData.trial_end_date = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       }
     }
-    
+
     // Format paid_until if it exists
     if (formattedData.paid_until) {
       const date = new Date(formattedData.paid_until);
       if (!isNaN(date.getTime())) {
-        formattedData.paid_until = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        formattedData.paid_until = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       }
     }
-    
-    console.log('Sending formatted tenant data:', formattedData);
-    
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/tenants/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
-      },
-      body: JSON.stringify(formattedData)
-    });
-    
+
+    console.log("Sending formatted tenant data:", formattedData);
+
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/tenants/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
+        body: JSON.stringify(formattedData),
+      }
+    );
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error response from server:', errorData);
-      throw new Error(errorData.detail || `Error creating tenant: ${response.status}`);
+      console.error("Error response from server:", errorData);
+      throw new Error(
+        errorData.detail || `Error creating tenant: ${response.status}`
+      );
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error('Error creating tenant:', error);
+    console.error("Error creating tenant:", error);
     throw error;
   }
 };
@@ -116,29 +128,34 @@ export const createTenant = async (tenantData: any): Promise<any> => {
  */
 export const getTenantDetails = async (tenantId: string): Promise<any> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
       }
-    });
-    
+    );
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Error fetching tenant details: ${response.status}`);
+      throw new Error(
+        errorData.detail || `Error fetching tenant details: ${response.status}`
+      );
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error('Error fetching tenant details:', error);
+    console.error("Error fetching tenant details:", error);
     throw error;
   }
 };
@@ -149,54 +166,62 @@ export const getTenantDetails = async (tenantId: string): Promise<any> => {
  * @param {Object} tenantData - Updated tenant data
  * @returns {Promise<Object>} Updated tenant object
  */
-export const updateTenant = async (tenantId: string, tenantData: any): Promise<any> => {
+export const updateTenant = async (
+  tenantId: string,
+  tenantData: any
+): Promise<any> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
     // Format date fields to YYYY-MM-DD
     const formattedData = { ...tenantData };
-    
+
     // Format trial_end_date if it exists
     if (formattedData.trial_end_date) {
       const date = new Date(formattedData.trial_end_date);
       if (!isNaN(date.getTime())) {
-        formattedData.trial_end_date = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        formattedData.trial_end_date = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       }
     }
-    
+
     // Format paid_until if it exists
     if (formattedData.paid_until) {
       const date = new Date(formattedData.paid_until);
       if (!isNaN(date.getTime())) {
-        formattedData.paid_until = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        formattedData.paid_until = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       }
     }
-    
-    console.log('Sending formatted update data:', formattedData);
-    
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
-      },
-      body: JSON.stringify(formattedData)
-    });
-    
+
+    console.log("Sending formatted update data:", formattedData);
+
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
+        body: JSON.stringify(formattedData),
+      }
+    );
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error response from server:', errorData);
-      throw new Error(errorData.detail || `Error updating tenant: ${response.status}`);
+      console.error("Error response from server:", errorData);
+      throw new Error(
+        errorData.detail || `Error updating tenant: ${response.status}`
+      );
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error('Error updating tenant:', error);
+    console.error("Error updating tenant:", error);
     throw error;
   }
 };
@@ -208,27 +233,32 @@ export const updateTenant = async (tenantId: string, tenantData: any): Promise<a
  */
 export const deleteTenant = async (tenantId: string): Promise<void> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/tenants/${tenantId}/`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
       }
-    });
-    
+    );
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Error deleting tenant: ${response.status}`);
+      throw new Error(
+        errorData.detail || `Error deleting tenant: ${response.status}`
+      );
     }
   } catch (error) {
-    console.error('Error deleting tenant:', error);
+    console.error("Error deleting tenant:", error);
     throw error;
   }
 };
@@ -239,40 +269,48 @@ export const deleteTenant = async (tenantId: string): Promise<void> => {
  */
 export const fetchCrmClients = async (): Promise<any[]> => {
   const token = getToken();
-  
+
   if (!token) {
-    throw new Error('Authentication token not found');
+    throw new Error("Authentication token not found");
   }
-  
+
   try {
-    console.log('Fetching CRM clients with token:', token.substring(0, 5) + '...');
-    const response = await fetch(`${API_BASE_URL}/platform-admin/api/crmclients/`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Platform-Admin': 'true'
+    console.log(
+      "Fetching CRM clients with token:",
+      token.substring(0, 5) + "..."
+    );
+    const response = await fetch(
+      `${API_BASE_URL}/platform-admin/api/crmclients/`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Platform-Admin": "true",
+        },
       }
-    });
-    
-    console.log('CRM Client API response status:', response.status);
-    
+    );
+
+    console.log("CRM Client API response status:", response.status);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error response data:', errorData);
-      throw new Error(errorData.detail || `Error fetching CRM clients: ${response.status}`);
+      console.error("Error response data:", errorData);
+      throw new Error(
+        errorData.detail || `Error fetching CRM clients: ${response.status}`
+      );
     }
-    
+
     const responseData = await response.json();
-    console.log('CRM Client response received:', responseData);
-    
+    console.log("CRM Client response received:", responseData);
+
     // Check if the response has a results property (DRF pagination)
     const crmClients = responseData.results || responseData;
-    console.log('Extracted CRM client data:', crmClients);
-    
+    console.log("Extracted CRM client data:", crmClients);
+
     return Array.isArray(crmClients) ? crmClients : [];
   } catch (error) {
-    console.error('Error fetching CRM clients:', error);
+    console.error("Error fetching CRM clients:", error);
     throw error;
   }
 };

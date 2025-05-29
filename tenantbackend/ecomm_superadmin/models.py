@@ -88,15 +88,6 @@ class Tenant(TenantMixin):
         help_text='Date until which the subscription is paid'
     )
     
-    subscription_plan = models.ForeignKey(
-        'subscription_plan.SubscriptionPlan',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='tenants',
-        help_text='The subscription plan this tenant is on'
-    )
-    
     client = models.ForeignKey(
         'CrmClient',
         on_delete=models.SET_NULL,

@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { getAuthHeader } from '../utils/authUtils';
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { getAuthHeader } from "../utils/authUtils";
 import {
   Box,
   Table,
@@ -22,12 +22,12 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import dynamic from 'next/dynamic';
+  DialogTitle,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import dynamic from "next/dynamic";
 
 // Define the props interface for AddTenantUserForm
 interface AddTenantUserFormProps {
@@ -37,15 +37,18 @@ interface AddTenantUserFormProps {
 }
 
 // Import directly from the same directory
-import AddTenantUserForm from './AddTenantUserForm';
-import EditTenantUserForm from './EditTenantUserForm';
+import AddTenantUserForm from "./AddTenantUserForm";
+import EditTenantUserForm from "./EditTenantUserForm";
 
 interface User {
   id: string | number;
   email: string;
   first_name?: string;
   last_name?: string;
-  applications?: Array<{id: string | number, application__application_name: string}>;
+  applications?: Array<{
+    id: string | number;
+    application__application_name: string;
+  }>;
   application_count?: number;
   is_active: boolean;
   is_super_admin?: boolean;
@@ -62,13 +65,15 @@ const TenantUserList = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [openAddUserModal, setOpenAddUserModal] = useState(false);
-  
+
   // Edit user state
   const [editUserId, setEditUserId] = useState<string | number | null>(null);
   const [openEditUserModal, setOpenEditUserModal] = useState(false);
-  
+
   // Delete user state
-  const [deleteUserId, setDeleteUserId] = useState<string | number | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | number | null>(
+    null
+  );
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -84,18 +89,23 @@ const TenantUserList = () => {
     try {
       const authHeader = getAuthHeader();
       if (!Object.keys(authHeader).length) {
-        throw new Error('Authentication token not found');
+        throw new Error("Authentication token not found");
       }
 
-      const response = await fetch(`http://localhost:8000/api/${tenantSlug}/tenant-admin/users/?page=${page + 1}&page_size=${rowsPerPage}`, {
-        headers: {
-          ...authHeader,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/?page=${
+          page + 1
+        }&page_size=${rowsPerPage}`,
+        {
+          headers: {
+            ...authHeader,
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        throw new Error("Failed to fetch users");
       }
 
       const data = await response.json();
@@ -103,8 +113,8 @@ const TenantUserList = () => {
       setTotalCount(data.count || 0);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching tenant users:', err);
-      setError('Failed to load users. Please try again later.');
+      console.error("Error fetching tenant users:", err);
+      setError("Failed to load users. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -114,7 +124,9 @@ const TenantUserList = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -131,64 +143,67 @@ const TenantUserList = () => {
     loadUsers();
     handleCloseAddUserModal();
   };
-  
+
   // Edit user handlers
   const handleOpenEditUserModal = (userId: string | number) => {
     setEditUserId(userId);
     setOpenEditUserModal(true);
   };
-  
+
   const handleCloseEditUserModal = () => {
     setEditUserId(null);
     setOpenEditUserModal(false);
   };
-  
+
   const handleUserUpdated = () => {
     loadUsers();
     handleCloseEditUserModal();
   };
-  
+
   // Delete user handlers
   const handleOpenDeleteDialog = (user: User) => {
     setDeleteUserId(user.id);
     setUserToDelete(user);
     setOpenDeleteDialog(true);
   };
-  
+
   const handleCloseDeleteDialog = () => {
     setDeleteUserId(null);
     setUserToDelete(null);
     setOpenDeleteDialog(false);
   };
-  
+
   const handleDeleteUser = async () => {
     if (!deleteUserId) return;
-    
+
     setDeleteLoading(true);
     try {
       const authHeader = getAuthHeader();
       if (!Object.keys(authHeader).length) {
-        throw new Error('Authentication token not found');
+        throw new Error("Authentication token not found");
       }
-      
-      const response = await fetch(`http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${deleteUserId}/`, {
-        method: 'DELETE',
-        headers: {
-          ...authHeader,
-          'Content-Type': 'application/json'
+
+      const response = await fetch(
+        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${deleteUserId}/`,
+        {
+          method: "DELETE",
+          headers: {
+            ...authHeader,
+            "Content-Type": "application/json",
+          },
         }
-      });
-      
+      );
+
       if (!response.ok) {
-        throw new Error('Failed to delete user');
+        throw new Error("Failed to delete user");
       }
-      
+
       // Reload users after successful deletion
       loadUsers();
       handleCloseDeleteDialog();
     } catch (err: any) {
-      console.error('Error deleting user:', err);
-      setError('Failed to delete user. Please try again later.');
+      console.error("Error deleting user:", err);
+      setError("Failed to delete user. Please try again later.");
     } finally {
       setDeleteLoading(false);
     }
@@ -196,12 +211,12 @@ const TenantUserList = () => {
 
   // Format date to a human-readable format
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -214,14 +229,21 @@ const TenantUserList = () => {
   }
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Box sx={{ width: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
         <Typography variant="h5" component="h2">
           Tenant Users
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
+        <Button
+          variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
           onClick={handleOpenAddUserModal}
         >
@@ -230,7 +252,7 @@ const TenantUserList = () => {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
           <CircularProgress />
         </Box>
       ) : error ? (
@@ -238,7 +260,7 @@ const TenantUserList = () => {
           <Alert severity="error">{error}</Alert>
         </Box>
       ) : (
-        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+        <Paper sx={{ width: "100%", overflow: "hidden" }}>
           <TableContainer sx={{ maxHeight: 440 }}>
             <Table stickyHeader aria-label="tenant users table">
               <TableHead>
@@ -263,57 +285,59 @@ const TenantUserList = () => {
                   users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{`${user.first_name || ''} ${user.last_name || ''}`}</TableCell>
+                      <TableCell>{`${user.first_name || ""} ${
+                        user.last_name || ""
+                      }`}</TableCell>
                       <TableCell>
                         {user.applications && user.applications.length > 0 ? (
                           <>
                             {user.applications.map((app) => (
-                              <Chip 
-                                key={app.id} 
-                                label={app.application__application_name} 
-                                size="small" 
-                                color="primary" 
+                              <Chip
+                                key={app.id}
+                                label={app.application__application_name}
+                                size="small"
+                                color="primary"
                                 variant="outlined"
                                 sx={{ mr: 0.5, mb: 0.5 }}
                               />
                             ))}
                           </>
                         ) : (
-                          <Chip 
-                            label="No applications" 
-                            size="small" 
+                          <Chip
+                            label="No applications"
+                            size="small"
                             color="default"
                             variant="outlined"
                           />
                         )}
                       </TableCell>
                       <TableCell>
-                        <Chip 
-                          label={user.is_active ? 'Active' : 'Inactive'} 
-                          color={user.is_active ? 'success' : 'default'}
+                        <Chip
+                          label={user.is_active ? "Active" : "Inactive"}
+                          color={user.is_active ? "success" : "default"}
                           size="small"
                         />
                       </TableCell>
                       <TableCell>
-                        <Chip 
-                          label={user.is_super_admin ? 'Yes' : 'No'} 
-                          color={user.is_super_admin ? 'warning' : 'default'}
+                        <Chip
+                          label={user.is_super_admin ? "Yes" : "No"}
+                          color={user.is_super_admin ? "warning" : "default"}
                           size="small"
                         />
                       </TableCell>
                       <TableCell>{formatDate(user.date_joined)}</TableCell>
                       <TableCell>
-                        <IconButton 
-                          size="small" 
-                          color="primary" 
+                        <IconButton
+                          size="small"
+                          color="primary"
                           onClick={() => handleOpenEditUserModal(user.id)}
                           title="Edit user"
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="error" 
+                        <IconButton
+                          size="small"
+                          color="error"
                           onClick={() => handleOpenDeleteDialog(user)}
                           title="Delete user"
                         >
@@ -338,12 +362,12 @@ const TenantUserList = () => {
         </Paper>
       )}
 
-      <AddTenantUserForm 
-        open={openAddUserModal} 
-        onClose={handleCloseAddUserModal} 
+      <AddTenantUserForm
+        open={openAddUserModal}
+        onClose={handleCloseAddUserModal}
         onUserCreated={handleUserCreated}
       />
-      
+
       {/* Edit User Modal */}
       {editUserId && (
         <EditTenantUserForm
@@ -353,32 +377,31 @@ const TenantUserList = () => {
           userId={editUserId}
         />
       )}
-      
+
       {/* Delete User Confirmation Dialog */}
       <Dialog
         open={openDeleteDialog}
         onClose={handleCloseDeleteDialog}
         aria-labelledby="delete-user-dialog-title"
       >
-        <DialogTitle id="delete-user-dialog-title">
-          Delete User
-        </DialogTitle>
+        <DialogTitle id="delete-user-dialog-title">Delete User</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete user {userToDelete?.email}? This action cannot be undone.
+            Are you sure you want to delete user {userToDelete?.email}? This
+            action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog} disabled={deleteLoading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteUser} 
-            color="error" 
+          <Button
+            onClick={handleDeleteUser}
+            color="error"
             disabled={deleteLoading}
             startIcon={deleteLoading ? <CircularProgress size={20} /> : null}
           >
-            {deleteLoading ? 'Deleting...' : 'Delete'}
+            {deleteLoading ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>

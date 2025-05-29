@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -27,7 +27,7 @@ import {
   CircularProgress,
   Select,
   MenuItem,
-} from '@mui/material';
+} from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
   ChevronRight as ChevronRightIcon,
@@ -36,10 +36,10 @@ import {
   CheckCircle as CheckCircleIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import yaml from 'js-yaml';
-import { getAuthHeader } from '@/utils/authUtils';
+import yaml from "js-yaml";
+import { getAuthHeader } from "@/utils/authUtils";
 
 interface SubFeature {
   id: number;
@@ -96,7 +96,13 @@ function EditDialog({ open, onClose, onSave, title, initialValue }: any) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           {title}
           <IconButton size="small" onClick={onClose}>
             <CloseIcon />
@@ -130,10 +136,14 @@ const FeaturesPage: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editFeatureDialogOpen, setEditFeatureDialogOpen] = useState(false);
-  const [editSubfeatureDialogOpen, setEditSubfeatureDialogOpen] = useState(false);
+  const [editSubfeatureDialogOpen, setEditSubfeatureDialogOpen] =
+    useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [selectedSubfeature, setSelectedSubfeature] = useState<SubFeature | null>(null);
-  const [expandedFeatures, setExpandedFeatures] = useState<{ [key: string]: boolean }>({});
+  const [selectedSubfeature, setSelectedSubfeature] =
+    useState<SubFeature | null>(null);
+  const [expandedFeatures, setExpandedFeatures] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     fetchFeatures();
@@ -142,7 +152,7 @@ const FeaturesPage: React.FC = () => {
   const fetchFeatures = async () => {
     try {
       const response = await fetch(
-        'http://localhost:8000/api/platform-admin/subscription/features/get_features/',
+        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/get_features/",
         {
           headers: await getAuthHeader(),
         }
@@ -150,19 +160,19 @@ const FeaturesPage: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch features');
+        throw new Error(errorData.error || "Failed to fetch features");
       }
 
       const data = await response.json();
       setFeatures(data); // The API now returns array of ApplicationFeatures directly
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch features');
+      setError(err instanceof Error ? err.message : "Failed to fetch features");
       setFeatures([]); // Set empty array on error
     }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File selected:', event.target.files);
+    console.log("File selected:", event.target.files);
     if (event.target.files && event.target.files[0]) {
       setSelectedFile(event.target.files[0]);
       setError(null);
@@ -171,9 +181,9 @@ const FeaturesPage: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    console.log('Starting upload with file:', selectedFile);
+    console.log("Starting upload with file:", selectedFile);
     if (!selectedFile) {
-      console.log('No file selected');
+      console.log("No file selected");
       return;
     }
 
@@ -185,24 +195,27 @@ const FeaturesPage: React.FC = () => {
       // First read the YAML file to get the application_name
       const fileContent = await selectedFile.text();
       const yamlData = yaml.load(fileContent) as { application_name: string };
-      
+
       if (!yamlData.application_name) {
-        throw new Error('YAML file must contain application_name field');
+        throw new Error("YAML file must contain application_name field");
       }
 
       const formData = new FormData();
-      formData.append('yaml_file', selectedFile);
-      formData.append('application_name', yamlData.application_name);
+      formData.append("yaml_file", selectedFile);
+      formData.append("application_name", yamlData.application_name);
 
-      const response = await fetch('http://localhost:8000/api/platform-admin/subscription/features/upload_yaml/', {
-        method: 'POST',
-        headers: await getAuthHeader(),
-        body: formData,
-      });
+      const response = await fetch(
+        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/upload_yaml/",
+        {
+          method: "POST",
+          headers: await getAuthHeader(),
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload YAML file');
+        throw new Error(errorData.error || "Failed to upload YAML file");
       }
 
       const result: UploadResponse = await response.json();
@@ -210,17 +223,23 @@ const FeaturesPage: React.FC = () => {
       // Show success message with details
       const successParts: string[] = [];
       if (result.created_features?.length > 0) {
-        successParts.push(`Created features: ${result.created_features.join(', ')}`);
+        successParts.push(
+          `Created features: ${result.created_features.join(", ")}`
+        );
       }
       if (result.updated_features?.length > 0) {
-        successParts.push(`Updated features: ${result.updated_features.join(', ')}`);
+        successParts.push(
+          `Updated features: ${result.updated_features.join(", ")}`
+        );
       }
 
       setUploadSuccess(true);
       await fetchFeatures(); // Refresh features after successful upload
       setSelectedFile(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload YAML file');
+      setError(
+        err instanceof Error ? err.message : "Failed to upload YAML file"
+      );
     } finally {
       setUploading(false);
     }
@@ -237,28 +256,33 @@ const FeaturesPage: React.FC = () => {
     setEditSubfeatureDialogOpen(true);
   };
 
-  const handleRemoveSubfeature = async (feature: Feature, subfeatureId: number) => {
+  const handleRemoveSubfeature = async (
+    feature: Feature,
+    subfeatureId: number
+  ) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/platform-admin/subscription/features/${feature.id}/remove_subfeature/`,
+        `https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/${feature.id}/remove_subfeature/`,
         {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
             ...(await getAuthHeader()),
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ subfeature_id: subfeatureId }),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to remove subfeature');
+        throw new Error("Failed to remove subfeature");
       }
 
       // Refresh features after removing subfeature
       await fetchFeatures();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove subfeature');
+      setError(
+        err instanceof Error ? err.message : "Failed to remove subfeature"
+      );
     }
   };
 
@@ -275,7 +299,7 @@ const FeaturesPage: React.FC = () => {
         <Typography variant="h4" gutterBottom>
           Features Management
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
           <Button
             variant="contained"
             component="label"
@@ -298,9 +322,11 @@ const FeaturesPage: React.FC = () => {
                 color="primary"
                 onClick={handleUpload}
                 disabled={uploading}
-                startIcon={uploading ? <CircularProgress size={20} /> : undefined}
+                startIcon={
+                  uploading ? <CircularProgress size={20} /> : undefined
+                }
               >
-                {uploading ? 'Uploading...' : 'Upload'}
+                {uploading ? "Uploading..." : "Upload"}
               </Button>
             </>
           )}
@@ -322,16 +348,16 @@ const FeaturesPage: React.FC = () => {
       </Box>
 
       {uploading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <CircularProgress />
         </Box>
       ) : (
         <Box>
           {features.map((appFeatures) => (
             <Card key={appFeatures.application} sx={{ mb: 3 }}>
-              <CardHeader 
+              <CardHeader
                 title={`Application: ${appFeatures.application_name}`}
-                sx={{ bgcolor: 'primary.main', color: 'white' }}
+                sx={{ bgcolor: "primary.main", color: "white" }}
               />
               <CardContent>
                 <List>
@@ -349,10 +375,12 @@ const FeaturesPage: React.FC = () => {
                       >
                         <ListItemText
                           primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
                               <IconButton
                                 size="small"
-                                onClick={() => toggleFeatureExpanded(feature.key)}
+                                onClick={() =>
+                                  toggleFeatureExpanded(feature.key)
+                                }
                               >
                                 {expandedFeatures[feature.key] ? (
                                   <ExpandMoreIcon />
@@ -362,8 +390,12 @@ const FeaturesPage: React.FC = () => {
                               </IconButton>
                               <Typography>{feature.name}</Typography>
                               <Chip
-                                label={feature.is_active ? 'Active' : 'Inactive'}
-                                color={feature.is_active ? 'success' : 'default'}
+                                label={
+                                  feature.is_active ? "Active" : "Inactive"
+                                }
+                                color={
+                                  feature.is_active ? "success" : "default"
+                                }
                                 size="small"
                                 sx={{ ml: 1 }}
                               />
@@ -371,9 +403,15 @@ const FeaturesPage: React.FC = () => {
                           }
                           secondary={
                             <Box>
-                              <Typography variant="body2">{feature.description}</Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                Last updated: {new Date(feature.updated_at).toLocaleString()}
+                              <Typography variant="body2">
+                                {feature.description}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="textSecondary"
+                              >
+                                Last updated:{" "}
+                                {new Date(feature.updated_at).toLocaleString()}
                               </Typography>
                             </Box>
                           }
@@ -381,69 +419,88 @@ const FeaturesPage: React.FC = () => {
                       </ListItem>
                       <Collapse in={expandedFeatures[feature.key]}>
                         <List sx={{ pl: 4 }}>
-                          {feature.granual_settings?.subfeatures?.map((subfeature) => (
-                            <ListItem
-                              key={subfeature.id}
-                              secondaryAction={
-                                <Box>
-                                  <IconButton
-                                    edge="end"
-                                    onClick={() =>
-                                      handleEditSubfeature(feature, subfeature)
-                                    }
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
-                                  <IconButton
-                                    edge="end"
-                                    onClick={() =>
-                                      handleRemoveSubfeature(
-                                        feature,
-                                        subfeature.id
-                                      )
-                                    }
-                                  >
-                                    <DeleteIcon />
-                                  </IconButton>
-                                </Box>
-                              }
-                            >
-                              <ListItemText
-                                primary={
-                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Typography>{subfeature.name}</Typography>
-                                    <Chip
-                                      label={
-                                        subfeature.settings?.enabled
-                                          ? 'Enabled'
-                                          : 'Disabled'
-                                      }
-                                      color={
-                                        subfeature.settings?.enabled
-                                          ? 'success'
-                                          : 'default'
-                                      }
-                                      size="small"
-                                      sx={{ ml: 1 }}
-                                    />
-                                  </Box>
-                                }
-                                secondary={
+                          {feature.granual_settings?.subfeatures?.map(
+                            (subfeature) => (
+                              <ListItem
+                                key={subfeature.id}
+                                secondaryAction={
                                   <Box>
-                                    <Typography variant="body2">{subfeature.description}</Typography>
-                                    {Object.entries(subfeature.settings)
-                                      .filter(([key]) => key !== 'enabled')
-                                      .map(([key, value]) => (
-                                        <Typography key={key} variant="caption" display="block" color="textSecondary">
-                                          {key}: {Array.isArray(value) ? value.join(', ') : JSON.stringify(value)}
-                                        </Typography>
-                                      ))
-                                    }
+                                    <IconButton
+                                      edge="end"
+                                      onClick={() =>
+                                        handleEditSubfeature(
+                                          feature,
+                                          subfeature
+                                        )
+                                      }
+                                    >
+                                      <EditIcon />
+                                    </IconButton>
+                                    <IconButton
+                                      edge="end"
+                                      onClick={() =>
+                                        handleRemoveSubfeature(
+                                          feature,
+                                          subfeature.id
+                                        )
+                                      }
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
                                   </Box>
                                 }
-                              />
-                            </ListItem>
-                          ))}
+                              >
+                                <ListItemText
+                                  primary={
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                      }}
+                                    >
+                                      <Typography>{subfeature.name}</Typography>
+                                      <Chip
+                                        label={
+                                          subfeature.settings?.enabled
+                                            ? "Enabled"
+                                            : "Disabled"
+                                        }
+                                        color={
+                                          subfeature.settings?.enabled
+                                            ? "success"
+                                            : "default"
+                                        }
+                                        size="small"
+                                        sx={{ ml: 1 }}
+                                      />
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Box>
+                                      <Typography variant="body2">
+                                        {subfeature.description}
+                                      </Typography>
+                                      {Object.entries(subfeature.settings)
+                                        .filter(([key]) => key !== "enabled")
+                                        .map(([key, value]) => (
+                                          <Typography
+                                            key={key}
+                                            variant="caption"
+                                            display="block"
+                                            color="textSecondary"
+                                          >
+                                            {key}:{" "}
+                                            {Array.isArray(value)
+                                              ? value.join(", ")
+                                              : JSON.stringify(value)}
+                                          </Typography>
+                                        ))}
+                                    </Box>
+                                  }
+                                />
+                              </ListItem>
+                            )
+                          )}
                         </List>
                       </Collapse>
                       <Divider component="li" />

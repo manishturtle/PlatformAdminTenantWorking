@@ -330,3 +330,126 @@ class CustomJWTAuthentication(BaseAuthentication):
             print(f"Schema switched to: {schema_name} for thread {id(current_thread())}")
         except Exception as e:
             raise AuthenticationFailed(f"Error switching schema: {str(e)}")
+
+
+
+
+# API for Ecommerce side where based on tenat_slug schema context changed
+from django.utils.deprecation import MiddlewareMixin
+from rest_framework.exceptions import AuthenticationFailed
+from threading import current_thread
+
+
+class TenantSchemaMiddleware(BaseAuthentication):
+    def authenticate(self, request):
+        """
+        Authentication method that switches schema based on tenant_slug from URL path parameters.
+        Does NOT require authentication token but sets the tenant schema.
+        
+        Returns None for both user and auth objects since this doesn't authenticate a user,
+        it just sets the correct schema.
+        """
+        # Get tenant_slug from URL path parameters
+        tenant_slug = None
+
+        # Extract from URL path if available
+        if hasattr(request, 'parser_context') and 'kwargs' in request.parser_context:
+            tenant_slug = request.parser_context['kwargs'].get('tenant_slug')
+        
+
+        # If not in parser_context, try to get from URL resolver match
+        if not tenant_slug and hasattr(request, 'resolver_match') and request.resolver_match:
+            tenant_slug = request.resolver_match.kwargs.get('tenant_slug')
+            
+        if not tenant_slug:
+            # No tenant_slug found, let other authentication methods handle this
+            return None
+
+        try:
+            # Set the schema for this request
+            set_schema_for_request(tenant_slug)
+            print(f"[TenantSchemaMiddleware] Schema switched to: {tenant_slug} for thread {id(current_thread())}")
+            
+            # Store tenant info on the request object for views to access
+            request.tenant_slug = tenant_slug
+            
+            # Create a simple tenant object with id and slug for views to use
+            from types import SimpleNamespace
+            tenant = SimpleNamespace(id=1, slug=tenant_slug)  # Default to id=1 for now
+            
+            # Try to get the actual tenant ID from the database
+            try:
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    # First switch to public schema to query tenant information
+                    cursor.execute("SET search_path TO public")
+                    cursor.execute("SELECT id FROM ecomm_superadmin_tenants WHERE slug = %s", [tenant_slug])
+                    result = cursor.fetchone()
+                    if result:
+                        tenant.id = result[0]
+                    # Switch back to the tenant schema
+                    cursor.execute(f"SET search_path TO {tenant_slug}")
+            except Exception as e:
+                print(f"[TenantSchemaMiddleware] Error getting tenant ID: {str(e)}")
+            
+            # Set the tenant object on the request
+            request.tenant = tenant
+            
+            # Return None for both user and auth objects since we're not authenticating a user
+            # but just setting the correct schema
+            return None
+        except Exception as e:
+            raise AuthenticationFailed(f"[TenantSchemaMiddleware] Error switching schema: {str(e)}")
+
+
+
+# from erp_backend.middleware import TenantSchemaMiddleware 
+
+# permission_classes = [permissions.AllowAny]
+#     authentication_classes = [TenantSchemaMiddleware]
+
+
+# custom middleware for tenant idenify into backend
+
+# from django.utils.deprecation import MiddlewareMixin
+# from rest_framework.exceptions import AuthenticationFailed
+# from threading import current_thread
+
+
+# class TenantSchemaMiddleware(BaseAuthentication):
+#     def authenticate(self, request):
+#         """
+#         Authentication method that switches schema based on tenant_slug from URL path parameters.
+#         Does NOT require authentication token but sets the tenant schema.
+        
+#         Returns None for both user and auth objects since this doesn't authenticate a user,
+#         it just sets the correct schema.
+#         """
+#         # Get tenant_slug from URL path parameters
+#         tenant_slug = None
+        
+#         # Extract from URL path if available
+#         if hasattr(request, 'parser_context') and 'kwargs' in request.parser_context:
+#             tenant_slug = request.parser_context['kwargs'].get('tenant_slug')
+        
+#         # If not in parser_context, try to get from URL resolver match
+#         if not tenant_slug and hasattr(request, 'resolver_match') and request.resolver_match:
+#             tenant_slug = request.resolver_match.kwargs.get('tenant_slug')
+            
+#         if not tenant_slug:
+#             # No tenant_slug found, let other authentication methods handle this
+#             return None
+
+#         try:
+#             # Set the schema for this request
+#             set_schema_for_request(tenant_slug)
+#             print(f"[TenantSchemaMiddleware] Schema switched to: {tenant_slug} for thread {id(current_thread())}")
+            
+#             # Store tenant info on the request object for views to access
+#             request.tenant_slug = tenant_slug
+            
+#             # Return None for both user and auth objects since we're not authenticating a user
+#             # but just setting the correct schema
+#             return None
+#         except Exception as e:
+#             raise AuthenticationFailed(f"[TenantSchemaMiddleware] Error switching schema: {str(e)}")

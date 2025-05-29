@@ -1,7 +1,8 @@
-import axios from 'axios';
-import { getAuthHeader } from '../../../utils/authUtils';
+import axios from "axios";
+import { getAuthHeader } from "../../../utils/authUtils";
 
-const API_BASE_URL = 'http://localhost:8000/api/platform-admin/subscription';
+const API_BASE_URL =
+  "https://bedevcockpit.turtleit.in/api/platform-admin/subscription";
 
 export interface Feature {
   id: number;
@@ -17,8 +18,8 @@ export interface Feature {
 export const featuresService = {
   async uploadFeatures(file: File, applicationName: string) {
     const formData = new FormData();
-    formData.append('yaml_file', file);
-    formData.append('application_name', applicationName);
+    formData.append("yaml_file", file);
+    formData.append("application_name", applicationName);
 
     try {
       const response = await axios.post(
@@ -27,8 +28,8 @@ export const featuresService = {
         {
           headers: {
             ...getAuthHeader(),
-            'Content-Type': 'multipart/form-data'
-          }
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
       return response.data;
@@ -40,7 +41,7 @@ export const featuresService = {
   async getFeatures() {
     try {
       const response = await axios.get(`${API_BASE_URL}/features/`, {
-        headers: getAuthHeader()
+        headers: getAuthHeader(),
       });
       return response.data;
     } catch (error: any) {
@@ -52,11 +53,11 @@ export const featuresService = {
     try {
       const response = await axios.get(`${API_BASE_URL}/features/`, {
         params: { application_name: applicationName },
-        headers: getAuthHeader()
+        headers: getAuthHeader(),
       });
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error.message;
     }
-  }
+  },
 };

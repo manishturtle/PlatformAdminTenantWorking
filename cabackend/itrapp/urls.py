@@ -21,7 +21,8 @@ from rest_framework.documentation import include_docs_urls
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import migrate_tenant_schema
-from .views import get_subscription_plan_by_tenant
+from .views import get_subscription_plan_by_tenant, get_user_subscription_plan_with_roles
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('customers.urls')),  # Include customers app URLs under /api/
@@ -40,6 +41,7 @@ urlpatterns = [
 
     path('api/management/', include('role_management.role_controles.urls')), # role
     path('api/subscription/plan/', get_subscription_plan_by_tenant, name='get-subscription-plan-by-tenant'),
+    path('api/subscription/plan/user/', get_user_subscription_plan_with_roles, name='get-user-subscription-plan-with-roles'),
 
 ]
 

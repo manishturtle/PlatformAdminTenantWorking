@@ -1,5 +1,5 @@
-import { Role, RolesResponse } from '../types/role';
-import { getAuthHeader } from '../utils/authUtils';
+import { Role, RolesResponse } from "../types/role";
+import { getAuthHeader } from "../utils/authUtils";
 
 /**
  * Fetch all roles for the tenant
@@ -9,11 +9,11 @@ import { getAuthHeader } from '../utils/authUtils';
 export const fetchRoles = async (tenantSlug: string): Promise<Role[]> => {
   try {
     const response = await fetch(
-      `http://localhost:8000/api/${tenantSlug}/tenant-admin/roles/`,
+      `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/roles/`,
       {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...getAuthHeader(),
         },
       }
@@ -25,11 +25,11 @@ export const fetchRoles = async (tenantSlug: string): Promise<Role[]> => {
 
     // Parse the response as RolesResponse format
     const data: RolesResponse = await response.json();
-    
+
     // Return the results array which contains the roles
     return data.results;
   } catch (error) {
-    console.error('Error fetching roles:', error);
+    console.error("Error fetching roles:", error);
     return [];
   }
 };

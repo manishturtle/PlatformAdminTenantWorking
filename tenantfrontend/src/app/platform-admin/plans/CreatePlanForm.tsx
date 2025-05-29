@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Grid,
   Button,
@@ -16,14 +16,14 @@ import {
   Typography,
   Alert,
   Snackbar,
-} from '@mui/material';
-import { Info as InfoIcon } from '@mui/icons-material';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { getAuthHeader } from '../../../utils/authUtils';
-import { plansService } from './plans.service';
-import { getActiveLineOfBusinesses } from '../../../services/lineOfBusinessService';
+} from "@mui/material";
+import { Info as InfoIcon } from "@mui/icons-material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { getAuthHeader } from "../../../utils/authUtils";
+import { plansService } from "./plans.service";
+import { getActiveLineOfBusinesses } from "../../../services/lineOfBusinessService";
 
 interface LineOfBusiness {
   id: number;
@@ -74,34 +74,37 @@ interface CreatePlanFormProps {
 interface FormData {
   name: string;
   description: string;
-  status: 'active' | 'inactive' | 'draft';
+  status: "active" | "inactive" | "draft";
   price: string;
-  billing_cycle: 'monthly' | 'quarterly' | 'annually' | 'one_time' | 'weekly';
+  billing_cycle: "monthly" | "quarterly" | "annually" | "one_time" | "weekly";
   max_users: string;
   transaction_limit: string;
   api_call_limit: string;
   storage_limit: string;
-  session_type: 'concurrent' | 'named';
-  support_level: 'basic' | 'standard' | 'premium';
+  session_type: "concurrent" | "named";
+  support_level: "basic" | "standard" | "premium";
   valid_from: Date;
   valid_until: Date | null;
   line_of_business: number | null;
   detailed_entitlements: Record<string, any>;
 }
 
-export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormProps) {
+export default function CreatePlanForm({
+  onSubmit,
+  onCancel,
+}: CreatePlanFormProps) {
   const [formData, setFormData] = useState<FormData>({
-    name: '',
-    description: '',
-    status: 'active',
-    price: '',
-    billing_cycle: 'monthly',
-    max_users: '',
-    transaction_limit: '',
-    api_call_limit: '',
-    storage_limit: '',
-    session_type: 'concurrent',
-    support_level: 'basic',
+    name: "",
+    description: "",
+    status: "active",
+    price: "",
+    billing_cycle: "monthly",
+    max_users: "",
+    transaction_limit: "",
+    api_call_limit: "",
+    storage_limit: "",
+    session_type: "concurrent",
+    support_level: "basic",
     valid_from: new Date(),
     valid_until: null,
     line_of_business: null,
@@ -115,19 +118,19 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
   const [linesOfBusiness, setLinesOfBusiness] = useState<LineOfBusiness[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
     fetchFeatures();
     fetchLinesOfBusiness();
   }, []);
-  
+
   const fetchLinesOfBusiness = async () => {
     try {
       const data = await getActiveLineOfBusinesses();
       setLinesOfBusiness(data);
     } catch (err) {
-      console.error('Error fetching lines of business:', err);
+      console.error("Error fetching lines of business:", err);
     }
   };
 
@@ -136,38 +139,40 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
     setError(null);
     try {
       const response = await fetch(
-        'http://localhost:8000/api/platform-admin/subscription/features/get_features/',
+        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/get_features/",
         {
           headers: await getAuthHeader(),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch features');
+        throw new Error("Failed to fetch features");
       }
 
       const data = await response.json();
       setApplications(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch features');
+      setError(err instanceof Error ? err.message : "Failed to fetch features");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTextFieldChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextFieldChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const { name, value } = event.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSelectChange = (event: SelectChangeEvent<string>) => {
     const { name, value } = event.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -180,32 +185,48 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
     return Object.keys(formData.detailed_entitlements).includes(featureId);
   };
 
-  const isSubfeatureEnabled = (featureId: string, subfeatureId: string): boolean => {
-    return formData.detailed_entitlements[featureId]?.granual_settings?.subfeatures?.some(s => s.id === parseInt(subfeatureId) && s.enabled) || false;
+  const isSubfeatureEnabled = (
+    featureId: string,
+    subfeatureId: string
+  ): boolean => {
+    return (
+      formData.detailed_entitlements[
+        featureId
+      ]?.granual_settings?.subfeatures?.some(
+        (s) => s.id === parseInt(subfeatureId) && s.enabled
+      ) || false
+    );
   };
 
-  const handleFeatureChange = (event: React.ChangeEvent<HTMLInputElement>, feature: Feature) => {
+  const handleFeatureChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    feature: Feature
+  ) => {
     const checked = event.target.checked;
     const featureId = feature.id;
-    
-    setFormData(prev => {
+
+    setFormData((prev) => {
       if (checked) {
         // Add new feature with all subfeatures enabled by default
         const newFeature = {
           [featureId]: {
             granual_settings: {
               enabled: true,
-              subfeatures: feature.granual_settings?.subfeatures.map(sf => ({
-                id: sf.id,
-                enabled: true
-              })) || []
-            }
-          }
+              subfeatures:
+                feature.granual_settings?.subfeatures.map((sf) => ({
+                  id: sf.id,
+                  enabled: true,
+                })) || [],
+            },
+          },
         };
-        
+
         return {
           ...prev,
-          detailed_entitlements: { ...prev.detailed_entitlements, ...newFeature }
+          detailed_entitlements: {
+            ...prev.detailed_entitlements,
+            ...newFeature,
+          },
         };
       } else {
         // Remove feature
@@ -213,32 +234,39 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
         delete newEntitlements[featureId];
         return {
           ...prev,
-          detailed_entitlements: newEntitlements
+          detailed_entitlements: newEntitlements,
         };
       }
     });
   };
 
-  const handleSubfeatureChange = (event: React.ChangeEvent<HTMLInputElement>, feature: Feature, subfeatureId: number) => {
+  const handleSubfeatureChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    feature: Feature,
+    subfeatureId: number
+  ) => {
     const checked = event.target.checked;
-    
-    setFormData(prev => {
+
+    setFormData((prev) => {
       const featureId = feature.id;
       const newEntitlements = { ...prev.detailed_entitlements };
-      
+
       if (!newEntitlements[featureId]) {
         // Feature doesn't exist, add it with the subfeature
         newEntitlements[featureId] = {
           granual_settings: {
             enabled: true,
-            subfeatures: [{ id: subfeatureId, enabled: checked }]
-          }
+            subfeatures: [{ id: subfeatureId, enabled: checked }],
+          },
         };
       } else {
         // Feature exists, update the subfeature
-        const subfeatures = newEntitlements[featureId].granual_settings?.subfeatures || [];
-        const subfeatureIndex = subfeatures.findIndex(s => s.id === subfeatureId);
-        
+        const subfeatures =
+          newEntitlements[featureId].granual_settings?.subfeatures || [];
+        const subfeatureIndex = subfeatures.findIndex(
+          (s) => s.id === subfeatureId
+        );
+
         if (subfeatureIndex === -1) {
           // Subfeature doesn't exist, add it
           subfeatures.push({ id: subfeatureId, enabled: checked });
@@ -246,16 +274,16 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
           // Update existing subfeature
           subfeatures[subfeatureIndex].enabled = checked;
         }
-        
+
         newEntitlements[featureId].granual_settings = {
           enabled: true,
-          subfeatures
+          subfeatures,
         };
       }
-      
+
       return {
         ...prev,
-        detailed_entitlements: newEntitlements
+        detailed_entitlements: newEntitlements,
       };
     });
   };
@@ -264,22 +292,22 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
     event.preventDefault();
     setLoading(true);
     setFormErrors({});
-    
+
     try {
       await onSubmit(formData);
       // Clear form errors on success
       setFormErrors({});
     } catch (error: any) {
-      console.error('Failed to submit form:', error);
-      
+      console.error("Failed to submit form:", error);
+
       // Handle API error responses
       if (error.response && error.response.data) {
         const errorData = error.response.data;
-        
+
         // Check for field-specific errors
-        if (typeof errorData === 'object') {
+        if (typeof errorData === "object") {
           const newFormErrors: Record<string, string> = {};
-          
+
           // Handle name field error specifically for duplicate plans
           if (errorData.name) {
             if (Array.isArray(errorData.name)) {
@@ -287,17 +315,19 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
             } else {
               newFormErrors.name = errorData.name;
             }
-            
+
             // Show snackbar for duplicate plan name
-            if (newFormErrors.name.includes('already exists')) {
-              setSnackbarMessage('A subscription plan with this name already exists');
+            if (newFormErrors.name.includes("already exists")) {
+              setSnackbarMessage(
+                "A subscription plan with this name already exists"
+              );
               setSnackbarOpen(true);
             }
           }
-          
+
           // Handle other field errors
-          Object.keys(errorData).forEach(key => {
-            if (key !== 'name') {
+          Object.keys(errorData).forEach((key) => {
+            if (key !== "name") {
               if (Array.isArray(errorData[key])) {
                 newFormErrors[key] = errorData[key][0];
               } else {
@@ -305,42 +335,54 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
               }
             }
           });
-          
+
           setFormErrors(newFormErrors);
         } else {
           // Generic error message
-          setSnackbarMessage('Failed to create subscription plan');
+          setSnackbarMessage("Failed to create subscription plan");
           setSnackbarOpen(true);
         }
       } else {
         // Generic error message for non-API errors
-        setSnackbarMessage('An error occurred while creating the subscription plan');
+        setSnackbarMessage(
+          "An error occurred while creating the subscription plan"
+        );
         setSnackbarOpen(true);
       }
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
   };
 
   return (
-    <Grid container component="form" onSubmit={handleSubmit} spacing={3} sx={{ width: '100%' }}>
+    <Grid
+      container
+      component="form"
+      onSubmit={handleSubmit}
+      spacing={3}
+      sx={{ width: "100%" }}
+    >
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleSnackbarClose}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
       <Grid item xs={12} component="div" width={1}>
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Grid container justifyContent="space-between" alignItems="center" >
+          <Grid container justifyContent="space-between" alignItems="center">
             <Grid item>
               <Typography variant="h5">Create New Plan</Typography>
             </Grid>
@@ -352,7 +394,13 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                   </Button>
                 </Grid>
                 <Grid item>
-                  <Button type="submit" variant="contained" color="primary" size="large" disabled={loading}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    disabled={loading}
+                  >
                     Create Plan
                   </Button>
                 </Grid>
@@ -364,7 +412,9 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
 
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>Basic Information</Typography>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Basic Information
+          </Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <TextField
@@ -375,7 +425,7 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                 onChange={handleTextFieldChange}
                 required
                 error={!!formErrors.name}
-                helperText={formErrors.name || ''}
+                helperText={formErrors.name || ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -403,7 +453,9 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                 onChange={handleTextFieldChange}
                 required
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position="start">$</InputAdornment>
+                  ),
                 }}
               />
             </Grid>
@@ -431,12 +483,12 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                   label="Valid From"
                   value={formData.valid_from}
                   onChange={(newValue) => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      valid_from: newValue || new Date()
+                      valid_from: newValue || new Date(),
                     }));
                   }}
-                  sx={{ width: '100%' }}
+                  sx={{ width: "100%" }}
                 />
               </LocalizationProvider>
             </Grid>
@@ -446,12 +498,12 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                   label="Valid Until"
                   value={formData.valid_until}
                   onChange={(newValue) => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      valid_until: newValue
+                      valid_until: newValue,
                     }));
                   }}
-                  sx={{ width: '100%' }}
+                  sx={{ width: "100%" }}
                 />
               </LocalizationProvider>
             </Grid>
@@ -460,19 +512,22 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                 <InputLabel>Line of Business</InputLabel>
                 <Select
                   name="line_of_business"
-                  value={formData.line_of_business || ''}
+                  value={formData.line_of_business || ""}
                   onChange={(e) => {
-                    const value = e.target.value === '' ? null : Number(e.target.value);
-                    setFormData(prev => ({
+                    const value =
+                      e.target.value === "" ? null : Number(e.target.value);
+                    setFormData((prev) => ({
                       ...prev,
-                      line_of_business: value
+                      line_of_business: value,
                     }));
                   }}
                   label="Line of Business"
                 >
                   <MenuItem value="">None</MenuItem>
                   {linesOfBusiness.map((lob) => (
-                    <MenuItem key={lob.id} value={lob.id}>{lob.name}</MenuItem>
+                    <MenuItem key={lob.id} value={lob.id}>
+                      {lob.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -494,7 +549,9 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
 
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>Plan Limits</Typography>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Plan Limits
+          </Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <TextField
@@ -575,7 +632,9 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
 
       <Grid item xs={12} width="100%">
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>Features</Typography>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Features
+          </Typography>
           {loading ? (
             <Grid container justifyContent="center" sx={{ p: 3 }}>
               <CircularProgress />
@@ -592,11 +651,11 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                     value={selectedApps}
                     onChange={handleAppChange}
                     label="Select Applications"
-                    renderValue={(selected) => 
+                    renderValue={(selected) =>
                       applications
-                        .filter(app => selected.includes(app.application))
-                        .map(app => app.application_name)
-                        .join(', ')
+                        .filter((app) => selected.includes(app.application))
+                        .map((app) => app.application_name)
+                        .join(", ")
                     }
                   >
                     {applications.map((app) => (
@@ -612,8 +671,8 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                 <Grid item xs={12}>
                   <Grid container spacing={2}>
                     {applications
-                      .filter(app => selectedApps.includes(app.application))
-                      .flatMap(app => app.features)
+                      .filter((app) => selectedApps.includes(app.application))
+                      .flatMap((app) => app.features)
                       .map((feature) => (
                         <Grid item xs={12} key={feature.id} component="div">
                           <Paper sx={{ p: 2 }}>
@@ -622,55 +681,97 @@ export default function CreatePlanForm({ onSubmit, onCancel }: CreatePlanFormPro
                                 <FormControlLabel
                                   control={
                                     <Checkbox
-                                      checked={isFeatureSelected(feature.id.toString())}
-                                      onChange={(e) => handleFeatureChange(e, feature)}
+                                      checked={isFeatureSelected(
+                                        feature.id.toString()
+                                      )}
+                                      onChange={(e) =>
+                                        handleFeatureChange(e, feature)
+                                      }
                                       name={feature.key}
                                     />
                                   }
                                   label={
                                     <Grid container direction="column">
-                                      <Typography variant="subtitle1">{feature.name}</Typography>
-                                      <Typography variant="body2" color="text.secondary">
+                                      <Typography variant="subtitle1">
+                                        {feature.name}
+                                      </Typography>
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                      >
                                         {feature.description}
                                       </Typography>
                                     </Grid>
                                   }
                                 />
                               </Grid>
-                              
+
                               {feature.granual_settings?.subfeatures && (
-                                <Grid item xs={12} component="div" sx={{ pl: 4 }}>
+                                <Grid
+                                  item
+                                  xs={12}
+                                  component="div"
+                                  sx={{ pl: 4 }}
+                                >
                                   <Grid container spacing={1}>
-                                    {feature.granual_settings.subfeatures.map((subfeature) => (
-                                      <Grid item xs={12} key={subfeature.id} component="div">
-                                        <FormControlLabel
-                                          control={
-                                            <Checkbox
-                                              checked={isSubfeatureEnabled(feature.id.toString(), subfeature.id.toString())}
-                                              onChange={(e) => handleSubfeatureChange(e, feature, subfeature.id)}
-                                              name={`${feature.key}_${subfeature.id}`}
-                                              disabled={!isFeatureSelected(feature.id.toString())}
-                                              size="small"
-                                            />
-                                          }
-                                          label={
-                                            <Grid container direction="column">
-                                              <Typography variant="body2">{subfeature.name}</Typography>
-                                              <Typography variant="caption" color="text.secondary">
-                                                {subfeature.description}
-                                              </Typography>
-                                            </Grid>
-                                          }
-                                        />
-                                      </Grid>
-                                    ))}
+                                    {feature.granual_settings.subfeatures.map(
+                                      (subfeature) => (
+                                        <Grid
+                                          item
+                                          xs={12}
+                                          key={subfeature.id}
+                                          component="div"
+                                        >
+                                          <FormControlLabel
+                                            control={
+                                              <Checkbox
+                                                checked={isSubfeatureEnabled(
+                                                  feature.id.toString(),
+                                                  subfeature.id.toString()
+                                                )}
+                                                onChange={(e) =>
+                                                  handleSubfeatureChange(
+                                                    e,
+                                                    feature,
+                                                    subfeature.id
+                                                  )
+                                                }
+                                                name={`${feature.key}_${subfeature.id}`}
+                                                disabled={
+                                                  !isFeatureSelected(
+                                                    feature.id.toString()
+                                                  )
+                                                }
+                                                size="small"
+                                              />
+                                            }
+                                            label={
+                                              <Grid
+                                                container
+                                                direction="column"
+                                              >
+                                                <Typography variant="body2">
+                                                  {subfeature.name}
+                                                </Typography>
+                                                <Typography
+                                                  variant="caption"
+                                                  color="text.secondary"
+                                                >
+                                                  {subfeature.description}
+                                                </Typography>
+                                              </Grid>
+                                            }
+                                          />
+                                        </Grid>
+                                      )
+                                    )}
                                   </Grid>
                                 </Grid>
                               )}
                             </Grid>
                           </Paper>
                         </Grid>
-                    ))}
+                      ))}
                   </Grid>
                 </Grid>
               )}

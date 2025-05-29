@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -8,10 +8,10 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Grid
-} from '@mui/material';
-import { useRouter } from 'next/navigation';
-import { getAuthHeader } from '../../utils/authUtils';
+  Grid,
+} from "@mui/material";
+import { useRouter } from "next/navigation";
+import { getAuthHeader } from "../../utils/authUtils";
 
 interface CrmClientFormProps {
   clientId?: number;
@@ -23,15 +23,18 @@ interface FormData {
   contact_person_email: string;
 }
 
-const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false }) => {
+const CrmClientForm: React.FC<CrmClientFormProps> = ({
+  clientId,
+  isEdit = false,
+}) => {
   const router = useRouter();
   const [loading, setLoading] = useState(isEdit);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    client_name: '',
-    contact_person_email: ''
+    client_name: "",
+    contact_person_email: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -42,27 +45,30 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
         try {
           setLoading(true);
           const authHeader = getAuthHeader();
-          
-          const response = await fetch(`http://localhost:8000/platform-admin/api/crm-clients/${clientId}/`, {
-            headers: {
-              ...authHeader,
-              'Content-Type': 'application/json'
+
+          const response = await fetch(
+            `https://bedevcockpit.turtleit.in/platform-admin/api/crm-clients/${clientId}/`,
+            {
+              headers: {
+                ...authHeader,
+                "Content-Type": "application/json",
+              },
             }
-          });
-          
+          );
+
           if (!response.ok) {
-            throw new Error('Failed to fetch client details');
+            throw new Error("Failed to fetch client details");
           }
-          
+
           const clientData = await response.json();
           setFormData({
-            client_name: clientData.client_name || '',
-            contact_person_email: clientData.contact_person_email || ''
+            client_name: clientData.client_name || "",
+            contact_person_email: clientData.contact_person_email || "",
           });
           setError(null);
         } catch (err: any) {
-          console.error('Failed to fetch client details:', err);
-          setError(err.message || 'Failed to fetch client details');
+          console.error("Failed to fetch client details:", err);
+          setError(err.message || "Failed to fetch client details");
         } finally {
           setLoading(false);
         }
@@ -77,13 +83,13 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
     // Clear error for this field when user starts typing
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
-        [name]: ''
+        [name]: "",
       });
     }
   };
@@ -92,12 +98,12 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!formData.client_name.trim()) {
-      errors.client_name = 'Client name is required';
+      errors.client_name = "Client name is required";
     }
     if (!formData.contact_person_email.trim()) {
-      errors.contact_person_email = 'Contact email is required';
+      errors.contact_person_email = "Contact email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.contact_person_email)) {
-      errors.contact_person_email = 'Invalid email format';
+      errors.contact_person_email = "Invalid email format";
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -111,62 +117,69 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
     try {
       setProcessing(true);
       setError(null);
-      
+
       // Log the form data being sent
-      console.log('Submitting form data:', formData);
-      
+      console.log("Submitting form data:", formData);
+
       const authHeader = getAuthHeader();
-      
-      const url = isEdit 
-        ? `http://localhost:8000/platform-admin/api/crmclients/${clientId}/` 
-        : 'http://localhost:8000/platform-admin/api/crmclients/';
-      
-      const method = isEdit ? 'PUT' : 'POST';
-      
+
+      const url = isEdit
+        ? `https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/${clientId}/`
+        : "https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/";
+
+      const method = isEdit ? "PUT" : "POST";
+
       const response = await fetch(url, {
         method,
         headers: {
           ...authHeader,
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to ${isEdit ? 'update' : 'create'} client`);
+        throw new Error(
+          errorData.message ||
+            `Failed to ${isEdit ? "update" : "create"} client`
+        );
       }
-      
+
       setSuccess(true);
-      
+
       // Redirect after a short delay
       setTimeout(() => {
-        router.push('/platform-admin/crmclients');
+        router.push("/platform-admin/crmclients");
       }, 1500);
     } catch (err: any) {
-      console.error(`Failed to ${isEdit ? 'update' : 'create'} client:`, err);
-      
+      console.error(`Failed to ${isEdit ? "update" : "create"} client:`, err);
+
       // Try to extract more detailed error information
-      let errorMessage = err.message || `Failed to ${isEdit ? 'update' : 'create'} client`;
-      
+      let errorMessage =
+        err.message || `Failed to ${isEdit ? "update" : "create"} client`;
+
       // Check if the error message contains a JSON string
       try {
-        if (typeof errorMessage === 'string' && errorMessage.includes('{')) {
-          const jsonStart = errorMessage.indexOf('{');
+        if (typeof errorMessage === "string" && errorMessage.includes("{")) {
+          const jsonStart = errorMessage.indexOf("{");
           const jsonPart = errorMessage.substring(jsonStart);
           const errorData = JSON.parse(jsonPart);
-          
+
           // Format validation errors if present
           if (errorData.errors) {
             errorMessage = Object.entries(errorData.errors)
-              .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-              .join('\n');
+              .map(
+                ([field, msgs]) =>
+                  `${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`
+              )
+              .join("\n");
           }
         }
       } catch (parseErr) {
-        console.error('Error parsing error message:', parseErr);
+        console.error("Error parsing error message:", parseErr);
       }
-      
+
       setError(errorMessage);
       setSuccess(false);
     } finally {
@@ -176,35 +189,35 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
 
   // Handle cancel
   const handleCancel = () => {
-    router.push('/platform-admin/crmclients');
+    router.push("/platform-admin/crmclients");
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Paper sx={{ p: 4, maxWidth: 800, mx: 'auto' }}>
+    <Paper sx={{ p: 4, maxWidth: 800, mx: "auto" }}>
       <Typography variant="h5" component="h2" gutterBottom>
-        {isEdit ? 'Edit CRM Client' : 'Create New CRM Client'}
+        {isEdit ? "Edit CRM Client" : "Create New CRM Client"}
       </Typography>
-      
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
-      
+
       {success && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          Client successfully {isEdit ? 'updated' : 'created'}!
+          Client successfully {isEdit ? "updated" : "created"}!
         </Alert>
       )}
-      
+
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
@@ -220,7 +233,7 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
               disabled={processing}
             />
           </Grid>
-          
+
           <Grid item xs={12}>
             <TextField
               label="Contact Email"
@@ -235,8 +248,12 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
               disabled={processing}
             />
           </Grid>
-          
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+
+          <Grid
+            item
+            xs={12}
+            sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}
+          >
             <Button
               variant="outlined"
               onClick={handleCancel}
@@ -250,7 +267,13 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({ clientId, isEdit = false 
               color="primary"
               disabled={processing}
             >
-              {processing ? <CircularProgress size={24} /> : (isEdit ? 'Update Client' : 'Create Client')}
+              {processing ? (
+                <CircularProgress size={24} />
+              ) : isEdit ? (
+                "Update Client"
+              ) : (
+                "Create Client"
+              )}
             </Button>
           </Grid>
         </Grid>
