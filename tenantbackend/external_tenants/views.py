@@ -78,17 +78,25 @@ class OrderProcessedView(APIView):
             # Get the default active subscription plan
             try:
                 from ecomm_superadmin.models import SubscriptionPlan
-                subscription_plan = SubscriptionPlan.objects.filter(status='active').first()
-                if not subscription_plan:
+                
+                # Validate product_ids exist in subscription plans
+                subscription_plans = SubscriptionPlan.objects.filter(id__in=product_ids, status='active')
+
+                if not subscription_plans.exists():
                     return JsonResponse(
-                        {'error': 'No active subscription plans available'},
+                        {
+                            'error': 'No active subscription plans found for the provided product_ids',
+                            'product_ids': product_ids
+                        },
                         status=status.HTTP_400_BAD_REQUEST
                     )
+
             except Exception as e:
                 return JsonResponse(
                     {'error': f'Error getting subscription plan: {str(e)}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+            
             
             # Generate tenant name and schema name from client name
             import re
@@ -113,6 +121,8 @@ class OrderProcessedView(APIView):
                 counter += 1
                 
             logger.info(f"Generated tenant details - Schema: {schema_name}, URL Suffix: {url_suffix}")
+
+                
             
             # Prepare tenant data with default values
             tenant_data = {
@@ -159,15 +169,27 @@ class OrderProcessedView(APIView):
                     using='default',
                     update_fields=None
                 )
+
+
+                subscriptions = []
+                for plan in subscription_plans:
+                    subscription = self.create_tenant_subscription(
+                        tenant=tenant,
+                        subscription_plan=plan,
+                        client_id=client_id,
+                        company_id=1,
+                        created_by='system:order_processor'
+                    )
+                    subscriptions.append(subscription)
                 
-                # Create subscription
-                subscription = self.create_tenant_subscription(
-                    tenant=tenant,
-                    subscription_plan=subscription_plan,
-                    client_id=client_id,
-                    company_id=1,
-                    created_by='system:order_processor'
-                )
+                # # Create subscription
+                # subscription = self.create_tenant_subscription(
+                #     tenant=tenant,
+                #     subscription_plan=subscription_plan,
+                #     client_id=client_id,
+                #     company_id=1,
+                #     created_by='system:order_processor'
+                # )
                 
                 # Prepare success response
                 result = {
@@ -179,13 +201,16 @@ class OrderProcessedView(APIView):
                         'schema_name': schema_name,
                         'url_suffix': url_suffix
                     },
-                    'subscription': {
-                        'id': subscription.id,
-                        'license_key': subscription.license_key,
-                        'status': subscription.license_status,
-                        'valid_from': subscription.valid_from,
-                        'valid_until': getattr(subscription, 'valid_until', None)
-                    }
+                    'subscriptions': [
+                        {
+                            'id': sub.id,
+                            'license_key': sub.license_key,
+                            'status': sub.license_status,
+                            'valid_from': sub.valid_from,
+                            'valid_until': getattr(sub, 'valid_until', None)
+                        }
+                        for sub in subscriptions
+                    ]
                 }
                 
             except Exception as e:
@@ -198,16 +223,23 @@ class OrderProcessedView(APIView):
         
             send_email(
                 to_emails="manish@turtlesoftware.co",
+                # to_emails=client.contact_person_email,
                 subject="Welcome to Our Platform!",
                 template_name="subscription_welcome",
                 template_context={
-                    "user_name": client.client_name or "User",
-                    "user_email": "manish@turtlesoftware.co",
-                    "license_key": subscription.license_key,
-                    "license_status": subscription.license_status,
-                    "valid_from": subscription.valid_from.strftime("%Y-%m-%d"),
-                    "valid_until": subscription.valid_until.strftime("%Y-%m-%d") if subscription.valid_until else None,
-                    "activation_link": f"https://{tenant.url_suffix}.turtlesoftware.co/activate/{tenant.id}"
+                    "user_name": client.client_name or "User",  
+                    "user_email": client.contact_person_email,
+                    "default_password":"India@123",
+                    "subscriptions": [
+                            {
+                                "license_key": sub.license_key,
+                                "license_status": sub.license_status,
+                                "valid_from": sub.valid_from.strftime("%Y-%m-%d"),
+                                "valid_until": sub.valid_until.strftime("%Y-%m-%d") if sub.valid_until else None,
+                            }
+                            for sub in subscriptions
+                        ],
+                        "activation_link": f"https://devstore.turtleit.in/{schema_name}"
                 }
             )
             return JsonResponse(
