@@ -121,7 +121,7 @@ class OrderProcessedView(APIView):
                 'environment': 'production',
                 'status': 'active',
                 'default_url': f"https://{url_suffix}.turtlesoftware.co",
-                'subscription_plan': subscription_plan.id,
+                'subscription_plan': product_ids,
                 'client_id': client_id,
                 'admin_email':client.contact_person_email,  # You might want to get this from the client
                 'admin_first_name': client.client_name, 
@@ -130,6 +130,7 @@ class OrderProcessedView(APIView):
                 'contact_email': client.contact_person_email or f"contact@{url_suffix}.turtlesoftware.co"
             }
             
+            print("tenant_data:", tenant_data)
             # Create tenant using TenantSerializer
             from ecomm_superadmin.serializers import TenantSerializer
             from django.db import transaction
