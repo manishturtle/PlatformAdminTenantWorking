@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ApplicationViewSet
 from .views import (PlatformAdminTenantView, PlatformAdminLoginView, PlatformAdminCheckUserExistsView,
-    PlatformAdminViewSet, CrmClientViewSet, ApplicationViewSet, TenantApplicationsByUrlView, TenantSubscriptionDetailsView, LineOfBusinessViewSet, TenantByDefaultUrlView)
+    PlatformAdminViewSet, CrmClientViewSet, ApplicationViewSet, TenantApplicationsByUrlView, TenantSubscriptionDetailsView, LineOfBusinessViewSet, TenantByDefaultUrlView, get_license_info)
 from ecomm_tenant.ecomm_tenant_admins.views import TenantRolesViewSet
 
 #from .views_2fa import TwoFactorVerifyView, TwoFactorRecoveryVerifyView
@@ -38,4 +38,6 @@ urlpatterns = [
    path('lines-of-business/', LineOfBusinessViewSet.as_view({'get': 'list_lines_of_business'}), name='lines-of-business'),
    # Public endpoint to get tenant by default URL
    path('tenant-by-url/', TenantByDefaultUrlView.as_view(), name='tenant-by-default-url'),
+   # Internal API endpoint to get license information
+   path('license-info/', get_license_info, name='get-license-info'),
 ]

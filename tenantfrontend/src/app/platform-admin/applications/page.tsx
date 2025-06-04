@@ -73,7 +73,7 @@ export default function ApplicationsPage() {
       }
 
       const response = await fetch(
-        "https://bedevcockpit.turtleit.in/platform-admin/api/applications/",
+        "http://localhost:8000/platform-admin/api/applications/",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -195,7 +195,7 @@ export default function ApplicationsPage() {
       }
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/platform-admin/api/applications/${appId}/`,
+        `http://localhost:8000/platform-admin/api/applications/${appId}/`,
         {
           method: "DELETE",
           headers: {
@@ -228,8 +228,8 @@ export default function ApplicationsPage() {
       }
 
       const url = editingApp
-        ? `https://bedevcockpit.turtleit.in/platform-admin/api/applications/${editingApp.app_id}/`
-        : "https://bedevcockpit.turtleit.in/platform-admin/api/applications/";
+        ? `http://localhost:8000/platform-admin/api/applications/${editingApp.app_id}/`
+        : "http://localhost:8000/platform-admin/api/applications/";
 
       const response = await fetch(url, {
         method: editingApp ? "PUT" : "POST",

@@ -9,7 +9,7 @@ import { getAuthHeader } from "../utils/authUtils";
 export const fetchRoles = async (tenantSlug: string): Promise<Role[]> => {
   try {
     const response = await fetch(
-      `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/roles/`,
+      `http://localhost:8000/api/${tenantSlug}/tenant-admin/roles/`,
       {
         method: "GET",
         headers: {

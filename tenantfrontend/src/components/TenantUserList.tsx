@@ -93,7 +93,7 @@ const TenantUserList = () => {
       }
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/?page=${
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/?page=${
           page + 1
         }&page_size=${rowsPerPage}`,
         {
@@ -184,7 +184,7 @@ const TenantUserList = () => {
       }
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${deleteUserId}/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${deleteUserId}/`,
         {
           method: "DELETE",
           headers: {

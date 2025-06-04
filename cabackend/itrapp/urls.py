@@ -39,7 +39,7 @@ urlpatterns = [
     path('api/tenant/migrate/', migrate_tenant_schema, name='migrate-tenant-schema'),  # Tenant schema migration
     # path('docs/', include_docs_urls(title='ITR App API')),  # API documentation
 
-    path('api/management/', include('role_management.role_controles.urls')), # role
+    path('api/management/', include('role_management.role_controles.urls')), # role management
     path('api/subscription/plan/', get_subscription_plan_by_tenant, name='get-subscription-plan-by-tenant'),
     path('api/subscription/plan/user/', get_user_subscription_plan_with_roles, name='get-user-subscription-plan-with-roles'),
 

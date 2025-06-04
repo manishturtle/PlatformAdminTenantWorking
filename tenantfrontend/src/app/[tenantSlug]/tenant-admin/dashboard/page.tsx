@@ -37,7 +37,7 @@ export default function TenantAdminDashboard() {
 
     // Fetch subscription details
     fetch(
-      `https://bedevcockpit.turtleit.in/platform-admin/api/tenant-subscription/${tenantSlug}/`,
+      `http://localhost:8000/platform-admin/api/tenant-subscription/${tenantSlug}/`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -60,7 +60,7 @@ export default function TenantAdminDashboard() {
 
     // Fetch tenant applications
     fetch(
-      `https://bedevcockpit.turtleit.in/platform-admin/api/tenant-applications/${tenantSlug}/`,
+      `http://localhost:8000/platform-admin/api/tenant-applications/${tenantSlug}/`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

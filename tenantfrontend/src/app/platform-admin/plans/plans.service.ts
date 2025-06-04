@@ -1,8 +1,7 @@
 import axios from "axios";
 import { getAuthHeader } from "../../../utils/authUtils";
 
-const API_BASE_URL =
-  "https://bedevcockpit.turtleit.in/api/platform-admin/subscription";
+const API_BASE_URL = "http://localhost:8000/api/platform-admin/subscription";
 
 export interface Plan {
   id?: number;

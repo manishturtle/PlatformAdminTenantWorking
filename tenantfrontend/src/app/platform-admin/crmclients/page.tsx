@@ -48,7 +48,7 @@ export default function CrmClientsPage() {
         const authHeader = getAuthHeader();
 
         const response = await fetch(
-          "https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/",
+          "http://localhost:8000/platform-admin/api/crmclients/",
           {
             headers: {
               ...authHeader,
@@ -92,7 +92,7 @@ export default function CrmClientsPage() {
       const authHeader = getAuthHeader();
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/platform-admin/api/crm-clients/${id}/`,
+        `http://localhost:8000/platform-admin/api/crm-clients/${id}/`,
         {
           method: "DELETE",
           headers: {

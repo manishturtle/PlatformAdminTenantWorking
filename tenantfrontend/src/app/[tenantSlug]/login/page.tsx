@@ -120,7 +120,7 @@ export default function TenantLoginPage({
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, ""); // Remove trailing slash if present
         const response = await fetch(
-          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/login-config/`
+          `http://localhost:8000/api/${tenantSlug}/tenant-admin/login-config/`
         );
         if (response.ok) {
           const data = await response.json();
@@ -186,7 +186,7 @@ export default function TenantLoginPage({
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, ""); // Remove trailing slash if present
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant/auth/check-user/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant/auth/check-user/`,
         {
           method: "POST",
           headers: {
@@ -284,7 +284,7 @@ export default function TenantLoginPage({
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, ""); // Remove trailing slash if present
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant/auth/login/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant/auth/login/`,
         {
           method: "POST",
           headers: {
@@ -373,7 +373,7 @@ export default function TenantLoginPage({
                   <img
                     src={`${
                       process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-                      "https://bedevcockpit.turtleit.in"
+                      "http://localhost:8000"
                     }${loginConfig.logo}`}
                     alt={loginConfig.brand_name || "Company Logo"}
                     style={{

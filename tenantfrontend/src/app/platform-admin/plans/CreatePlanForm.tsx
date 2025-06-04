@@ -139,7 +139,7 @@ export default function CreatePlanForm({
     setError(null);
     try {
       const response = await fetch(
-        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/get_features/",
+        "http://localhost:8000/api/platform-admin/subscription/features/get_features/",
         {
           headers: await getAuthHeader(),
         }

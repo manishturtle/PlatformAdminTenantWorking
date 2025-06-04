@@ -21,6 +21,7 @@ urlpatterns = [
     
     # Django admin (not tenant-specific)
     path('admin/', admin.site.urls),
+
     
     # Platform admin routes (not tenant-specific)
     path('platform-admin/api/', include('ecomm_superadmin.admin_urls', namespace='platform_admin')),

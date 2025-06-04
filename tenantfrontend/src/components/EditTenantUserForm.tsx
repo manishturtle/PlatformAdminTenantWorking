@@ -111,7 +111,7 @@ const EditTenantUserForm = ({
     try {
       const authHeader = getAuthHeader();
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/platform-admin/api/tenant-applications/${tenantSlug}/`,
+        `http://localhost:8000/platform-admin/api/tenant-applications/${tenantSlug}/`,
         {
           headers: {
             ...authHeader,
@@ -144,7 +144,7 @@ const EditTenantUserForm = ({
     try {
       const authHeader = getAuthHeader();
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${userId}/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${userId}/`,
         {
           headers: {
             ...authHeader,
@@ -255,7 +255,7 @@ const EditTenantUserForm = ({
     setLoading(true);
     try {
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${userId}/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${userId}/`,
         {
           method: "PUT",
           headers: {

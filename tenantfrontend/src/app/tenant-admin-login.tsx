@@ -23,7 +23,7 @@ export default function TenantAdminLoginPage() {
 
     try {
       const response = await fetch(
-        "https://bedevcockpit.turtleit.in/api/qa/tenant/auth/login/",
+        "http://localhost:8000/api/qa/tenant/auth/login/",
         {
           method: "POST",
           headers: {

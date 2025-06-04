@@ -105,7 +105,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
         const authHeader = getAuthHeader();
 
         const response = await fetch(
-          "https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/",
+          "http://localhost:8000/platform-admin/api/crmclients/",
           {
             headers: {
               ...authHeader,
@@ -331,8 +331,8 @@ const TenantForm: React.FC<TenantFormProps> = ({
       console.log("Submitting tenant data:", apiData);
 
       const url = isEditing
-        ? `https://bedevcockpit.turtleit.in/platform-admin/api/tenants/${tenant.id}/`
-        : "https://bedevcockpit.turtleit.in/platform-admin/api/tenants/";
+        ? `http://localhost:8000/platform-admin/api/tenants/${tenant.id}/`
+        : "http://localhost:8000/platform-admin/api/tenants/";
 
       const method = isEditing ? "PUT" : "POST";
 

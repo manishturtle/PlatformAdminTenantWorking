@@ -54,14 +54,14 @@ export default function LoginConfigPage() {
       try {
         setLoading(true);
         const response = await fetch(
-          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/login-config/`
+          `http://localhost:8000/api/${tenantSlug}/tenant-admin/login-config/`
         );
 
         if (response.ok) {
           const data = await response.json();
           setBrandName(data.brand_name || "");
           if (data.logo) {
-            setLogoPreview(`https://bedevcockpit.turtleit.in${data.logo}`);
+            setLogoPreview(`http://localhost:8000${data.logo}`);
           }
         }
       } catch (err) {
@@ -127,7 +127,7 @@ export default function LoginConfigPage() {
       }
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/login-config/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/login-config/`,
         {
           method: "POST",
           body: formData,

@@ -152,7 +152,7 @@ const FeaturesPage: React.FC = () => {
   const fetchFeatures = async () => {
     try {
       const response = await fetch(
-        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/get_features/",
+        "http://localhost:8000/api/platform-admin/subscription/features/get_features/",
         {
           headers: await getAuthHeader(),
         }
@@ -205,7 +205,7 @@ const FeaturesPage: React.FC = () => {
       formData.append("application_name", yamlData.application_name);
 
       const response = await fetch(
-        "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/upload_yaml/",
+        "http://localhost:8000/api/platform-admin/subscription/features/upload_yaml/",
         {
           method: "POST",
           headers: await getAuthHeader(),
@@ -262,7 +262,7 @@ const FeaturesPage: React.FC = () => {
   ) => {
     try {
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/api/platform-admin/subscription/features/${feature.id}/remove_subfeature/`,
+        `http://localhost:8000/api/platform-admin/subscription/features/${feature.id}/remove_subfeature/`,
         {
           method: "DELETE",
           headers: {

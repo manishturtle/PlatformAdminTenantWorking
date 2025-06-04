@@ -47,7 +47,7 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({
           const authHeader = getAuthHeader();
 
           const response = await fetch(
-            `https://bedevcockpit.turtleit.in/platform-admin/api/crm-clients/${clientId}/`,
+            `http://localhost:8000/platform-admin/api/crm-clients/${clientId}/`,
             {
               headers: {
                 ...authHeader,
@@ -124,8 +124,8 @@ const CrmClientForm: React.FC<CrmClientFormProps> = ({
       const authHeader = getAuthHeader();
 
       const url = isEdit
-        ? `https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/${clientId}/`
-        : "https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/";
+        ? `http://localhost:8000/platform-admin/api/crmclients/${clientId}/`
+        : "http://localhost:8000/platform-admin/api/crmclients/";
 
       const method = isEdit ? "PUT" : "POST";
 

@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create an Axios instance with default config
 const api = axios.create({
-  baseURL: "https://bedevcockpit.turtleit.in",
+  baseURL: "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

@@ -125,7 +125,7 @@ const AddTenantUserForm = ({
     setAppsLoading(true);
     try {
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/platform-admin/api/tenant-applications/${tenantSlug}/`,
+        `http://localhost:8000/platform-admin/api/tenant-applications/${tenantSlug}/`,
         {
           headers: {
             ...getAuthHeader(),
@@ -187,7 +187,7 @@ const AddTenantUserForm = ({
       setRolesLoading(true);
       try {
         const response = await fetch(
-          `https://bedevcockpit.turtleit.in/platform-admin/api/tenant/${tenantSlug}/roles/?app_id=${value[0]}`,
+          `http://localhost:8000/platform-admin/api/tenant/${tenantSlug}/roles/?app_id=${value[0]}`,
           {
             headers: {
               ...getAuthHeader(),
@@ -299,7 +299,7 @@ const AddTenantUserForm = ({
     try {
       // First check if user exists in this tenant
       const checkResponse = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/check-email/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/check-email/`,
         {
           method: "POST",
           headers: {
@@ -321,7 +321,7 @@ const AddTenantUserForm = ({
       // If user exists, just assign applications
       if (userExists) {
         const assignResponse = await fetch(
-          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/${checkData.user_id}/applications/assign/`,
+          `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/${checkData.user_id}/applications/assign/`,
           {
             method: "POST",
             headers: {
@@ -340,7 +340,7 @@ const AddTenantUserForm = ({
       } else {
         // Create new user with applications
         const createResponse = await fetch(
-          `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/users/`,
+          `http://localhost:8000/api/${tenantSlug}/tenant-admin/users/`,
           {
             method: "POST",
             headers: {

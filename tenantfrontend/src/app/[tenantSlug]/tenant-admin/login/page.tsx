@@ -34,7 +34,7 @@ export default function TenantAdminLoginPage() {
     try {
       // 1. Check user
       const checkRes = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/auth/check-user/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/auth/check-user/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export default function TenantAdminLoginPage() {
       if (!checkRes.ok) throw new Error("User not found");
       // 2. Login
       const loginRes = await fetch(
-        `https://bedevcockpit.turtleit.in/api/${tenantSlug}/tenant-admin/auth/login/`,
+        `http://localhost:8000/api/${tenantSlug}/tenant-admin/auth/login/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

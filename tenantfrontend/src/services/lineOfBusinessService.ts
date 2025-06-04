@@ -2,8 +2,7 @@ import axios from "axios";
 import { LineOfBusiness } from "@/types/lineOfBusiness";
 import { getAuthToken } from "@/utils/auth";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://bedevcockpit.turtleit.in";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const BASE_URL = `${API_URL}/platform-admin/api/lines-of-business`;
 
 // Helper function to get headers with auth token

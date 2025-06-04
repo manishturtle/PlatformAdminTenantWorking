@@ -17,6 +17,8 @@ from subscription_plan.models import SubscriptionPlan
 from django.utils import timezone
 from .models import LineOfBusiness
 import requests
+import uuid
+import json
 
 User = get_user_model() # Get the active User model (ecomm_superadmin.User)
 
@@ -177,6 +179,14 @@ class TenantSerializer(serializers.ModelSerializer):
     # Contact email field
     contact_email = serializers.EmailField(write_only=True, required=False)
     
+    # Subscription plan field
+    subscription_plan = serializers.PrimaryKeyRelatedField(
+        queryset=SubscriptionPlan.objects.all(),
+        write_only=True,
+        required=False,
+        many=True
+    )
+    
     class Meta:
         model = Tenant
         fields = [
@@ -184,7 +194,7 @@ class TenantSerializer(serializers.ModelSerializer):
             'default_url', 'created_at', 'updated_at',
             'assigned_applications', 'client', 'client_id', 
             'admin_email', 'admin_first_name', 'admin_last_name', 
-            'admin_password', 'contact_email'
+            'admin_password', 'contact_email', 'subscription_plan'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'assigned_applications']
         extra_kwargs = {
@@ -225,7 +235,10 @@ class TenantSerializer(serializers.ModelSerializer):
         admin_password = validated_data.pop('admin_password', None)
         contact_email = validated_data.pop('contact_email', None)
         
-        # Create the tenant with the subscription plan
+        # Extract subscription_plan field (store it for later use)
+        subscription_plan = validated_data.pop('subscription_plan', [])
+        
+        # Create the tenant without the subscription plan
         tenant = Tenant.objects.create(**validated_data)
         
         # Create schema and run migrations
@@ -511,20 +524,25 @@ class TenantSerializer(serializers.ModelSerializer):
             """, [tenant_user_id])
 
             # Initialize app_ids and features
-            app_ids = set([1])  # Default app_id
+            app_ids = set([])  # Default app_id 1
             features = []
             subscriptions = []
             
             # Get subscription plans if provided
-            subscription_plan_ids = validated_data.get('subscription_plan', [])
-            if not isinstance(subscription_plan_ids, list):
-                subscription_plan_ids = [subscription_plan_ids]
+            # Extract IDs from subscription_plan objects
+            subscription_plan_ids = []
+            if subscription_plan:
+                # Handle both list and single object cases
+                if isinstance(subscription_plan, list):
+                    subscription_plan_ids = [plan.id if hasattr(plan, 'id') else plan for plan in subscription_plan]
+                else:
+                    subscription_plan_ids = [subscription_plan.id if hasattr(subscription_plan, 'id') else subscription_plan]
             
             if subscription_plan_ids:
                 for plan_id in subscription_plan_ids:
                     try:
                         subscription_plan = SubscriptionPlan.objects.get(id=plan_id)
-                        
+                        print("subscription_pan123:", subscription_plan)
                         # Create subscription plan snapshot
                         subscription_plan_snapshot = {
                             'id': subscription_plan.id,
@@ -544,6 +562,7 @@ class TenantSerializer(serializers.ModelSerializer):
                         features_dict = {}
                         for entitlement in subscription_plan.feature_entitlements.all().select_related('feature'):
                             feature = entitlement.feature
+                            print("app_id123:", feature.app_id)
                             feature_data = {
                                 'id': feature.id,
                                 'name': feature.name,
@@ -748,6 +767,9 @@ class TenantSerializer(serializers.ModelSerializer):
                             if feature.get('app_id') == app_id:
                                 # Get permissions from feature settings
                                 field_permissions = feature.get('settings', {}).get('field_permissions', {})
+                                # Convert dictionary to JSON string for PostgreSQL
+                                field_permissions_json = json.dumps(field_permissions)
+                                
                                 cursor.execute(f"""
                                     INSERT INTO \"{schema_name}\".role_controles_modulepermissionset
                                     (module_id, can_create, can_read, can_update, can_delete, field_permissions, app_id, created_at, updated_at)
@@ -759,20 +781,22 @@ class TenantSerializer(serializers.ModelSerializer):
                                     feature.get('settings', {}).get('can_read', True),   # can_read
                                     feature.get('settings', {}).get('can_update', True),  # can_update
                                     feature.get('settings', {}).get('can_delete', True),  # can_delete
-                                    field_permissions,  # field_permissions from feature settings
+                                    field_permissions_json,  # field_permissions as JSON string
                                     app_id
                                 ])
-                            
-                            permission_set_id = cursor.fetchone()[0]
-                            
-                            # Assign ModulePermissionSet to Role
-                            cursor.execute(f"""
-                                INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
-                                (role_id, modulepermissionset_id)
-                                VALUES (%s, %s)
-                            """, [role_id, permission_set_id])
-                            
-                            print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {feature['id']}")
+                                
+                                # Move this line inside the if block
+                                result = cursor.fetchone()
+                                if result:
+                                    permission_set_id = result[0]
+                                    
+                                    # Assign ModulePermissionSet to Role only if we have a valid permission set
+                                    cursor.execute(f"""
+                                        INSERT INTO \"{schema_name}\".role_controles_role_assigned_permissions
+                                        (role_id, modulepermissionset_id)
+                                        VALUES (%s, %s)
+                                    """, [role_id, permission_set_id])
+                                    print(f"Assigned permission set {permission_set_id} to role {role_id} for feature {feature['id']}")
                     
                     # Check if app_id column exists in userroleassignment table
                     cursor.execute(f"""

@@ -19,6 +19,7 @@ import {
   Box,
   SelectChangeEvent,
   FormHelperText,
+  Checkbox,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -60,7 +61,7 @@ interface TenantFormData {
   admin_first_name: string;
   admin_last_name: string;
   admin_password: string;
-  subscription_plan: string;
+  subscription_plan: number[];
 }
 
 const TenantForm: React.FC<TenantFormProps> = ({
@@ -84,7 +85,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
     admin_first_name: "",
     admin_last_name: "",
     admin_password: "",
-    subscription_plan: "",
+    subscription_plan: [],
   });
 
   // Loading state
@@ -118,7 +119,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
         const authHeader = getAuthHeader();
 
         const response = await fetch(
-          "https://bedevcockpit.turtleit.in/platform-admin/api/crmclients/",
+          "http://localhost:8000/platform-admin/api/crmclients/",
           {
             headers: {
               ...authHeader,
@@ -153,7 +154,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
         console.log("Fetching plans with headers:", authHeader);
 
         const response = await fetch(
-          "https://bedevcockpit.turtleit.in/api/platform-admin/subscription/plans/",
+          "http://localhost:8000/api/platform-admin/subscription/plans/",
           {
             headers: {
               ...authHeader,
@@ -226,14 +227,28 @@ const TenantForm: React.FC<TenantFormProps> = ({
   };
 
   // Handle select input changes
-  const handleSelectChange = (e: SelectChangeEvent) => {
+  const handleSelectChange = (e: SelectChangeEvent<string | string[]>) => {
     const { name, value } = e.target;
     console.log("Select changed:", name, value);
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    // Special handling for subscription_plan to ensure it's always an array of numbers
+    if (name === 'subscription_plan') {
+      // Convert string values to numbers
+      const numericValues = Array.isArray(value) 
+        ? value.map(val => parseInt(val, 10))
+        : value ? [parseInt(value as string, 10)] : [];
+      
+      setFormData((prev) => ({
+        ...prev,
+        [name]: numericValues,
+      }));
+    } else {
+      // Handle other select fields normally
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
     // Clear any previous error for this field
     if (errors[name]) {
@@ -321,6 +336,16 @@ const TenantForm: React.FC<TenantFormProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
       newErrors.contact_email = "Invalid email format";
     }
+    
+    // Validate subscription plan is selected
+    if (formData.subscription_plan.length === 0) {
+      newErrors.subscription_plan = "At least one subscription plan is required";
+    }
+    
+    // Validate CRM client is selected
+    if (!formData.client_id || formData.client_id === '') {
+      newErrors.client_id = "CRM client is required";
+    }
 
     // Validate admin user details if creating a new tenant
     if (!isEditing) {
@@ -376,8 +401,8 @@ const TenantForm: React.FC<TenantFormProps> = ({
       console.log("Submitting tenant data:", apiData);
 
       const url = isEditing
-        ? `https://bedevcockpit.turtleit.in/platform-admin/api/tenants/${tenant.id}/`
-        : "https://bedevcockpit.turtleit.in/platform-admin/api/tenants/";
+        ? `http://localhost:8000/platform-admin/api/tenants/${tenant.id}/`
+        : "http://localhost:8000/platform-admin/api/tenants/";
 
       const method = isEditing ? "PUT" : "POST";
 
@@ -577,25 +602,107 @@ const TenantForm: React.FC<TenantFormProps> = ({
               {/* <InputLabel id="client-id-label">CRM Client</InputLabel> */}
               <Select
                 name="subscription_plan"
-                value={formData.subscription_plan}
+                value={formData.subscription_plan.map(id => id.toString())}
                 onChange={handleSelectChange}
                 label="Subscription Plan"
                 error={Boolean(errors.subscription_plan)}
                 disabled={loadingPlans}
+                multiple
+                renderValue={(selected) => {
+                  if ((selected as string[]).length === 0) {
+                    return <em>Select plan(s)</em>;
+                  }
+                  
+                  // Get names of selected plans
+                  const selectedPlanNames = (selected as string[]).map(idStr => {
+                    const id = parseInt(idStr, 10);
+                    const plan = plans.find(p => p.id === id);
+                    return plan ? plan.name : '';
+                  }).filter(Boolean);
+                  
+                  return selectedPlanNames.join(', ');
+                }}
               >
-                <MenuItem value="">
-                  <em>Select a plan</em>
-                </MenuItem>
+                {/* Empty MenuItem not needed for multiple select */}
                 {loadingPlans ? (
                   <MenuItem disabled>
                     <CircularProgress size={20} /> Loading plans...
                   </MenuItem>
                 ) : plans && plans.length > 0 ? (
-                  plans.map((plan: Plan) => (
-                    <MenuItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </MenuItem>
-                  ))
+                  plans.map((plan: Plan) => {
+                    const planIdStr = plan.id.toString();
+                    const isSelected = formData.subscription_plan.map(id => id.toString()).includes(planIdStr);
+                    
+                    // Function to toggle this plan's selection
+                    const toggleSelection = () => {
+                      let newValues: number[];
+                      
+                      if (isSelected) {
+                        // Remove from selection if already selected
+                        newValues = formData.subscription_plan.filter(
+                          id => id.toString() !== planIdStr
+                        );
+                      } else {
+                        // Add to selection if not selected
+                        newValues = [...formData.subscription_plan, plan.id];
+                      }
+                      
+                      // Update form data with new selection
+                      setFormData(prev => ({
+                        ...prev,
+                        subscription_plan: newValues
+                      }));
+                      
+                      // Clear any subscription plan error
+                      if (errors.subscription_plan) {
+                        setErrors(prev => ({
+                          ...prev,
+                          subscription_plan: ''
+                        }));
+                      }
+                    };
+                    
+                    return (
+                      <MenuItem 
+                        key={plan.id}
+                        value={plan.id}
+                        dense
+                        sx={{ 
+                          padding: '8px 16px',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                        // Override default MenuItem behavior
+                        // Instead use our custom selection handler
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleSelection();
+                        }}
+                      >
+                        <Box 
+                          display="flex" 
+                          alignItems="center" 
+                          width="100%"
+                          sx={{ cursor: 'pointer' }}
+                        >
+                          <Checkbox 
+                            checked={isSelected}
+                            size="small"
+                            sx={{ padding: '4px', marginRight: '8px' }}
+                            // Use MUI checkbox for better styling and accessibility
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            // The Checkbox component itself will call toggleSelection
+                            onChange={toggleSelection}
+                          />
+                          <Typography>{plan.name}</Typography>
+                        </Box>
+                      </MenuItem>
+                    );
+                  })
                 ) : (
                   <MenuItem disabled>No plans available</MenuItem>
                 )}

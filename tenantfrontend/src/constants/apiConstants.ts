@@ -4,7 +4,7 @@
  */
 
 // Base URL for API requests
-export const API_BASE_URL = "https://bedevcockpit.turtleit.in";
+export const API_BASE_URL = "http://localhost:8000";
 
 // Platform Admin API endpoints
 export const PLATFORM_ADMIN_API = {

@@ -83,7 +83,7 @@ export default function TenantsPage() {
 
         console.log("Fetching tenants from API...");
         const response = await fetch(
-          "https://bedevcockpit.turtleit.in/platform-admin/api/tenants/",
+          "http://localhost:8000/platform-admin/api/tenants/",
           {
             headers: {
               ...authHeader,
@@ -143,7 +143,7 @@ export default function TenantsPage() {
       const authHeader = getAuthHeader();
 
       const response = await fetch(
-        `https://bedevcockpit.turtleit.in/platform-admin/api/tenants/${id}/`,
+        `http://localhost:8000/platform-admin/api/tenants/${id}/`,
         {
           method: "DELETE",
           headers: {

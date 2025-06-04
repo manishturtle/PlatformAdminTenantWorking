@@ -1240,3 +1240,29 @@ class LineOfBusinessViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         # Update only the updated_by field
         serializer.save()
+
+
+from KeyProductSettings import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from ecomm_superadmin.models import TenantSubscriptionLicenses
+
+@csrf_exempt
+def get_license_info(request):
+    secret_header = request.headers.get('x-internal-api-secret')
+    print("kl:",secret_header)
+    if secret_header != settings.INTERNAL_API_SECRET:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    access_key = request.GET.get('access_key')
+    if not access_key:
+        return JsonResponse({'error': 'Missing access key'}, status=400)
+
+    try:
+        license_obj = TenantSubscriptionLicenses.objects.get(access_key=access_key)
+        return JsonResponse({
+            'access_key': license_obj.access_key,
+            'encryption_key': license_obj.encryption_key
+        })
+    except TenantSubscriptionLicenses.DoesNotExist:
+        return JsonResponse({'error': 'Invalid access key'}, status=404)
