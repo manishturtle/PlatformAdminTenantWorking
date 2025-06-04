@@ -8,6 +8,7 @@ import uuid
 from datetime import timedelta
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
+from services.email_service import send_email
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,20 @@ class OrderProcessedView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         
+            send_email(
+                to_emails="manish@turtlesoftware.co",
+                subject="Welcome to Our Platform!",
+                template_name="subscription_welcome",
+                template_context={
+                    "user_name": client.client_name or "User",
+                    "user_email": "manish@turtlesoftware.co",
+                    "license_key": subscription.license_key,
+                    "license_status": subscription.license_status,
+                    "valid_from": subscription.valid_from.strftime("%Y-%m-%d"),
+                    "valid_until": subscription.valid_until.strftime("%Y-%m-%d") if subscription.valid_until else None,
+                    "activation_link": f"https://{tenant.url_suffix}.turtlesoftware.co/activate/{tenant.id}"
+                }
+            )
             return JsonResponse(
                 result,
                 status=status.HTTP_201_CREATED

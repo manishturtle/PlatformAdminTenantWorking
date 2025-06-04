@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Dashboard</title>
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --text-color: #1f2937;
+      --bg-color: #f3f4f6;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      padding: 0;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    
+    header {
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1rem 0;
+      margin-bottom: 2rem;
+    }
+    
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+    
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .product-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .product-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+    
+    .product-info {
+      padding: 1.25rem;
+    }
+    
+    .product-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .product-description {
+      color: #6b7280;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-clamp: 2;
+      -ms-line-clamp: 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+    }
+    
+    .product-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+    
+    .product-price {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      text-decoration: none;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+    
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 50;
+    }
+    
+    .modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      padding: 1.5rem;
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+    
+    .modal.active .modal-content {
+      transform: translateY(0);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6b7280;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .alert {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    
+    .alert-success {
+      background-color: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    
+    .flex {
+      display: flex;
+    }
+    
+    .justify-between {
+      justify-content: space-between;
+    }
+    
+    .mt-4 {
+      margin-top: 1rem;
+    }
+    
+    .w-full {
+      width: 100%;
+    }
+    
+    /* Loading Overlay Styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .loading-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    
+    .loading-text {
+      font-size: 1.1rem;
+      color: var(--text-color);
+      margin-top: 1rem;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="#" class="logo">ShopEase</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>Our Products</h1>
+    
+    <div class="products-grid" id="productsContainer">
+      <!-- Products will be dynamically inserted here -->
+    </div>
+  </div>
+
+  <!-- Checkout Modal -->
+  <div class="modal" id="checkoutModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Complete Your Purchase</h2>
+        <button class="close-btn" id="closeCheckout">&times;</button>
+      </div>
+      <div id="checkoutContent">
+        <div class="form-group">
+          <label class="form-label">Card Number</label>
+          <input type="text" class="form-input" placeholder="1234 5678 9012 3456">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expiry Date</label>
+          <input type="text" class="form-input" placeholder="MM/YY">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CVC</label>
+          <input type="text" class="form-input" placeholder="123">
+        </div>
+        <button class="btn btn-primary w-full" id="payNowBtn">Pay $<span id="totalAmount">0</span></button>
+      </div>
+      <div id="paymentSuccess" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Payment Successful!</h3>
+          <p>Thank you for your purchase. Your order has been placed successfully.</p>
+        </div>
+        <button class="btn btn-primary w-full" id="closeSuccessBtn">Continue Shopping</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Processing your order...</div>
+  </div>
+
+  <script>
+    // Sample product data
+    const products = [
+      {
+        id: 1,
+        name: 'Turtle Ecommerce',
+        description: 'Comprehensive Customer Relationship Management solution to manage customer interactions, sales, and support.',
+        price: 10000.00,
+        image:"https://media.istockphoto.com/id/1428747849/vector/ecommerce-web-page-and-online-shopping-illustration-person-making-online-wish-list-and.webp?a=1&b=1&s=612x612&w=0&k=20&c=GaKGTuxXb918012JTt-0ABwUeYDf8h60gqcXh6mCFp0="
+      }
+    ];
+
+    // DOM Elements
+    const productsContainer = document.getElementById('productsContainer');
+    const checkoutModal = document.getElementById('checkoutModal');
+    const closeCheckoutBtn = document.getElementById('closeCheckout');
+    const payNowBtn = document.getElementById('payNowBtn');
+    const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+    const checkoutContent = document.getElementById('checkoutContent');
+    const paymentSuccess = document.getElementById('paymentSuccess');
+    const totalAmountSpan = document.getElementById('totalAmount');
+
+    // Current selected product
+    let currentProduct = null;
+
+    // Render products
+    function renderProducts() {
+      productsContainer.innerHTML = products.map(product => `
+        <div class="product-card">
+          <img src="${product.image}" alt="${product.name}" class="product-image">
+          <div class="product-info">
+            <h3 class="product-title">${product.name}</h3>
+            <p class="product-description">${product.description}</p>
+            <div class="product-footer">
+              <span class="product-price">$${product.price.toFixed(2)}</span>
+              <button class="btn btn-primary" onclick="addToCart(${product.id})">
+                Buy Now
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Add to cart and open checkout
+    function addToCart(productId) {
+      currentProduct = products.find(p => p.id === productId);
+      totalAmountSpan.textContent = currentProduct.price.toFixed(2);
+      checkoutContent.style.display = 'block';
+      paymentSuccess.style.display = 'none';
+      checkoutModal.classList.add('active');
+      document.body.style.overflow = 'hidden'; // Prevent scrolling when modal is open
+    }
+
+    // Close checkout modal
+    function closeCheckout() {
+      checkoutModal.classList.remove('active');
+      document.body.style.overflow = 'auto'; // Re-enable scrolling
+      
+      // Reset form after animation completes
+      setTimeout(() => {
+        checkoutContent.style.display = 'block';
+        paymentSuccess.style.display = 'none';
+      }, 300);
+    }
+
+    // Show loading overlay
+    function showLoading(show = true) {
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (show) {
+        loadingOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      } else {
+        loadingOverlay.classList.remove('active');
+        document.body.style.overflow = 'auto';
+      }
+    }
+    
+    // Complete payment
+    async function completePayment() {
+      try {
+        // Show loading overlay
+        showLoading(true);
+        
+        // Prepare the order data
+        const orderData = {
+          order_id: Math.floor(1000 + Math.random() * 9000), // Generate a random order ID
+          product_ids: [13], // Hardcoded product ID as per your requirement
+          client_id: 1 // Hardcoded client ID as per your requirement
+        };
+        
+        // Call the order processing API
+        const response = await fetch('http://localhost:8000/api/ecommerce/order_processed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData)
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to process order');
+        }
+        
+        const result = await response.json();
+        console.log('Order processed successfully:', result);
+        
+        // Show success message
+        checkoutContent.style.display = 'none';
+        paymentSuccess.style.display = 'block';
+        checkoutModal.classList.add('active');
+        
+      } catch (error) {
+        console.error('Error processing order:', error);
+        alert('There was an error processing your order. Please try again.');
+      } finally {
+        // Hide loading overlay
+        showLoading(false);
+      }
+    }
+
+    // Event Listeners
+    closeCheckoutBtn.addEventListener('click', closeCheckout);
+    closeSuccessBtn.addEventListener('click', closeCheckout);
+    
+    payNowBtn.addEventListener('click', () => {
+      // Simple form validation
+      const inputs = document.querySelectorAll('.form-input');
+      let isValid = true;
+      
+      inputs.forEach(input => {
+        if (!input.value.trim()) {
+          isValid = false;
+          input.style.borderColor = 'red';
+        } else {
+          input.style.borderColor = '#d1d5db';
+        }
+      });
+      
+      if (isValid) {
+        completePayment();
+      } else {
+        alert('Please fill in all the required fields');
+      }
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+      if (e.target === checkoutModal) {
+        closeCheckout();
+      }
+    });
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', () => {
+      renderProducts();
+      r
+      // Make addToCart globally available
+      window.addToCart = addToCart;
+    });
+  </script>
+</body>
+</html> 
