@@ -236,10 +236,10 @@ class OrderProcessedView(APIView):
                                 "license_status": sub.license_status,
                                 "valid_from": sub.valid_from.strftime("%Y-%m-%d"),
                                 "valid_until": sub.valid_until.strftime("%Y-%m-%d") if sub.valid_until else None,
+                                "activation_link": f"https://devstore.turtleit.in/{schema_name}"
                             }
                             for sub in subscriptions
-                        ],
-                        "activation_link": f"https://devstore.turtleit.in/{schema_name}"
+                        ]
                 }
             )
             return JsonResponse(

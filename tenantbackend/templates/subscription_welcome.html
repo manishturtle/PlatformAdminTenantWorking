@@ -49,21 +49,16 @@
         <h3>Subscription Details:</h3>
         <ul>
             {% for sub in subscriptions %}
-                <li><strong>License Key:</strong> {{ sub.license_key }}</li>
-                
-                <li><strong>Status:</strong> {{ sub.license_status }}</li>
-                <li><strong>Valid From:</strong> {{ sub.valid_from }}</li>
-                {% if sub.valid_until %}
-                    <li><strong>Valid Until:</strong> {{ sub.valid_until }}</li>
-                {% endif %}
-                <br>
-            {% endfor %}
+            <p>
+                License Key: {{ sub.license_key }}<br>
+                Status: {{ sub.license_status }}<br>
+                Valid From: {{ sub.valid_from }}<br>
+                Valid Until: {{ sub.valid_until }}<br>
+                <a href="{{ sub.activation_link }}">Activate License</a>
+            </p>
+            <hr>
+        {% endfor %}
         </ul>
-
-
-        <p>Please click the button below to activate your account:</p>
-        <a href="{{ activation_link }}" class="btn">Activate Account</a>
-
         <p class="footer">
             If you did not initiate this request, please ignore this email.
         </p>
