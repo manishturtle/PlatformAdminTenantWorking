@@ -21,6 +21,8 @@ from datetime import timedelta
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.exceptions import NotFound
 logger = logging.getLogger(__name__)
+from services.email_service import send_email
+
 
 from .models import Tenant, User, CrmClient, Application
 from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer, LineOfBusinessSerializer
@@ -515,6 +517,8 @@ class PlatformAdminTenantView(APIView):
             # Initialize response data
             response_data = {'tenant': serializer.data}
 
+            print("respnse_data123:", response_data)
+
             # Handle subscription plans if provided
             subscription_plan_ids = request.data.get('subscription_plan', [])
             if not isinstance(subscription_plan_ids, list):
@@ -567,7 +571,29 @@ class PlatformAdminTenantView(APIView):
                 
                 # Add all subscriptions to response
                 response_data['subscriptions'] = subscription_data
-            
+
+            send_email(
+                to_emails="manish@turtlesoftware.co",
+                # to_emails=client.contact_person_email,
+                subject="Welcome to Our Platform!",
+                template_name="subscription_welcome",
+                template_context={
+                    "user_name": "Manish",  
+                    "user_email": "manish@turtlesoftware.co",
+                    "default_password":"India@123",
+                    "subscriptions": [
+                            {
+                                "license_key": subscription.license_key,
+                                "license_status": subscription.license_status,
+                                "valid_from": subscription.valid_from.strftime("%Y-%m-%d"),
+                                "valid_until": subscription.valid_until.strftime("%Y-%m-%d") if subscription.valid_until else None,
+                                "activation_link": f"https://devstore.turtleit.in/default"
+                            }
+                            for subscription in subscriptions
+                        ]
+                }
+            )
+
             return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             # Log the full error for debugging
