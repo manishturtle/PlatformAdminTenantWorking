@@ -10,6 +10,7 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from services.email_service import send_email
+from django.db import connection
 
 logger = logging.getLogger(__name__)
 
@@ -606,3 +607,6 @@ class OrderProcessedView(APIView):
                 {'error': 'Internal server error', 'details': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        finally:
+            # This is the cleaner way to reset the context
+            connection.set_schema_to_public()
