@@ -295,8 +295,6 @@ class TenantSubscriptionLicenses(models.Model):
     license_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     license_status = models.CharField(max_length=20, choices=LICENSE_STATUS_CHOICES, default='active')
     # access_key = models.CharField(max_length=64, blank=True)
-    access_key = models.CharField(max_length=64, unique=True, blank=True)
-    encryption_key = models.CharField(max_length=128, blank=True)
     # Store snapshot of subscription plan details
     subscription_plan_snapshot = models.JSONField(help_text='Snapshot of subscription plan details at time of subscription')
     features_snapshot = models.JSONField(help_text='Snapshot of features and their settings at time of subscription')

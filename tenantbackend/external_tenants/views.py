@@ -114,6 +114,92 @@ class OrderProcessedView(APIView):
             raise
     
 
+    def get_custom_product_ids(self, product_ids, tenant_schema):
+        """
+        Get custom product IDs from the tenant schema's products_product table's custom_fields JSON.
+        
+        Args:
+            product_ids (list): List of product IDs to look up
+            tenant_schema (str): The tenant schema name to query
+            
+        Returns:
+            dict: Mapping of product_id to custom_product_id if found, empty dict otherwise
+        """
+        if not product_ids or not tenant_schema:
+            return {}
+            
+        try:
+            with connection.cursor() as cursor:
+                # Save the current search path
+                cursor.execute('SELECT current_setting(\'search_path\')')
+                original_search_path = cursor.fetchone()[0]
+
+             
+                
+                try:
+                    # Set search path to the tenant schema
+                    cursor.execute(f'SET search_path TO "{tenant_schema}"')
+                    
+                    # Convert product_ids to a tuple for the SQL IN clause
+                    product_ids_tuple = tuple(product_ids)
+                    
+                    # Query to get custom_fields from products_product table in tenant schema
+                    query = """
+                        SELECT custom_fields 
+                        FROM products_product 
+                        WHERE id IN %s
+                    """
+                    
+                    cursor.execute(query, (product_ids_tuple,))
+                    rows = cursor.fetchall()
+                    
+                    # Extract custom_product_id from custom_fields JSON
+                    result = []
+                    for row in rows:
+                        custom_fields = row[0]
+                        if not custom_fields:
+                            continue
+                            
+                        try:
+                            print("raw custom_fields:", custom_fields)
+                            # Parse the JSON string if it's a string
+                            if isinstance(custom_fields, str):
+                                import json
+                                try:
+                                    custom_fields = json.loads(custom_fields)
+                                    print("parsed custom_fields:", custom_fields)
+                                except json.JSONDecodeError as je:
+                                    logger.warning(f"Failed to parse custom_fields JSON: {str(je)}")
+                                    continue
+                            
+                            # Ensure custom_fields is a list
+                            if not isinstance(custom_fields, list):
+                                custom_fields = [custom_fields]
+                                
+                            # Process each field
+                            for field in custom_fields:
+                                if not isinstance(field, dict):
+                                    continue
+                                    
+                                print("processing field:", field)
+                                if 'custom_product_id' in field:
+                                    result.append(field['custom_product_id'])
+                                    print("added to result:", field['custom_product_id'])
+                                    
+                        except Exception as e:
+                            logger.error(f"Error processing custom_fields: {str(e)}", exc_info=True)
+                            continue
+                    print("result:", result)
+                    logger.info(f"Found {len(result)} custom product IDs in schema {tenant_schema}")
+                    return result
+                finally:
+                    # Restore the original search path
+                    cursor.execute(f'SET search_path = {original_search_path}')
+                    
+        except Exception as e:
+            logger.error(f"Error fetching custom product IDs from schema {tenant_schema}: {str(e)}", exc_info=True)
+            return {}
+
     def post(self, request, format=None):
         """Process a completed order and create tenant if needed."""
         try:
@@ -130,11 +216,15 @@ class OrderProcessedView(APIView):
             
             order_id = request.data['order_id']
             product_ids = request.data['product_ids']
-            tenant_schema = request.data['tenant_schema'] 
+            tenant_schema = request.data['tenant_schema']
             
-            if not isinstance(product_ids, list):
+            # Get custom product IDs mapping from tenant schema
+            custom_product_ids = self.get_custom_product_ids(product_ids, tenant_schema)
+            logger.info(f"Found custom product IDs mapping in schema {tenant_schema}: {custom_product_ids}")
+            
+            if not isinstance(custom_product_ids, list):
                 return JsonResponse(
-                    {'error': 'product_ids must be a list'},
+                    {'error': 'custom_product_ids must be a list'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
@@ -254,14 +344,14 @@ class OrderProcessedView(APIView):
             try:
                 from ecomm_superadmin.models import SubscriptionPlan
                 
-                # Validate product_ids exist in subscription plans
-                subscription_plans = SubscriptionPlan.objects.filter(id__in=product_ids, status='active')
+                # Validate custom_product_ids exist in subscription plans
+                subscription_plans = SubscriptionPlan.objects.filter(id__in=custom_product_ids, status='active')
 
                 if not subscription_plans.exists():
                     return JsonResponse(
                         {
-                            'error': 'No active subscription plans found for the provided product_ids',
-                            'product_ids': product_ids
+                            'error': 'No active subscription plans found for the provided custom_product_ids',
+                            'custom_product_ids': custom_product_ids
                         },
                         status=status.HTTP_400_BAD_REQUEST
                     )
@@ -305,7 +395,7 @@ class OrderProcessedView(APIView):
                 'environment': 'production',
                 'status': 'active',
                 'default_url': f"https://devstore.turtleit.in/store/{schema_name}/",
-                'subscription_plan': product_ids,
+                'subscription_plan': custom_product_ids,
                 'client_id': client.id,
                 'admin_email': client.contact_person_email,
                 'admin_first_name': first_name, 
@@ -313,8 +403,7 @@ class OrderProcessedView(APIView):
                 'admin_password': "India@123",  # Generate a random password
                 'contact_email': client.contact_person_email,
                 'created_by': 'system:order_processor'
-            }
-            
+            }          
             print("tenant_data:", tenant_data)
             # Create tenant using TenantSerializer
             from ecomm_superadmin.serializers import TenantSerializer
@@ -336,15 +425,7 @@ class OrderProcessedView(APIView):
                 tenant = serializer.save()
                 logger.info(f"Created new tenant with schema: {schema_name}")
 
-                # post_save.send(
-                #     sender=Tenant,
-                #     instance=tenant,
-                #     created=True,
-                #     raw=False,
-                #     using='default',
-                #     update_fields=None
-                # )
-                
+               
                 # Get applications based on subscription features
                 try:
                     # Use the first subscription plan to get applications

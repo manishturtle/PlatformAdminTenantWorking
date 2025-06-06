@@ -633,7 +633,6 @@ class UserApplication(models.Model):
                     return False
             return True
 
-
 class LoginConfig(models.Model):
     """
     Model to store login page configuration for tenants.
@@ -641,6 +640,10 @@ class LoginConfig(models.Model):
     """
     brand_name = models.CharField(max_length=255, blank=True, null=True)
     logo = models.ImageField(upload_to='tenant_logos/', blank=True, null=True)
+    is_2fa_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable or disable two-factor authentication for all users"
+    )
     client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

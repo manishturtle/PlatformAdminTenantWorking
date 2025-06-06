@@ -840,6 +840,11 @@ class LoginConfigSerializer(serializers.ModelSerializer):
     Handles the login page configuration including logo and brand name.
     """
     logo = serializers.ImageField(required=False, allow_null=True)
+    is_2fa_enabled = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Enable or disable two-factor authentication for all users"
+    )
     
     def validate_logo(self, value):
         if not value:
@@ -885,6 +890,7 @@ class LoginConfigSerializer(serializers.ModelSerializer):
             'id',
             'brand_name',
             'logo',
+            'is_2fa_enabled',
             'client_id',
             'created_at',
             'updated_at',
