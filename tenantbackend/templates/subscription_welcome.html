@@ -50,15 +50,36 @@
         <h3>Subscription Details:</h3>
         <ul>
             {% for sub in subscriptions %}
-            <p>
-                License Key: {{ sub.license_key }}<br>
-                Status: {{ sub.license_status }}<br>
-                Valid From: {{ sub.valid_from }}<br>
-                Valid Until: {{ sub.valid_until }}<br>
-                <a href="{{ sub.activation_link }}">Activate License</a>
-            </p>
-            <hr>
-        {% endfor %}
+            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px;">
+                <h4>Subscription Details</h4>
+                <p>
+                    <strong>License Key:</strong> {{ sub.license_key }}<br>
+                    <strong>Status:</strong> {{ sub.license_status }}<br>
+                    <strong>Valid From:</strong> {{ sub.valid_from }}<br>
+                    <strong>Valid Until:</strong> {{ sub.valid_until }}<br>
+                </p>
+                
+                {% if sub.applications %}
+                    <h4>Your Applications:</h4>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        {% for app in sub.applications %}
+                            <li style="margin-bottom: 10px;">
+                                <strong>{{ app.name }}:</strong>
+                                {% if app.url %}
+                                    <a href="{{ app.url }}" style="color: #4a90e2; text-decoration: none;">
+                                        {{ app.url }}
+                                    </a>
+                                {% else %}
+                                    <span>No URL available</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No applications found for this subscription.</p>
+                {% endif %}
+            </div>
+            {% endfor %}
         </ul>
         <p class="footer">
             If you did not initiate this request, please ignore this email.

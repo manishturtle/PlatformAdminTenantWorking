@@ -1,5 +1,6 @@
 import logging
 from django.http import JsonResponse
+from django.db import connection
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -25,25 +26,99 @@ class OrderProcessedView(APIView):
         """
         from ecomm_superadmin.models import TenantSubscriptionLicenses
         
-        # Create the subscription
-        subscription = TenantSubscriptionLicenses.objects.create(
+        # Create the subscription with all required fields
+        subscription = TenantSubscriptionLicenses(
             tenant=tenant,
             subscription_plan=subscription_plan,
-            license_key=str(uuid.uuid4()),
             license_status='active',
+            # access_key will be generated in the save() method
+            # encryption_key will be generated in the save() method
+            # subscription_plan_snapshot will be populated in the save() method
+            # features_snapshot will be populated in the save() method
             valid_from=timezone.now(),
+            # valid_until can be left as None for now
+            billing_cycle=subscription_plan.billing_cycle,
             client_id=client_id,
             company_id=company_id,
-            created_by=created_by
+            created_by=created_by,
+            updated_by=created_by
         )
         
+        # Save to trigger the save() method which populates the snapshots
+        subscription.save()
+        
         return subscription
+
+    def get_application_from_subcriptions(self, subscription_plan):
+        """
+        Get applications associated with the subscription plan from the public schema.
+        
+        Args:
+            subscription_plan: The SubscriptionPlan object containing feature entitlements
+            
+        Returns:
+            list: List of application details from the public schema
+        """
+        try:
+            with connection.cursor() as cursor:
+                # Save the current search path
+                cursor.execute('SELECT current_setting(\'search_path\')')
+                original_search_path = cursor.fetchone()[0]
+                
+                try:
+                    # Set search path to public schema to access applications table
+                    cursor.execute('SET search_path TO public')
+                    
+                    # Get unique app_ids from feature entitlements
+                    app_ids = list(subscription_plan.feature_entitlements \
+                                 .select_related('feature') \
+                                 .values_list('feature__app_id', flat=True) \
+                                 .distinct())
+                    
+                    logger.info(f"Found {len(app_ids)} unique app IDs in subscription features")
+                    
+                    if not app_ids:
+                        logger.warning("No application IDs found in subscription features")
+                        return []
+                    
+                    # Convert app_ids to a tuple for the SQL IN clause
+                    app_ids_tuple = tuple(app_ids)
+                    
+                    # Query to get application details from public schema
+                    query = """
+                        SELECT app_id, application_name, app_default_url
+                        FROM application
+                        WHERE app_id IN %s
+                    """
+                    
+                    cursor.execute(query, (app_ids_tuple,))
+                    
+                    # Get column names from cursor description
+                    columns = [col[0] for col in cursor.description]
+                    
+                    # Convert results to list of dictionaries
+                    applications = [
+                        dict(zip(columns, row))
+                        for row in cursor.fetchall()
+                    ]
+                    
+                    logger.info(f"Found {len(applications)} applications for subscription plan {subscription_plan.id}")
+                    return applications
+                    
+                finally:
+                    # Restore the original search path
+                    cursor.execute(f'SET search_path = {original_search_path}')
+                
+        except Exception as e:
+            logger.error(f"Error fetching applications from subscription plan: {str(e)}", exc_info=True)
+            raise
+    
 
     def post(self, request, format=None):
         """Process a completed order and create tenant if needed."""
         try:
             # Validate request data
-            required_fields = {'order_id', 'client_id', 'product_ids'}
+            required_fields = {'order_id', 'product_ids', 'tenant_schema'}
             if not all(field in request.data for field in required_fields):
                 return JsonResponse(
                     {
@@ -54,8 +129,8 @@ class OrderProcessedView(APIView):
                 )
             
             order_id = request.data['order_id']
-            client_id = request.data['client_id']
             product_ids = request.data['product_ids']
+            tenant_schema = request.data['tenant_schema'] 
             
             if not isinstance(product_ids, list):
                 return JsonResponse(
@@ -63,16 +138,116 @@ class OrderProcessedView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            logger.info(f"Processing order {order_id} for client {client_id}")
+            logger.info(f"Processing order {order_id} for tenant schema {tenant_schema}")
             
-            # Get client data
+            # Get tenant schema and client data based on order_id
             try:
-                from ecomm_superadmin.models import CrmClient
-                client = CrmClient.objects.get(id=client_id)
-            except CrmClient.DoesNotExist:
+                from django.db import connections
+                from django.db.utils import ProgrammingError
+                
+                # Get the tenant schema from request data
+                schema_name = request.data.get('tenant_schema')
+                if not schema_name:
+                    return JsonResponse(
+                        {'error': 'tenant_schema is required in request data'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Set the schema search path to the tenant's schema
+                with connections['default'].cursor() as cursor:
+                    # Save the current search path
+                    cursor.execute('SELECT current_setting(\'search_path\')')
+                    original_search_path = cursor.fetchone()[0]
+                    
+                    try:
+                        # Set search path to the tenant's schema
+                        cursor.execute(f'SET search_path TO {schema_name}')
+                        
+                        # 1. Get account_id and contact_id from order_management_order
+                        cursor.execute(
+                            'SELECT account_id, contact_id FROM order_management_order WHERE id = %s',
+                            [order_id]
+                        )
+                        order_data = cursor.fetchone()
+                        
+                        if not order_data:
+                            return JsonResponse(
+                                {'error': f'Order with id {order_id} not found in schema {schema_name}'},
+                                status=status.HTTP_404_NOT_FOUND
+                            )
+                            
+                        account_id, contact_id = order_data
+                        
+                        # 2. Get tenant_slug (name) from customers_account
+                        cursor.execute(
+                            'SELECT name FROM customers_account WHERE id = %s',
+                            [account_id]
+                        )
+                        account_data = cursor.fetchone()
+                        
+                        if not account_data:
+                            return JsonResponse(
+                                {'error': f'Account with id {account_id} not found in schema {schema_name}'},
+                                status=status.HTTP_404_NOT_FOUND
+                            )
+                            
+                        tenant_slug = account_data[0]
+                        print("tennat_slig:", tenant_slug)
+                        
+                        # 3. Get client details from customers_contact
+                        cursor.execute(
+                            'SELECT first_name, last_name, email FROM customers_contact WHERE id = %s',
+                            [contact_id]
+                        )
+                        contact_data = cursor.fetchone()
+                        
+                        if not contact_data:
+                            return JsonResponse(
+                                {'error': f'Contact with id {contact_id} not found in schema {schema_name}'},
+                                status=status.HTTP_404_NOT_FOUND
+                            )
+                            
+                        first_name, last_name, email = contact_data
+                        
+                        # Create or update CrmClient with the fetched data
+                        from ecomm_superadmin.models import CrmClient
+                        
+                        # Prepare client data
+                        client_name = f"{first_name} {last_name}".strip()
+                        
+                        # Check if client with this email already exists
+                        from ecomm_superadmin.models import CrmClient
+                        
+                        try:
+                            # Try to get existing client by email
+                            client = CrmClient.objects.get(contact_person_email=email)
+                            logger.info(f"Client with email {email} already exists, skipping creation")
+                            client_id = client.id
+                        except CrmClient.DoesNotExist:
+                            # Only create new client if one doesn't exist
+                            client = CrmClient.objects.create(
+                                client_name=client_name,
+                                contact_person_email=email or '',
+                                created_by='system:order_processor'
+                            )
+                            logger.info(f"Created new CrmClient with id {client.id}")
+                            client_id = client.id
+                        
+                    except ProgrammingError as e:
+                        logger.error(f"Database error: {str(e)}", exc_info=True)
+                        return JsonResponse(
+                            {'error': 'Database error occurred while fetching order data'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+                    finally:
+                        # Restore the original search path
+                        cursor.execute(f'SET search_path = {original_search_path}')
+                        
+            except Exception as e:
+                logger.error(f"Error processing order: {str(e)}", exc_info=True)
                 return JsonResponse(
-                    {'error': f'Client with id {client_id} not found'},
-                    status=status.HTTP_404_NOT_FOUND
+                    {'error': f'Error processing order: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
             # Get the default active subscription plan
@@ -121,24 +296,23 @@ class OrderProcessedView(APIView):
                 counter += 1
                 
             logger.info(f"Generated tenant details - Schema: {schema_name}, URL Suffix: {url_suffix}")
-
-                
             
             # Prepare tenant data with default values
             tenant_data = {
                 'name': f"{client.client_name} Tenant",
                 'schema_name': schema_name,
-                'url_suffix': url_suffix,  # Use the properly formatted URL suffix
+                'url_suffix': url_suffix,
                 'environment': 'production',
                 'status': 'active',
-                'default_url': f"https://{url_suffix}.turtlesoftware.co",
+                'default_url': f"https://devstore.turtleit.in/store/{schema_name}/",
                 'subscription_plan': product_ids,
-                'client_id': client_id,
-                'admin_email':client.contact_person_email,  # You might want to get this from the client
-                'admin_first_name': client.client_name, 
-                'admin_last_name': "User",
+                'client_id': client.id,
+                'admin_email': client.contact_person_email,
+                'admin_first_name': first_name, 
+                'admin_last_name': last_name,
                 'admin_password': "India@123",  # Generate a random password
-                'contact_email': client.contact_person_email or f"contact@{url_suffix}.turtlesoftware.co"
+                'contact_email': client.contact_person_email,
+                'created_by': 'system:order_processor'
             }
             
             print("tenant_data:", tenant_data)
@@ -157,10 +331,46 @@ class OrderProcessedView(APIView):
             
             try:
                 # with transaction.atomic():
-                    # Create tenant
+                    # Create the tenant
+
                 tenant = serializer.save()
+                logger.info(f"Created new tenant with schema: {schema_name}")
+
+                # post_save.send(
+                #     sender=Tenant,
+                #     instance=tenant,
+                #     created=True,
+                #     raw=False,
+                #     using='default',
+                #     update_fields=None
+                # )
                 
-                # Trigger post-save signal for tenant creation
+                # Get applications based on subscription features
+                try:
+                    # Use the first subscription plan to get applications
+                    if subscription_plans:
+                        subscription = subscription_plans[0]
+                        applications = self.get_application_from_subcriptions(subscription)
+                        logger.info(f"Found {len(applications)} applications for subscription {subscription.id}")
+                        
+                        # Here you can process the applications as needed
+                        # For example, you might want to create tenant-specific application records
+                        # or perform additional setup based on the applications
+                        
+                        # Example: Store application information in tenant data
+                        if applications:
+                            # Update tenant with application information
+                            if hasattr(tenant, 'applications'):
+                                tenant.applications = [app['app_id'] for app in applications]
+                                tenant.save(update_fields=['applications'])
+                                logger.info(f"Updated tenant with {len(applications)} applications")
+                    else:
+                        logger.warning("No subscription plans found to fetch applications")
+                        
+                except Exception as e:
+                    # Log the error but don't fail the entire process
+                    logger.error(f"Error processing subscription applications: {str(e)}", exc_info=True)
+                
                 post_save.send(
                     sender=Tenant,
                     instance=tenant,
@@ -191,6 +401,52 @@ class OrderProcessedView(APIView):
                 #     created_by='system:order_processor'
                 # )
                 
+                # Get applications for the subscription
+                applications = []
+                if subscription_plans:
+                    subscription = subscription_plans[0]
+                    try:
+                        applications = self.get_application_from_subcriptions(subscription)
+                    except Exception as e:
+                        logger.error(f"Error getting applications: {str(e)}", exc_info=True)
+                        # Continue without failing the request
+                
+                # Prepare subscription data with applications
+                subscription_data = []
+                for sub in subscriptions:
+                    # Get applications for this specific subscription
+                    try:
+                        sub_applications = self.get_application_from_subcriptions(sub.subscription_plan)
+                        sub_apps = [
+                            {
+                                'app_id': app['app_id'],
+                                'name': app['application_name'],
+                                'url': app['app_default_url'].replace('{tenant_slug}', url_suffix) if app['app_default_url'] else None
+                            }
+                            for app in sub_applications
+                        ]
+                    except Exception as e:
+                        logger.error(f"Error getting applications for subscription {sub.id}: {str(e)}", exc_info=True)
+                        sub_apps = []
+                    
+                    subscription_data.append({
+                        'id': sub.id,
+                        'license_key': sub.license_key,
+                        'status': sub.license_status,
+                        'valid_from': sub.valid_from,
+                        'valid_until': getattr(sub, 'valid_until', None),
+                        'applications': sub_apps
+                    })
+                
+                # Get all unique applications across all subscriptions
+                all_applications = []
+                seen_app_ids = set()
+                for sub in subscription_data:
+                    for app in sub.get('applications', []):
+                        if app['app_id'] not in seen_app_ids:
+                            all_applications.append(app)
+                            seen_app_ids.add(app['app_id'])
+                
                 # Prepare success response
                 result = {
                     'status': 'success',
@@ -201,16 +457,7 @@ class OrderProcessedView(APIView):
                         'schema_name': schema_name,
                         'url_suffix': url_suffix
                     },
-                    'subscriptions': [
-                        {
-                            'id': sub.id,
-                            'license_key': sub.license_key,
-                            'status': sub.license_status,
-                            'valid_from': sub.valid_from,
-                            'valid_until': getattr(sub, 'valid_until', None)
-                        }
-                        for sub in subscriptions
-                    ]
+                    'subscriptions': subscription_data,
                 }
                 
             except Exception as e:
@@ -220,28 +467,53 @@ class OrderProcessedView(APIView):
                     {'error': 'Failed to create tenant and subscription', 'details': str(e)},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-        
-            send_email(
-                to_emails="manish@turtlesoftware.co",
-                # to_emails=client.contact_person_email,
-                subject="Welcome to Our Platform!",
-                template_name="subscription_welcome",
-                template_context={
-                    "user_name": client.client_name or "User",  
-                    "user_email": client.contact_person_email,
-                    "default_password":"India@123",
-                    "subscriptions": [
-                            {
-                                "license_key": sub.license_key,
-                                "license_status": sub.license_status,
-                                "valid_from": sub.valid_from.strftime("%Y-%m-%d"),
-                                "valid_until": sub.valid_until.strftime("%Y-%m-%d") if sub.valid_until else None,
-                                "activation_link": f"https://devstore.turtleit.in/{schema_name}"
-                            }
-                            for sub in subscriptions
-                        ]
+            # Prepare email context with all subscriptions and their applications
+            email_context = {
+                "user_name": client.client_name or "User",
+                "user_email": client.contact_person_email,
+                "default_password": "India@123",
+                "tenant_name": tenant.name,
+                "subscriptions": []
+            }
+            
+            # Add subscription data with applications to email context
+            for sub in subscription_data:
+                subscription_info = {
+                    "license_key": sub['license_key'],
+                    "license_status": sub['status'],
+                    "valid_from": sub['valid_from'].strftime("%Y-%m-%d"),
+                    "valid_until": sub['valid_until'].strftime("%Y-%m-%d") if sub.get('valid_until') else None,
+                    "applications": []
                 }
-            )
+                
+                # Add application details for this subscription with tenant schema in URLs
+                for app in sub.get('applications', []):
+                    # Ensure URL ends with a slash and add tenant schema
+                    app_url = (app['url'] or '').rstrip('/')
+                    if app_url:
+                        app_url = f"{app_url}/{schema_name}"
+                    
+                    subscription_info["applications"].append({
+                        "name": app['name'],
+                        "url": app_url,
+                        "app_id": app['app_id']
+                    })
+                
+                email_context["subscriptions"].append(subscription_info)
+            
+            # Send welcome email with all subscription and application details
+            try:
+                send_email(
+                    # to_emails=client.contact_person_email,
+                    to_emails="manish@turtlesoftware.co",
+                    subject=f"Welcome to Our Platform, {client.client_name or 'User'}!",
+                    template_name="subscription_welcome",
+                    template_context=email_context
+                )
+                logger.info("Welcome email sent successfully")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email: {str(e)}", exc_info=True)
+                # Don't fail the request if email sending fails
             return JsonResponse(
                 result,
                 status=status.HTTP_201_CREATED
