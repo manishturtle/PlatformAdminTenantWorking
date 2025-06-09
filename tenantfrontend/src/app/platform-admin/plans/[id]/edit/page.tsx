@@ -86,9 +86,9 @@ export default function EditPlanPage(): JSX.Element {
 
   return (
     <Paper sx={{ p: 4 }}>
-      <Typography variant="h5" mb={4}>
+      {/* <Typography variant="h5" mb={4}>
         Edit Plan: {plan.name}
-      </Typography>
+      </Typography> */}
       <CreatePlanForm 
         initialData={plan} 
         onSubmit={handleSubmit} 

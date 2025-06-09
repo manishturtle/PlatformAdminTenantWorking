@@ -424,7 +424,7 @@ export default function CreatePlanForm({
         <Paper sx={{ p: 3, mb: 3 }}>
           <Grid container justifyContent="space-between" alignItems="center">
             <Grid item>
-              <Typography variant="h5">Create New Plan</Typography>
+              <Typography variant="h5">{isEditMode ? "Edit Plan" : "Create New Plan"}</Typography>
             </Grid>
             <Grid item>
               <Grid container spacing={2}>
@@ -441,7 +441,8 @@ export default function CreatePlanForm({
                     size="large"
                     disabled={loading}
                   >
-                    Create Plan
+                    {/* Create Plan */}
+                    {isEditMode ? 'Edit Plan' : 'Create Plan'}
                   </Button>
                 </Grid>
               </Grid>
