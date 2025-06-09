@@ -21,6 +21,31 @@ export interface Plan {
 }
 
 export const plansService = {
+  async getPlanById(id: string) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/plans/${id}/`, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  async updatePlan(id: string, planData: Plan) {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/plans/${id}/`, planData, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error.message;
+    }
+  },
   async createPlan(planData: Plan) {
     try {
       const response = await axios.post(`${API_BASE_URL}/plans/`, planData, {

@@ -851,7 +851,7 @@ class TenantSerializer(serializers.ModelSerializer):
                                             "Content-Type": "application/json",
                                             "Accept": "application/json"
                                         },
-                                        timeout=60  # 5 seconds timeout
+                                        timeout=120  # 5 seconds timeout
                                     )
                                     response.raise_for_status()
                                     print(f"Successfully migrated schema for app '{app.application_name}' at {url}")
@@ -951,10 +951,60 @@ class ApplicationSerializer(serializers.ModelSerializer):
     """
     Serializer for the Application model from public schema.
     """
+    portals_config = serializers.JSONField(required=False, default=list)
+    
     class Meta:
         model = Application
         fields = '__all__'
         read_only_fields = ['app_id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'application_name': {'required': True, 'allow_blank': False},
+            'app_default_url': {'required': True, 'allow_blank': False},
+            'app_secret_key': {'required': True, 'allow_blank': False},
+            'app_endpoint_route': {'required': True, 'allow_blank': False},
+            'app_backend_url': {'required': True, 'allow_blank': False}
+        }
+
+    def validate_portals_config(self, value):
+        """
+        Validate each portal config item to ensure required keys and URL format.
+        """
+        if not isinstance(value, list):
+            raise serializers.ValidationError("portals_config must be a list of objects.")
+
+        for portal in value:
+            if not isinstance(portal, dict):
+                raise serializers.ValidationError("Each portal config must be a dictionary.")
+
+            required_keys = {"portal_name", "endpoint_path", "description"}
+            missing_keys = required_keys - portal.keys()
+            if missing_keys:
+                raise serializers.ValidationError(f"Missing keys in portal config: {', '.join(missing_keys)}")
+
+            if not portal["portal_name"]:
+                raise serializers.ValidationError("portal_name cannot be empty.")
+
+            endpoint = portal["endpoint_path"]
+            if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
+                raise serializers.ValidationError(f"Invalid URL for endpoint_path: {endpoint}")
+
+        return value
+
+    
+    def validate_app_default_url(self, value):
+        if not value.startswith('http://') and not value.startswith('https://'):
+            raise serializers.ValidationError('URL must start with http:// or https://')
+        return value
+
+    def validate_app_backend_url(self, value):
+        if not value.startswith('http://') and not value.startswith('https://'):
+            raise serializers.ValidationError('URL must start with http:// or https://')
+        return value
+
+    def validate_app_secret_key(self, value):
+        if len(value) < 6:
+            raise serializers.ValidationError('Secret key must be at least 6 characters long')
+        return value
 
     def validate_application_name(self, value):
         """
@@ -991,6 +1041,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
         if not value or len(value.strip()) < 6:
             raise serializers.ValidationError("Secret key must be at least 6 characters long")
         return value
+
 
 class LineOfBusinessSerializer(serializers.ModelSerializer):
     class Meta:

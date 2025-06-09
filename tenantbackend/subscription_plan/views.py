@@ -219,6 +219,48 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        """Get a subscription plan with its features grouped by application"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        response_data = serializer.data
+
+        # Get all features for this plan
+        plan_features = PlanFeatureEntitlement.objects.filter(plan=instance).select_related('feature')
+        
+        # Group features by application
+        grouped_features = {}
+        
+        for entitlement in plan_features:
+            feature = entitlement.feature
+            try:
+                app = Application.objects.get(app_id=feature.app_id)
+                app_id = str(app.app_id)
+                
+                if app_id not in grouped_features:
+                    grouped_features[app_id] = {
+                        'application': app.app_id,
+                        'application_name': app.application_name,
+                        'features': []
+                    }
+                
+                feature_data = {
+                    'id': feature.id,
+                    'name': feature.name,
+                    'key': feature.key,
+                    'description': feature.description,
+                    'granual_settings': entitlement.granual_settings,
+                    'is_active': feature.is_active,
+                    'created_at': feature.created_at,
+                    'updated_at': feature.updated_at
+                }
+                grouped_features[app_id]['features'].append(feature_data)
+            except Application.DoesNotExist:
+                continue
+        
+        response_data['applications'] = list(grouped_features.values())
+        return Response(response_data)
+
     def get_queryset(self):
         """Filter plans by status if provided"""
         queryset = super().get_queryset()

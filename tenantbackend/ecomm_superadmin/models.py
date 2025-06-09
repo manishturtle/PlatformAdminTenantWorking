@@ -195,6 +195,11 @@ class Application(models.Model):
         help_text="Home route for the application",
         default=""
     )
+
+    portals_config = models.JSONField(
+        default=list,  
+        help_text="List of portal configurations"
+    )
     
     description = models.TextField(
         blank=True, 
@@ -214,6 +219,7 @@ class Application(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=255, null=True, blank=True)
     updated_by = models.CharField(max_length=255, null=True, blank=True)
+    
 
     def __str__(self):
         return self.application_name
@@ -243,6 +249,23 @@ class TenantApplication(models.Model):
         verbose_name = "Tenant Application"
         verbose_name_plural = "Tenant Applications"
         unique_together = ('tenant', 'application')
+
+class TenantAppPortals(models.Model):
+    tenant_id = models.IntegerField()
+    app_id = models.IntegerField()
+    portal_name = models.CharField(max_length=100)
+    endpoint_path = models.CharField(max_length=200)
+    default_url = models.URLField()
+    redirect_url = models.URLField()
+    custom_redirect_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.IntegerField(null=True, blank=True, help_text="User who created this record")
+    updated_by = models.IntegerField(null=True, blank=True, help_text="User who last updated this record")
+    
+    class Meta:
+        db_table = 'ecomm_superadmin_tenant_app_portals'
+
 
 class Domain(DomainMixin):
     """

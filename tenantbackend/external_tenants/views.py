@@ -1,16 +1,17 @@
 import logging
+import json
 from django.http import JsonResponse
 from django.db import connection
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-import logging
 import uuid
 from datetime import timedelta
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from services.email_service import send_email
-from django.db import connection
+from ecomm_superadmin.models import TenantAppPortals
+from ecomm_superadmin.models import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,52 @@ class OrderProcessedView(APIView):
     
     permission_classes = [AllowAny]
     
+    def create_tenant_portals(self, tenant_id: int, applications: list) -> None:
+        """
+        Create portal entries for a tenant based on application configurations.
+        
+        Args:
+            tenant_id (int): The ID of the tenant
+            applications (list): List of application details from public schema
+        """
+        try:
+            # Get tenant using django_tenants model
+            try:
+                tenant = Tenant.objects.get(id=tenant_id)
+                tenant_schema = tenant.schema_name
+            except Tenant.DoesNotExist:
+                raise ValueError(f"No tenant found with id {tenant_id}")
+
+            for app in applications:
+                if not app.get('portals_config'):
+                    continue
+                    
+                portals_config = json.loads(app['portals_config']) if isinstance(app['portals_config'], str) else app['portals_config']
+                app_default_url = app.get('app_default_url', '')
+                
+                for portal in portals_config:
+                    endpoint_path = portal.get('endpoint_path', '')
+                    # Construct redirect_url by combining app_default_url, tenant schema and endpoint_path
+                    # Remove any trailing slashes from app_default_url and leading slashes from endpoint_path
+                    base_url = app_default_url.rstrip('/')
+                    path = endpoint_path.lstrip('/')
+                    redirect_url = f"{base_url}/{path}/{tenant_schema}" if path else f"{base_url}/{tenant_schema}"
+                    
+                    TenantAppPortals.objects.create(
+                        tenant_id=tenant_id,
+                        app_id=app['app_id'],
+                        portal_name=portal.get('portal_name', ''),
+                        endpoint_path=endpoint_path,
+                        redirect_url=redirect_url,
+                        custom_redirect_url=portal.get('custom_redirect_url', None)
+                    )
+                    
+            logger.info(f"Successfully created portal entries for tenant {tenant_id}")
+            
+        except Exception as e:
+            logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
+            raise
+
     def create_tenant_subscription(self, tenant, subscription_plan, client_id, company_id, created_by):
         """
         Create a subscription for the tenant.
@@ -47,6 +94,10 @@ class OrderProcessedView(APIView):
         
         # Save to trigger the save() method which populates the snapshots
         subscription.save()
+        
+        # Get applications and create portal entries
+        applications = self.get_application_from_subcriptions(subscription_plan)
+        self.create_tenant_portals(tenant.id, applications)
         
         return subscription
 
@@ -87,7 +138,7 @@ class OrderProcessedView(APIView):
                     
                     # Query to get application details from public schema
                     query = """
-                        SELECT app_id, application_name, app_default_url
+                        SELECT app_id, application_name, app_default_url, portals_config
                         FROM application
                         WHERE app_id IN %s
                     """
@@ -114,7 +165,6 @@ class OrderProcessedView(APIView):
             logger.error(f"Error fetching applications from subscription plan: {str(e)}", exc_info=True)
             raise
     
-
     def get_custom_product_ids(self, product_ids, tenant_schema):
         """
         Get custom product IDs from the tenant schema's products_product table's custom_fields JSON.
@@ -474,14 +524,7 @@ class OrderProcessedView(APIView):
                     )
                     subscriptions.append(subscription)
                 
-                # # Create subscription
-                # subscription = self.create_tenant_subscription(
-                #     tenant=tenant,
-                #     subscription_plan=subscription_plan,
-                #     client_id=client_id,
-                #     company_id=1,
-                #     created_by='system:order_processor'
-                # )
+              
                 
                 # Get applications for the subscription
                 applications = []

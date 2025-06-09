@@ -22,174 +22,11 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.exceptions import NotFound
 logger = logging.getLogger(__name__)
 from services.email_service import send_email
+from KeyProductSettings.settings import APPLICATION_MIGRATION_BACKEND_ENDPOINT
 
 
-from .models import Tenant, User, CrmClient, Application
+from .models import Tenant, User, CrmClient, Application, TenantAppPortals
 from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer, LineOfBusinessSerializer
-
-# @method_decorator(csrf_exempt, name='dispatch')
-# class PlatformAdminTenantView(APIView):
-#     """
-#     API endpoint that allows platform admins to manage tenants.
-#     Uses direct database access to avoid model field mapping issues.
-#     """
-#     permission_classes = [IsAuthenticated, IsAdminUser]
-    
-#     def get(self, request, format=None):
-#         """
-#         List all tenants directly from the database.
-#         """
-#         try:
-#             with connection.cursor() as cursor:
-#                 cursor.execute("""
-#                     SELECT 
-#                         id, schema_name, name, url_suffix, created_at, updated_at,
-#                         status, environment, trial_end_date, paid_until,
-#                         subscription_plan_id, client_id
-#                     FROM ecomm_superadmin_tenants
-#                     ORDER BY created_at DESC
-#                 """)
-                
-#                 # Get column names
-#                 columns = [col[0] for col in cursor.description]
-                
-#                 # Fetch all rows
-#                 rows = cursor.fetchall()
-                
-#                 # Convert rows to dictionaries
-#                 tenants = []
-#                 for row in rows:
-#                     tenant_dict = dict(zip(columns, row))
-                    
-#                     # Convert datetime objects to strings for JSON serialization
-#                     if 'created_at' in tenant_dict and tenant_dict['created_at']:
-#                         tenant_dict['created_at'] = tenant_dict['created_at'].isoformat()
-#                     if 'updated_at' in tenant_dict and tenant_dict['updated_at']:
-#                         tenant_dict['updated_at'] = tenant_dict['updated_at'].isoformat()
-#                     if 'trial_end_date' in tenant_dict and tenant_dict['trial_end_date']:
-#                         tenant_dict['trial_end_date'] = tenant_dict['trial_end_date'].isoformat()
-#                     if 'paid_until' in tenant_dict and tenant_dict['paid_until']:
-#                         tenant_dict['paid_until'] = tenant_dict['paid_until'].isoformat()
-                    
-#                     # Add subscription plan details if available
-#                     if tenant_dict.get('subscription_plan_id'):
-#                         cursor.execute("""
-#                             SELECT id, name, description, price, max_users, storage_limit
-#                             FROM subscription_plans
-#                             WHERE id = %s
-#                         """, [tenant_dict['subscription_plan_id']])
-#                         plan_columns = [col[0] for col in cursor.description]
-#                         plan_row = cursor.fetchone()
-#                         if plan_row:
-#                             tenant_dict['subscription_plan'] = dict(zip(plan_columns, plan_row))
-                    
-#                     # Add client details if available
-#                     if tenant_dict.get('client_id'):
-#                         cursor.execute("""
-#                             SELECT id, client_name, contact_person_email
-#                             FROM ecomm_superadmin_crmclients
-#                             WHERE id = %s
-#                         """, [tenant_dict['client_id']])
-#                         client_columns = [col[0] for col in cursor.description]
-#                         client_row = cursor.fetchone()
-#                         if client_row:
-#                             tenant_dict['client'] = dict(zip(client_columns, client_row))
-                    
-#                     # Add assigned applications
-#                     cursor.execute("""
-#                         SELECT a.app_id, a.application_name, a.is_active
-#                         FROM ecomm_superadmin_tenantapplication ta
-#                         JOIN application a ON ta.application_id = a.app_id
-#                         WHERE ta.tenant_id = %s AND ta.is_active = true
-#                     """, [tenant_dict['id']])
-#                     app_columns = [col[0] for col in cursor.description]
-#                     app_rows = cursor.fetchall()
-#                     tenant_dict['assigned_applications'] = [
-#                         dict(zip(app_columns, row)) for row in app_rows
-#                     ]
-                    
-#                     tenants.append(tenant_dict)
-                
-#                 return Response(tenants)
-#         except Exception as e:
-#             import traceback
-#             traceback.print_exc()
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-#     def post(self, request, format=None):
-#         """
-#         Create a new tenant using the TenantSerializer.
-#         """
-#         serializer = TenantSerializer(data=request.data)
-#         if serializer.is_valid():
-#             try:
-#                 tenant = serializer.save()
-#                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-#             except Exception as e:
-#                 import traceback
-#                 traceback.print_exc()
-#                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#     def delete(self, request, tenant_id, format=None):
-#         """
-#         Delete a tenant by ID.
-#         This will follow the specific deletion flow:
-#         1. Delete entry from ecomm_superadmin_domain
-#         2. Delete entry from ecomm_superadmin_tenants
-#         3. Drop the schema with CASCADE
-#         """
-#         try:
-#             import traceback
-            
-#             # Use a transaction to ensure atomicity
-#             with transaction.atomic():
-#                 # First, check if the tenant exists using raw SQL
-#                 with connection.cursor() as cursor:
-#                     cursor.execute("""
-#                         SELECT id, schema_name FROM tenants WHERE id = %s
-#                     """, [tenant_id])
-                    
-#                     result = cursor.fetchone()
-#                     if not result:
-#                         return Response(
-#                             {"error": f"Tenant with ID {tenant_id} not found"}, 
-#                             status=status.HTTP_404_NOT_FOUND
-#                         )
-                    
-#                     tenant_id, schema_name = result
-                    
-#                     # 1. First delete entries from ecomm_superadmin_domain
-#                     try:
-#                         cursor.execute("""
-#                             DELETE FROM domains 
-#                             WHERE tenant_id = %s
-#                         """, [tenant_id])
-#                         print(f"Deleted domain entries for tenant ID {tenant_id}")
-#                     except Exception as domain_e:
-#                         print(f"Error deleting from domain table: {str(domain_e)}")
-#                         traceback.print_exc()
-                    
-#                     # 2. Then delete the tenant record from ecomm_superadmin_tenants
-#                     cursor.execute("DELETE FROM tenants WHERE id = %s", [tenant_id])
-#                     print(f"Deleted tenant with ID {tenant_id}")
-                    
-#                     # 3. Finally drop the schema
-#                     try:
-#                         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-#                         print(f"Dropped schema {schema_name}")
-#                     except Exception as schema_e:
-#                         print(f"Error dropping schema: {str(schema_e)}")
-#                         traceback.print_exc()
-            
-#             return Response(status=status.HTTP_204_NO_CONTENT)
-#         except Exception as e:
-#             import traceback
-#             traceback.print_exc()
-#             return Response(
-#                 {"error": f"Error deleting tenant: {str(e)}"}, 
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -200,76 +37,53 @@ class PlatformAdminTenantView(APIView):
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
 
-    # def post(self, request, format=None):
-    #     """
-    #     Create a new tenant with proper transaction handling and rollback.
-    #     """
-    #     from django.db import transaction
-    #     from .models import Tenant, Domain
-    #     from .signals import create_tenant_schema
-    #     import traceback
+    def create_tenant_portals(self, tenant_id: int, applications: list) -> None:
+        """
+        Create portal entries for a tenant based on application configurations.
+        
+        Args:
+            tenant_id (int): The ID of the tenant
+            applications (list): List of application details from public schema
+        """
+        try:
+            # Get tenant using model
+            try:
+                tenant = Tenant.objects.get(id=tenant_id)
+                tenant_schema = tenant.schema_name
+            except Tenant.DoesNotExist:
+                raise ValueError(f"No tenant found with id {tenant_id}")
 
-    #     try:
-    #         # Start transaction
-    #         with transaction.atomic():
-    #             # Validate required fields
-    #             required_fields = ['name', 'schema_name']
-    #             for field in required_fields:
-    #                 if field not in request.data:
-    #                     return Response(
-    #                         {"error": f"Missing required field: {field}"},
-    #                         status=status.HTTP_400_BAD_REQUEST
-    #                     )
-
-    #             # Create tenant instance
-    #             tenant = Tenant(
-    #                 name=request.data['name'],
-    #                 schema_name=request.data['schema_name'],
-    #                 created_by=request.user,
-    #                 # Add other fields from request.data as needed
-    #             )
-
-    #             try:
-    #                 # Save tenant - this will trigger the signal
-    #                 tenant.save()
-    #             except Exception as e:
-    #                 # Log the specific error
-    #                 logger.error(f"Error creating tenant: {str(e)}\n{traceback.format_exc()}")
-    #                 raise Exception(f"Failed to create tenant: {str(e)}")
-
-    #             # Return success response
-    #             return Response(
-    #                 {
-    #                     "message": "Tenant created successfully",
-    #                     "tenant_id": tenant.id,
-    #                     "schema_name": tenant.schema_name
-    #                 },
-    #                 status=status.HTTP_201_CREATED
-    #             )
-
-    #     except Exception as e:
-    #         # Transaction will automatically rollback
-    #         error_msg = str(e)
-    #         stack_trace = traceback.format_exc()
-    #         logger.error(f"Error in tenant creation: {error_msg}\n{stack_trace}")
-
-    #         # Return error response with appropriate status
-    #         if "already exists" in error_msg.lower():
-    #             return Response(
-    #                 {"error": "A tenant with this name or schema already exists"},
-    #                 status=status.HTTP_409_CONFLICT
-    #             )
-    #         elif "migration" in error_msg.lower():
-    #             return Response(
-    #                 {"error": f"Migration error: {error_msg}"},
-    #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-    #             )
-    #         else:
-    #             return Response(
-    #                 {"error": f"Failed to create tenant: {error_msg}"},
-    #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-    #             )
-    
+            for app in applications:
+                if not app.get('portals_config'):
+                    continue
+                    
+                portals_config = json.loads(app['portals_config']) if isinstance(app['portals_config'], str) else app['portals_config']
+                app_default_url = app.get('app_default_url', '')
+                
+                for portal in portals_config:
+                    endpoint_path = portal.get('endpoint_path', '')
+                    # Construct redirect_url by combining app_default_url, tenant schema and endpoint_path
+                    # Remove any trailing slashes from app_default_url and leading slashes from endpoint_path
+                    base_url = app_default_url.rstrip('/')
+                    path = endpoint_path.lstrip('/')
+                    redirect_url = f"{base_url}/{path}/{tenant_schema}" if path else f"{base_url}/{tenant_schema}"
+                    
+                    TenantAppPortals.objects.create(
+                        tenant_id=tenant_id,
+                        app_id=app['app_id'],
+                        portal_name=portal.get('portal_name', ''),
+                        endpoint_path=endpoint_path,
+                        redirect_url=redirect_url,
+                        custom_redirect_url=portal.get('custom_redirect_url', None),
+                        created_by=self.request.user.id if hasattr(self, 'request') and self.request.user else None,
+                        updated_by=self.request.user.id if hasattr(self, 'request') and self.request.user else None
+                    )
+                    
+            logger.info(f"Successfully created portal entries for tenant {tenant_id}")
+            
+        except Exception as e:
+            logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
+            raise
 
     def get(self, request, format=None):
         """
@@ -498,6 +312,58 @@ class PlatformAdminTenantView(APIView):
         )
         return subscription
 
+    def get_applications_from_subscription(self, subscription_plan):
+        """
+        Get applications associated with the subscription plan from the public schema.
+        
+        Args:
+            subscription_plan: The SubscriptionPlan object containing feature entitlements
+            
+        Returns:
+            list: List of application details from the public schema
+        """
+        try:
+            with connection.cursor() as cursor:
+                # Get unique app_ids from feature entitlements
+                app_ids = list(subscription_plan.feature_entitlements \
+                             .select_related('feature') \
+                             .values_list('feature__app_id', flat=True) \
+                             .distinct())
+                
+                logger.info(f"Found {len(app_ids)} unique app IDs in subscription features")
+                
+                if not app_ids:
+                    logger.warning("No application IDs found in subscription features")
+                    return []
+                
+                # Convert app_ids to a tuple for the SQL IN clause
+                app_ids_tuple = tuple(app_ids)
+                
+                # Query to get application details
+                query = """
+                    SELECT app_id, application_name, app_default_url, portals_config
+                    FROM application
+                    WHERE app_id IN %s
+                """
+                
+                cursor.execute(query, (app_ids_tuple,))
+                
+                # Get column names from cursor description
+                columns = [col[0] for col in cursor.description]
+                
+                # Convert results to list of dictionaries
+                applications = [
+                    dict(zip(columns, row))
+                    for row in cursor.fetchall()
+                ]
+                
+                logger.info(f"Found {len(applications)} applications for subscription plan {subscription_plan.id}")
+                return applications
+                
+        except Exception as e:
+            logger.error(f"Error fetching applications from subscription plan: {str(e)}", exc_info=True)
+            raise
+
     def post(self, request, format=None):
         """Create a new tenant and optionally assign subscription plan."""
         from django.db import transaction
@@ -517,8 +383,6 @@ class PlatformAdminTenantView(APIView):
             # Initialize response data
             response_data = {'tenant': serializer.data}
 
-            print("respnse_data123:", response_data)
-
             # Handle subscription plans if provided
             subscription_plan_ids = request.data.get('subscription_plan', [])
             if not isinstance(subscription_plan_ids, list):
@@ -526,6 +390,7 @@ class PlatformAdminTenantView(APIView):
             
             subscriptions = []
             subscription_data = []
+            all_applications = []
             
             if subscription_plan_ids:
                 for plan_id in subscription_plan_ids:
@@ -545,6 +410,10 @@ class PlatformAdminTenantView(APIView):
                         
                         # Create default roles based on subscription features
                         self.create_default_roles_from_subscription(tenant, subscription)
+                        
+                        # Get applications for this subscription plan
+                        applications = self.get_applications_from_subscription(subscription_plan)
+                        all_applications.extend(applications)
                         
                         # Add subscription data to response
                         subscription_data.append({
@@ -571,6 +440,14 @@ class PlatformAdminTenantView(APIView):
                 
                 # Add all subscriptions to response
                 response_data['subscriptions'] = subscription_data
+
+                # Create portal entries for all applications
+                if all_applications:
+                    try:
+                        self.create_tenant_portals(tenant.id, all_applications)
+                    except Exception as e:
+                        logger.error(f"Error creating portal entries: {str(e)}", exc_info=True)
+                        # Don't fail the entire request if portal creation fails
 
             send_email(
                 to_emails="manish@turtlesoftware.co",
@@ -600,6 +477,9 @@ class PlatformAdminTenantView(APIView):
             import traceback
             traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            connection.set_schema_to_public()
+            
 
 def delete(self, request, tenant_id, format=None):
     """Delete a tenant by ID.
@@ -1139,12 +1019,16 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Create a new application with all fields.
+        Create a new application with all fields including hardcoded backend values.
         """
         data = request.data.copy()
+        # Set default values
         data.setdefault('is_active', True)
         data.setdefault('client_id', 1)
         data.setdefault('company_id', 1)
+        # Set hardcoded backend values
+        data['migrate_schema_endpoint'] = APPLICATION_MIGRATION_BACKEND_ENDPOINT
+        # Set audit fields
         data['created_by'] = request.user.email
         data['updated_by'] = request.user.email
 

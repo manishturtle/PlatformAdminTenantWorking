@@ -25,6 +25,8 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.
 
 INTERNAL_API_SECRET = 'secret'      # Key for backend to backend api calls of Tenant
 
+APPLICATION_MIGRATION_BACKEND_ENDPOINT = "api/tenant/migrate/"
+
 # --- Application definition ---
 
 # Define Custom User Model *before* app lists

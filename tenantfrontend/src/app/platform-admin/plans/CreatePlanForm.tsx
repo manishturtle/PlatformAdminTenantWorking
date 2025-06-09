@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Snackbar, Alert } from "@mui/material";
 import {
   Grid,
   Button,
@@ -14,8 +15,6 @@ import {
   SelectChangeEvent,
   TextField,
   Typography,
-  Alert,
-  Snackbar,
 } from "@mui/material";
 import { Info as InfoIcon } from "@mui/icons-material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -68,7 +67,9 @@ interface ApplicationFeatures {
 
 interface CreatePlanFormProps {
   onSubmit: (formData: FormData) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  initialData?: FormData;
+  isEditMode?: boolean;
 }
 
 interface FormData {
@@ -92,8 +93,11 @@ interface FormData {
 export default function CreatePlanForm({
   onSubmit,
   onCancel,
-}: CreatePlanFormProps) {
-  const [formData, setFormData] = useState<FormData>({
+  initialData,
+  isEditMode = false,
+}: CreatePlanFormProps): JSX.Element {
+  const [formData, setFormData] = useState<FormData>(initialData || {
+    detailed_entitlements: {},
     name: "",
     description: "",
     status: "active",
@@ -112,13 +116,17 @@ export default function CreatePlanForm({
   });
 
   const [applications, setApplications] = useState<ApplicationFeatures[]>([]);
-  const [selectedApps, setSelectedApps] = useState<number[]>([]);
+  const [selectedApps, setSelectedApps] = useState<number[]>(initialData?.selectedApps || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linesOfBusiness, setLinesOfBusiness] = useState<LineOfBusiness[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
 
   useEffect(() => {
     fetchFeatures();
@@ -150,7 +158,33 @@ export default function CreatePlanForm({
       }
 
       const data = await response.json();
-      setApplications(data);
+      
+      if (initialData?.applications) {
+        // Create a map of existing features by app_id and feature_id
+        const existingFeatures = new Map();
+        initialData.applications.forEach(app => {
+          app.features.forEach(feature => {
+            const key = `${app.application}_${feature.id}`;
+            existingFeatures.set(key, feature);
+          });
+        });
+
+        // Merge existing features' settings with all available features
+        const mergedData = data.map(app => ({
+          ...app,
+          features: app.features.map(feature => {
+            const key = `${app.application}_${feature.id}`;
+            const existingFeature = existingFeatures.get(key);
+            return existingFeature ? {
+              ...feature,
+              granual_settings: existingFeature.granual_settings
+            } : feature;
+          })
+        }));
+        setApplications(mergedData);
+      } else {
+        setApplications(data);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch features");
     } finally {
@@ -182,7 +216,7 @@ export default function CreatePlanForm({
   };
 
   const isFeatureSelected = (featureId: string): boolean => {
-    return Object.keys(formData.detailed_entitlements).includes(featureId);
+    return Object.keys(formData.detailed_entitlements || {}).includes(featureId);
   };
 
   const isSubfeatureEnabled = (
@@ -293,8 +327,14 @@ export default function CreatePlanForm({
     setLoading(true);
     setFormErrors({});
 
+    const submissionData = {
+      ...formData,
+      valid_from: formData.valid_from.toISOString(),
+      valid_until: formData.valid_until ? formData.valid_until.toISOString() : null,
+    };
+
     try {
-      await onSubmit(formData);
+      await onSubmit(submissionData);
       // Clear form errors on success
       setFormErrors({});
     } catch (error: any) {
@@ -354,9 +394,9 @@ export default function CreatePlanForm({
     }
   };
 
-  const handleSnackbarClose = () => {
-    setSnackbarOpen(false);
-  };
+  // const handleSnackbarClose = () => {
+  //   setSnackbarOpen(false);
+  // };
 
   return (
     <Grid
@@ -633,7 +673,7 @@ export default function CreatePlanForm({
       <Grid item xs={12} width="100%">
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Features
+            {isEditMode ? 'Edit Features' : 'Features'}
           </Typography>
           {loading ? (
             <Grid container justifyContent="center" sx={{ p: 3 }}>
@@ -778,6 +818,29 @@ export default function CreatePlanForm({
             </Grid>
           )}
         </Paper>
+      </Grid>
+
+      <Grid item xs={12} container spacing={2} justifyContent="flex-end">
+        {onCancel && (
+          <Grid item>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          </Grid>
+        )}
+        <Grid item>
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+          >
+            {isEditMode ? 'Edit Plan' : 'Create Plan'}
+          </Button>
+        </Grid>
       </Grid>
     </Grid>
   );
