@@ -21,12 +21,9 @@ urlpatterns = [
     
     # Django admin (not tenant-specific)
     path('admin/', admin.site.urls),
-
-    
+ 
     # Platform admin routes (not tenant-specific)
     path('platform-admin/api/', include('ecomm_superadmin.admin_urls', namespace='platform_admin')),
-    
-    # Public API endpoint to get tenant by default URL (must be before tenant-specific routes)
     
     # Add additional route for platform admin to support frontend API calls
     path('api/platform-admin/api/users/', include('ecomm_superadmin.admin_urls', namespace='platform_admin_with_api_prefix')),
@@ -44,13 +41,7 @@ urlpatterns = [
     
     # Tenant user routes (not tenant admin)
     path('api/<str:tenant_slug>/tenant/', include('ecomm_tenant.ecomm_tenant_admins.tenant_urls', namespace='tenant_user')),
-    
-    # Inventory management routes
-    # path('api/<str:tenant_slug>/inventory/', include('ecomm_inventory.urls', namespace='inventory')),
-    
-    # Product management routes
-    # path('api/<str:tenant_slug>/products/', include('ecomm_product.urls', namespace='products')),
-    
+
     # Public API endpoints (if any)
     path('api/public/', include('KeyProductSettings.urls_public', namespace='public_api')),
     

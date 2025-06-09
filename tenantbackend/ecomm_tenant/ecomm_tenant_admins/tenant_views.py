@@ -31,6 +31,7 @@ class LoginConfigView(APIView):
     """
     permission_classes = [AllowAny]
 
+
     def get_tenant(self, tenant_slug):
         """Get tenant from url_suffix"""
         try:
@@ -100,6 +101,18 @@ class LoginConfigView(APIView):
             # Make a mutable copy of request data
             data = request.data.copy()
             
+            # Map JSON field names to model field names
+            field_mapping = {
+                'fontFamily': 'font_family',
+                'themeColor': 'theme_color',
+                'appLangugae': 'app_language'  # Note: There's a typo in the JSON field name
+            }
+            
+            # Apply field name mapping
+            for json_field, model_field in field_mapping.items():
+                if json_field in data:
+                    data[model_field] = data.pop(json_field)
+            
             # Handle file upload
             if 'logo' in request.FILES and isinstance(request.FILES['logo'], UploadedFile):
                 logo_file = request.FILES['logo']
@@ -111,12 +124,6 @@ class LoginConfigView(APIView):
             data['updated_by'] = request.user.email if not request.user.is_anonymous else None
             if not config:
                 data['created_by'] = request.user.email if not request.user.is_anonymous else None
-            
-            # Handle file upload
-            if 'logo' in request.FILES:
-                logo_file = request.FILES['logo']
-                logger.info(f"Received logo file: name={logo_file.name}, size={logo_file.size}, content_type={logo_file.content_type}")
-                data['logo'] = logo_file
 
             serializer = LoginConfigSerializer(config, data=data) if config else LoginConfigSerializer(data=data)
             
@@ -422,7 +429,7 @@ class TenantUserLoginView(APIView):
         # Log successful login
         logger.info(f"TenantUserLoginView - Login successful for user: {user.id}")
 
-        final_redirect_url = f'{default_url}{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant.schema_name}&app_id={app_id}'
+        final_redirect_url = f'{default_url}{request.tenant.schema_name}/{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant.schema_name}&app_id={app_id}'
         
         # Return token and user data along with application details
         return Response({

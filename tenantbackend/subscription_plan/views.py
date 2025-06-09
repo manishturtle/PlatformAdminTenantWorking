@@ -811,6 +811,7 @@ def get_subscription_plan_by_tenant(request):
         print("Error:", e)
         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+from psycopg2 import sql
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -837,8 +838,9 @@ def check_tenant_exist(request):
         default_url = f"{url_obj.scheme}://{url_obj.netloc}/"
 
         with connection.cursor() as cursor:
+            # First get the tenant data
             cursor.execute("""
-                SELECT id, name, schema_name, status
+                SELECT id, name, schema_name, status, client_id
                 FROM ecomm_superadmin_tenants
                 WHERE schema_name = %s
             """, [schema_name])
@@ -847,46 +849,54 @@ def check_tenant_exist(request):
             if not tenant:
                 return Response({'message': 'Tenant not found'}, status=status.HTTP_404_NOT_FOUND)
 
-            # subscription_plan = None
-            # subscription_plan_id = tenant[4]
+            # Initialize login config
+            login_config = {}
+            client_id = tenant[4]  # Get client_id from tenant data
 
-            # if subscription_plan_id:
-            #     cursor.execute("""
-            #         SELECT id, name, price, max_users, storage_limit
-            #         FROM subscription_plans
-            #         WHERE id = %s
-            #     """, [subscription_plan_id])
-            #     subscription_plan = cursor.fetchone()
+            # Get login config if client_id exists
+            if client_id:
+                # cursor.execute(f"SET search_path TO {schema_name}, public;")
+                cursor.execute(sql.SQL("SET search_path TO {}, public;").format(
+                    sql.Identifier(schema_name)
+                ))
+                cursor.execute("""
+                    SELECT id, brand_name, logo, is_2fa_enabled, 
+                           theme_color, app_language, font_family
+                    FROM ecomm_tenant_admins_loginconfig
+                    WHERE client_id = %s
+                """, [client_id])
 
-        # Decide the login redirect path based on URL
-        if is_tenant_admin:
-            redirect_path = f"http://localhost:3000/{schema_name}/tenant-admin/login?currentUrl={application_url}"
-        else:
-            redirect_path = f"http://localhost:3000/{schema_name}/login?currentUrl={application_url}"
+                login_config_data = cursor.fetchone()
+                if login_config_data:
+                    login_config = {
+                        'id': login_config_data[0],
+                        'brand_name': login_config_data[1],
+                        'logo': login_config_data[2],
+                        'is_2fa_enabled': login_config_data[3],
+                        'theme_color': login_config_data[4],
+                        'app_language': login_config_data[5],
+                        'font_family': login_config_data[6]
+                    }
 
-        response_data = {
-            'message': f"Tenant with schema_name '{schema_name}' exists",
-            'tenant_id': tenant[0],
-            'tenant_name': tenant[1],
-            'schema_name': tenant[2],
-            'status': tenant[3],
-            'default_url': default_url,
-            'redirect_to_iam': redirect_path
-        }
+            # Decide the login redirect path based on URL
+            if is_tenant_admin:
+                redirect_path = f"http://localhost:3000/{schema_name}/tenant-admin/login?currentUrl={application_url}"
+            else:
+                redirect_path = f"http://localhost:3000/{schema_name}/login?currentUrl={application_url}"
 
-        # if subscription_plan:
-        #     response_data['subscription_plan'] = {
-        #         'id': subscription_plan[0],
-        #         'name': subscription_plan[1],
-        #         'price': subscription_plan[2],
-        #         'max_users': subscription_plan[3],
-        #         'max_storage': subscription_plan[4]
-        #     }
+            response_data = {
+                'message': f"Tenant with schema_name '{schema_name}'",
+                'tenant_id': tenant[0],
+                'tenant_name': tenant[1],
+                'schema_name': tenant[2],
+                'status': tenant[3],
+                'default_url': default_url,
+                'redirect_to_iam': redirect_path,
+                'login_config': login_config
+            }
 
-        return Response(response_data, status=status.HTTP_200_OK)
+            return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         print("Error:", e)
         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-

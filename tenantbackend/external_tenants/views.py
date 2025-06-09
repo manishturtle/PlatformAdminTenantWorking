@@ -44,18 +44,21 @@ class OrderProcessedView(APIView):
                     
                 portals_config = json.loads(app['portals_config']) if isinstance(app['portals_config'], str) else app['portals_config']
                 app_default_url = app.get('app_default_url', '')
-                
+                print("app_default_url:", app_default_url)
+                print("tenant_schema:", tenant_schema)
+                print("portals_config:", portals_config)
                 for portal in portals_config:
                     endpoint_path = portal.get('endpoint_path', '')
                     # Construct redirect_url by combining app_default_url, tenant schema and endpoint_path
                     # Remove any trailing slashes from app_default_url and leading slashes from endpoint_path
                     base_url = app_default_url.rstrip('/')
                     path = endpoint_path.lstrip('/')
-                    redirect_url = f"{base_url}/{path}/{tenant_schema}" if path else f"{base_url}/{tenant_schema}"
-                    
+                    redirect_url = f"{base_url}/{tenant_schema}/{path}/" if path else f"{base_url}/{tenant_schema}"
+                    print("base_url:", base_url)
                     TenantAppPortals.objects.create(
                         tenant_id=tenant_id,
                         app_id=app['app_id'],
+                        default_url=app_default_url,
                         portal_name=portal.get('portal_name', ''),
                         endpoint_path=endpoint_path,
                         redirect_url=redirect_url,
@@ -67,6 +70,7 @@ class OrderProcessedView(APIView):
         except Exception as e:
             logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
             raise
+
 
     def create_tenant_subscription(self, tenant, subscription_plan, client_id, company_id, created_by):
         """
@@ -97,6 +101,7 @@ class OrderProcessedView(APIView):
         
         # Get applications and create portal entries
         applications = self.get_application_from_subcriptions(subscription_plan)
+        print("applications:", applications)
         self.create_tenant_portals(tenant.id, applications)
         
         return subscription

@@ -54,20 +54,7 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = (
-    #'django.contrib.contenttypes',
-    #'django.contrib.auth',
-    #'django.contrib.sessions',
-    #'django.contrib.messages',
-    #'django.contrib.admin',
-    #'django.contrib.staticfiles',
-    #'rest_framework',
-    #'rest_framework.authtoken',
-    #'rest_framework_simplejwt',
-    #'corsheaders',
     'ecomm_tenant.ecomm_tenant_admins',
-    # 'ecomm_inventory',
-    # 'ecomm_product',  # Product management app
-    # 'ecomm_tenant_crmclients',  # Commented out non-existent app
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
@@ -85,14 +72,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'ecomm_superadmin.middleware.TenantRoutingMiddleware', # REMOVE or COMMENT OUT your custom middleware
 ]
-
-# --- URL Configuration ---
-# ROOT_URLCONF is used for requests to tenant schemas (with tenant slug)
-#ROOT_URLCONF = 'KeyProductSettings.urls'
-# PUBLIC_SCHEMA_URLCONF is used for requests to the public tenant (no tenant slug)
-#PUBLIC_SCHEMA_URLCONF = 'KeyProductSettings.urls_public' # You MUST create this file!
 
 # --- Templates ---
 TEMPLATES = [
@@ -128,17 +108,6 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
-
-"""DATABASES = {
-    'default': {
- 
-        'USER': 'postgres', # Ensure this is correct
-        'PASSWORD': 'India@123', # Replace with the real password
-        'HOST': 'localhost', # Ensure this is correct
-        'PORT': '5432',      # Ensure this is correct
-        'NAME': 'turtleerp', # Ensure this database exists
-    }
-}"""
 
 
 # --- Password validation ---

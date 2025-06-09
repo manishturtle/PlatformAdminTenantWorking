@@ -884,6 +884,25 @@ class LoginConfigSerializer(serializers.ModelSerializer):
                 "Upload a valid image. The file you uploaded was either not an image or a corrupted image."
             )
     
+    theme_color = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Theme color in hex format (e.g., #FC123FF)"
+    )
+    font_family = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Font family for the application (e.g., 'Arial', 'Times New Roman')"
+    )
+    app_language = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Application language code (e.g., 'en' for English, 'ar' for Arabic)"
+    )
+    
     class Meta:
         model = LoginConfig
         fields = [
@@ -891,6 +910,9 @@ class LoginConfigSerializer(serializers.ModelSerializer):
             'brand_name',
             'logo',
             'is_2fa_enabled',
+            'theme_color',
+            'app_language',
+            'font_family',
             'client_id',
             'created_at',
             'updated_at',

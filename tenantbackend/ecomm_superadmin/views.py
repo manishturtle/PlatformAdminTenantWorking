@@ -66,12 +66,13 @@ class PlatformAdminTenantView(APIView):
                     # Remove any trailing slashes from app_default_url and leading slashes from endpoint_path
                     base_url = app_default_url.rstrip('/')
                     path = endpoint_path.lstrip('/')
-                    redirect_url = f"{base_url}/{path}/{tenant_schema}" if path else f"{base_url}/{tenant_schema}"
+                    redirect_url = f"{base_url}/{tenant_schema}/{path}/" if path else f"{base_url}/{tenant_schema}"
                     
                     TenantAppPortals.objects.create(
                         tenant_id=tenant_id,
                         app_id=app['app_id'],
                         portal_name=portal.get('portal_name', ''),
+                        default_url=app_default_url,
                         endpoint_path=endpoint_path,
                         redirect_url=redirect_url,
                         custom_redirect_url=portal.get('custom_redirect_url', None),
@@ -84,6 +85,7 @@ class PlatformAdminTenantView(APIView):
         except Exception as e:
             logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
             raise
+
 
     def get(self, request, format=None):
         """
@@ -1058,64 +1060,135 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+# @method_decorator(csrf_exempt, name='dispatch')
+# class TenantByDefaultUrlView(APIView):
+#     """
+#     API endpoint to get tenant schema and URL suffix by default URL.
+#     Returns only the tenant_schema and url_suffix based on the default URL.
+#     """
+#     permission_classes = [AllowAny]
+    
+#     def get(self, request, format=None):
+#         default_url = request.query_params.get('default_url')
+        
+#         if not default_url:
+#             return Response(
+#                 {'error': 'default_url parameter is required'}, 
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+        
+#         try:
+#             # Try to find a tenant with the exact default_url
+#             tenant = Tenant.objects.using('default').get(default_url=default_url)
+            
+#             response_data = {
+#                 'tenant_id': tenant.id,
+#                 'tenant_schema': tenant.schema_name,
+#                 # 'url_suffix': tenant.url_suffix,
+#                 'default_url': tenant.default_url
+#             }
+            
+#             return Response(response_data)
+            
+#         except Tenant.DoesNotExist:
+#             try:
+#                 # Check if the URL exists in the tenant domains
+#                 from django_tenants.utils import get_tenant_domain_model
+#                 domain = get_tenant_domain_model().objects.get(domain=default_url)
+#                 tenant = domain.tenant
+                
+#                 response_data = {
+#                     'tenant_id': tenant.id,
+#                     'tenant_schema': tenant.schema_name,
+#                     # 'url_suffix': tenant.url_suffix,
+#                     'default_url': default_url,
+#                     'found_via': 'domain_lookup'
+#                 }
+#                 return Response(response_data)
+                
+#             except Exception:
+#                 return Response(
+#                     {'error': 'No tenant found for the provided URL'}, 
+#                     status=status.HTTP_404_NOT_FOUND
+#                 )
+                
+#         except Exception as e:
+#             return Response(
+#                 {'error': str(e)}, 
+#                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+
+
+from django.db.models import Q
+
 @method_decorator(csrf_exempt, name='dispatch')
 class TenantByDefaultUrlView(APIView):
     """
-    API endpoint to get tenant schema and URL suffix by default URL.
-    Returns only the tenant_schema and url_suffix based on the default URL.
+    API endpoint to get tenant schema by a configured URL.
+    It first finds the URL in the TenantAppPortals table, then uses the
+    tenant_id from that record to retrieve the tenant schema.
     """
     permission_classes = [AllowAny]
     
     def get(self, request, format=None):
-        default_url = request.query_params.get('default_url')
+        # The incoming URL parameter from the query
+        lookup_url = request.query_params.get('default_url')
         
-        if not default_url:
+        if not lookup_url:
             return Response(
                 {'error': 'default_url parameter is required'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         try:
-            # Try to find a tenant with the exact default_url
-            tenant = Tenant.objects.using('default').get(default_url=default_url)
+            # Step 1: Find a portal record where the incoming URL matches any of the URL fields.
+            # Using .first() is safer than .get() as it returns None instead of raising an error
+            # if no record is found.
+            portal = TenantAppPortals.objects.filter(
+                Q(redirect_url=lookup_url) |
+                Q(custom_redirect_url=lookup_url)
+            ).first() 
+
+            if not portal:
+                # If no matching portal is found, we can't find a tenant.
+                return Response(
+                    {'error': 'This URL or tenant is not configured'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+
+            if portal.redirect_url == lookup_url:
+                matched_column = "redirect_url"
+            elif portal.custom_redirect_url == lookup_url:
+                matched_column = "custom_redirect_url"
+            else:
+                matched_column = None  # just in case, for safety
+
+            # Step 2: Use the tenant_id from the found portal to get the tenant object.
+            tenant = Tenant.objects.get(id=portal.tenant_id)
             
+            # Step 3: Prepare and return the response with the tenant's schema.
             response_data = {
                 'tenant_id': tenant.id,
                 'tenant_schema': tenant.schema_name,
-                # 'url_suffix': tenant.url_suffix,
-                'default_url': tenant.default_url
+                "redirect_url_column":matched_column,
+                "redirect_url": lookup_url or portal.default_url
             }
             
-            return Response(response_data)
+            return Response(response_data, status=status.HTTP_200_OK)
             
         except Tenant.DoesNotExist:
-            try:
-                # Check if the URL exists in the tenant domains
-                from django_tenants.utils import get_tenant_domain_model
-                domain = get_tenant_domain_model().objects.get(domain=default_url)
-                tenant = domain.tenant
-                
-                response_data = {
-                    'tenant_id': tenant.id,
-                    'tenant_schema': tenant.schema_name,
-                    # 'url_suffix': tenant.url_suffix,
-                    'default_url': default_url,
-                    'found_via': 'domain_lookup'
-                }
-                return Response(response_data)
-                
-            except Exception:
-                return Response(
-                    {'error': 'No tenant found for the provided URL'}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-                
-        except Exception as e:
+            # This is a data integrity error: a portal record exists but points to a non-existent tenant.
             return Response(
-                {'error': str(e)}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': f'Data integrity error: Tenant with id {portal.tenant_id} linked in portal does not exist.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        except Exception as e:
+            # A general catch-all for other unexpected errors.
+            return Response(
+                {'error': f'An unexpected error occurred: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class LineOfBusinessViewSet(viewsets.ModelViewSet):
     """

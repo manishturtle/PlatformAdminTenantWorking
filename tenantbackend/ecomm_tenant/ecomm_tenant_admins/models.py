@@ -644,6 +644,10 @@ class LoginConfig(models.Model):
         default=False,
         help_text="Enable or disable two-factor authentication for all users"
     )
+    theme_color = models.CharField(max_length=255, blank=True, null=True)
+    app_language = models.CharField(max_length=255, blank=True, null=True)
+    font_family = models.CharField(max_length=255, blank=True, null=True)
+
     client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -681,6 +685,10 @@ class LoginConfig(models.Model):
                         id SERIAL PRIMARY KEY,
                         brand_name VARCHAR(255),
                         logo VARCHAR(255),
+                        is_2fa_enabled BOOLEAN DEFAULT FALSE,
+                        theme_color VARCHAR(255),
+                        app_language VARCHAR(255),
+                        font_family VARCHAR(255),
                         client_id INTEGER,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
