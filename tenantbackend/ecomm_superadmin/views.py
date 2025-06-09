@@ -93,7 +93,7 @@ class PlatformAdminTenantView(APIView):
             with connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT 
-                        t.id, t.schema_name, t.name, t.url_suffix, t.created_at, t.updated_at,
+                        t.id, t.schema_name, t.name, t.url_suffix, t.schema_name, t.created_at, t.updated_at,
                         t.status, t.environment, t.default_url, t.paid_until, t.client_id,
                         ARRAY_AGG(DISTINCT jsonb_build_object(
                             'license_key', tsl.license_key,

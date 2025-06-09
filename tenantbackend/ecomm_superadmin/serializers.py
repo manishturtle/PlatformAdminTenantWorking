@@ -471,41 +471,19 @@ class TenantSerializer(serializers.ModelSerializer):
         );
         """)
         
-        # Create or update admin user if provided
+        # Set the tenant admin email in the tenant record
         if admin_email:
-            try:
-                # Try to get existing user
-                user = User.objects.get(email=admin_email)
-                # Update existing user's details if needed
-                if admin_first_name:
-                    user.first_name = admin_first_name
-                if admin_last_name:
-                    user.last_name = admin_last_name
-                if admin_password:
-                    user.set_password(admin_password)
-                user.is_staff = True
-                user.is_superuser = False
-                user.save()
-            except User.DoesNotExist:
-                # Use email as username
-                user = User.objects.create_user(
-                    username=admin_email,
-                    email=admin_email,
-                    first_name=admin_first_name,
-                    last_name=admin_last_name,
-                    password=admin_password,
-                    is_staff=True,
-                    is_superuser=False
-                )
-            
-            # Set the tenant relationship after user creation/update
             tenant.tenant_admin_email = admin_email
             tenant.save()
 
-            # Create tenant admin user in tenant schema
+            # Create tenant admin user in tenant schema only
             from django.db import connection
             cursor = connection.cursor()
             schema_name = tenant.schema_name
+            
+            # Generate password hash for the tenant user
+            from django.contrib.auth.hashers import make_password
+            hashed_password = make_password(admin_password) if admin_password else ''
 
             # Create tenant admin user first
             cursor.execute(f"""
@@ -513,7 +491,7 @@ class TenantSerializer(serializers.ModelSerializer):
             (password, is_superuser, username, email, first_name, last_name, is_active, is_staff, date_joined, created_at, updated_at)
             VALUES (%s, TRUE, %s, %s, %s, %s, TRUE, TRUE, NOW(), NOW(), NOW())
             RETURNING id
-            """, [user.password, admin_email, admin_email, admin_first_name or 'Admin', admin_last_name or 'User'])
+            """, [hashed_password, admin_email, admin_email, admin_first_name or 'Admin', admin_last_name or 'User'])
             tenant_user_id = cursor.fetchone()[0]
 
             # Create user profile

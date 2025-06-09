@@ -227,7 +227,7 @@ export default function TenantsPage() {
               <TableRow>
                 <TableCell>ID</TableCell>
                 <TableCell>Name</TableCell>
-                <TableCell>URL</TableCell>
+                <TableCell>Tenant_Slug</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Subscription Plan</TableCell>
                 <TableCell>Created At</TableCell>
@@ -254,11 +254,11 @@ export default function TenantsPage() {
                     <TableCell>{tenant.name}</TableCell>
                     <TableCell>
                       <MuiLink
-                        href={`http://localhost:3001/${tenant.url_suffix}`}
+                        href={`http://localhost:3001/${tenant.schema_name}`}
                         target="_blank"
                         rel="noopener"
                       >
-                        {tenant.url_suffix}
+                        {tenant.schema_name}
                       </MuiLink>
                     </TableCell>
                     <TableCell>
