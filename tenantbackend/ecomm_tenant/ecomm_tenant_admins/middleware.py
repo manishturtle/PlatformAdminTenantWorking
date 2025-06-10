@@ -33,7 +33,6 @@ class TenantRoutingMiddleware(MiddlewareMixin):
     New applications can be added to the tenant system by registering them in the
     TenantAppRegistry.
     """
-    
     def __init__(self, get_response):
         """
         Initialize the middleware with the get_response callable.
@@ -224,3 +223,5 @@ class TenantRoutingMiddleware(MiddlewareMixin):
             if '/tenant-admin/' in new_path:
                 request.is_tenant_admin = True
                 request.META['HTTP_X_TENANT_ADMIN'] = 'true'
+
+

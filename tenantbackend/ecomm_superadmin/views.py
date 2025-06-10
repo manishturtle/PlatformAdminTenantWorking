@@ -23,7 +23,8 @@ from rest_framework.exceptions import NotFound
 logger = logging.getLogger(__name__)
 from services.email_service import send_email
 from KeyProductSettings.settings import APPLICATION_MIGRATION_BACKEND_ENDPOINT
-
+from ecomm_superadmin.platform_admin_jwt import PlatformAdminJWTAuthentication
+from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentication
 
 from .models import Tenant, User, CrmClient, Application, TenantAppPortals
 from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer, LineOfBusinessSerializer
@@ -35,6 +36,7 @@ class PlatformAdminTenantView(APIView):
     API endpoint that allows platform admins to manage tenants.
     Uses direct database access to avoid model field mapping issues.
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def create_tenant_portals(self, tenant_id: int, applications: list) -> None:
@@ -491,6 +493,7 @@ def delete(self, request, tenant_id, format=None):
     2. Delete entry from ecomm_superadmin_tenants
     3. Drop the schema with CASCADE
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     try:
         import traceback
         from django.db import connection
@@ -550,6 +553,7 @@ class PlatformAdminLoginView(APIView):
     API endpoint for platform admin login.
     """
     permission_classes = [AllowAny]
+    # authentication_classes = [PlatformAdminJWTAuthentication]
     
     def post(self, request):
         """
@@ -645,6 +649,7 @@ class PlatformAdminViewSet(viewsets.ModelViewSet):
     Provides CRUD operations for User objects with appropriate permissions
     and validation for user management.
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = get_user_model().objects.all().order_by('-date_joined')
     serializer_class = UserAdminSerializer
     
@@ -729,6 +734,7 @@ class CrmClientViewSet(viewsets.ModelViewSet):
     API endpoint that allows CRM clients to be viewed or edited.
     Only platform admin users have access to this endpoint.
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = CrmClient.objects.all()
     serializer_class = CrmClientSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -749,11 +755,12 @@ class TenantApplicationsByUrlView(APIView):
     """
     API endpoint to get applications for a specific tenant using their URL suffix.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     def get(self, request, url_suffix):
         try:
             # Close any stale connection
             connection.close()
-
+            print("kk:")
             with connection.cursor() as cursor:
                 # Step 1: Get the tenant
                 cursor.execute("""
@@ -800,19 +807,89 @@ class TenantApplicationsByUrlView(APIView):
                     return Response([], status=status.HTTP_200_OK)
 
                 # Step 4: Fetch application details
-                placeholders = ','.join(['%s'] * len(app_ids))
-                cursor.execute(f"""
-                    SELECT DISTINCT a.app_id, a.application_name, a.app_default_url, 
-                                    a.description, a.is_active, a.created_at
-                    FROM public.application a
-                    WHERE a.app_id IN ({placeholders})
-                      AND a.is_active = TRUE
-                """, list(app_ids))
+                # placeholders = ','.join(['%s'] * len(app_ids))
+                # cursor.execute(f"""
+                #     SELECT DISTINCT a.app_id, a.application_name, a.app_default_url, 
+                #                     a.description, a.is_active, a.created_at
+                #     FROM public.application a
+                #     WHERE a.app_id IN ({placeholders})
+                #       AND a.is_active = TRUE
+                # """, list(app_ids))
 
-                columns = [col[0] for col in cursor.description]
-                rows = cursor.fetchall()
-                applications = [dict(zip(columns, row)) for row in rows]
+                # columns = [col[0] for col in cursor.description]
+                # rows = cursor.fetchall()
+                # applications = [dict(zip(columns, row)) for row in rows]
 
+                # Step 4: Fetch application details along with portal URLs
+                # placeholders = ','.join(['%s'] * len(app_ids))
+                # query_params = [tenant_id] + list(app_ids)
+
+                # cursor.execute(f"""
+                #     SELECT DISTINCT
+                #         a.app_id,
+                #         a.application_name,
+                #         a.app_default_url,
+                #         a.description,
+                #         a.is_active,
+                #         a.created_at,
+                #         p.default_url AS portal_default_url,
+                #         p.redirect_url AS portal_redirect_url,
+                #         p.custom_redirect_url AS portal_custom_redirect_url
+                #     FROM public.application a
+                #     LEFT JOIN public.ecomm_superadmin_tenant_app_portals p
+                #         ON a.app_id = p.app_id AND p.tenant_id = %s
+                #     WHERE a.app_id IN ({placeholders})
+                #     AND a.is_active = TRUE
+                # """, query_params)
+
+                # columns = [col[0] for col in cursor.description]
+                # rows = cursor.fetchall()
+                # applications = [dict(zip(columns, row)) for row in rows]
+
+                # Step 4: Fetch application details + portal URLs
+                if app_ids:
+                    placeholders = ','.join(['%s'] * len(app_ids))
+                    cursor.execute(f"""
+                        SELECT DISTINCT 
+                            a.app_id, 
+                            a.application_name, 
+                            a.app_default_url, 
+                            a.description, 
+                            a.is_active, 
+                            a.created_at,
+                            p.default_url AS portal_default_url,
+                            p.redirect_url AS portal_redirect_url,
+                            p.custom_redirect_url AS portal_custom_redirect_url
+                        FROM public.application a
+                        JOIN public.ecomm_superadmin_tenant_app_portals p
+                        ON a.app_id = p.app_id
+                        WHERE a.app_id IN ({placeholders})
+                        AND a.is_active = TRUE
+                        AND p.tenant_id = %s
+                    """, list(app_ids) + [tenant_id])
+
+                    columns = [col[0] for col in cursor.description]
+                    rows = cursor.fetchall()
+
+                    # Step 5: Deduplicate apps and choose proper redirect URL
+                    apps_by_id = {}
+                    for row in rows:
+                        app = dict(zip(columns, row))
+                        app_id = app["app_id"]
+                        redirect_url = app["portal_custom_redirect_url"] or app["portal_redirect_url"]
+
+                        if app_id not in apps_by_id:
+                            apps_by_id[app_id] = {
+                                "app_id": app_id,
+                                "application_name": app["application_name"],
+                                "app_default_url": redirect_url,  # overriding with redirect logic
+                                "description": app["description"],
+                                "is_active": app["is_active"],
+                                "created_at": app["created_at"]
+                            }
+
+                    applications = list(apps_by_id.values())
+                 
                 return Response(applications)
 
         except Exception as e:
@@ -825,99 +902,13 @@ class TenantApplicationsByUrlView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-# @method_decorator(csrf_exempt, name='dispatch')
-# class TenantSubscriptionDetailsView(APIView):
-#     """
-#     API endpoint to get subscription details for a specific tenant.
-#     """
-#     def get(self, request, tenant_slug):
-#         """
-#         Get subscription details for a tenant by their URL suffix.
-        
-#         Returns:
-#             - Tenant's subscription plan details including:
-#               - Plan name and ID
-#               - Plan features and their settings
-#               - Usage statistics (if available)
-#               - Subscription status and dates
-#         """
-#         try:
-#             with connection.cursor() as cursor:
-#                 # Get tenant and subscription plan details
-#                 cursor.execute("""
-#                     SELECT 
-#                         t.id as tenant_id,
-#                         t.name as tenant_name,
-#                         t.subscription_plan_id,
-#                         t.status as tenant_status,
-#                         t.default_url,
-#                         t.paid_until,
-#                         sp.id as plan_id,
-#                         sp.name as plan_name,
-#                         sp.description,
-#                         sp.status as plan_status,
-#                         sp.price,
-#                         sp.max_users,
-#                         sp.transaction_limit,
-#                         sp.api_call_limit,
-#                         sp.storage_limit,
-#                         sp.session_type,
-#                         sp.support_level,
-#                         sp.valid_from,
-#                         sp.valid_until,
-#                         sp.granular_settings
-#                     FROM public.ecomm_superadmin_tenants t
-#                     LEFT JOIN public.subscription_plans sp ON t.subscription_plan_id = sp.id
-#                     WHERE t.url_suffix = %s
-#                 """, [tenant_slug])
-                
-#                 tenant_data = cursor.fetchone()
-#                 if not tenant_data:
-#                     return Response(
-#                         {"error": "Tenant not found"},
-#                         status=status.HTTP_404_NOT_FOUND
-#                     )
-                
-#                 columns = [col[0] for col in cursor.description]
-#                 tenant_dict = dict(zip(columns, tenant_data))
-                
-#                 # Get plan features and their settings
-#                 if tenant_dict['subscription_plan_id']:
-#                     cursor.execute("""
-#                         SELECT 
-#                             f.id as feature_id,
-#                             f.name as feature_name,
-#                             f.description as feature_description,
-#                             f.granual_settings as feature_settings
-#                         FROM public.plan_feature_entitlements pfe
-#                         JOIN public.features f ON pfe.feature_id = f.id
-#                         WHERE pfe.plan_id = %s
-#                     """, [tenant_dict['subscription_plan_id']])
-                    
-#                     features = []
-#                     for row in cursor.fetchall():
-#                         feature_columns = [col[0] for col in cursor.description]
-#                         feature_dict = dict(zip(feature_columns, row))
-#                         features.append(feature_dict)
-                    
-#                     tenant_dict['features'] = features
-                
-#                 return Response(tenant_dict)
-                
-#         except Exception as e:
-#             logger.error(f"Error in TenantSubscriptionDetailsView: {str(e)}", exc_info=True)
-#             return Response(
-#                 {"error": str(e),
-#                  "detail": "An unexpected error occurred while fetching subscription details."},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TenantSubscriptionDetailsView(APIView):
     """
     API endpoint to get all subscription licenses for a specific tenant.
     """
-
+    authentication_classes = [TenantAdminJWTAuthentication]
     def get(self, request, tenant_slug):
         try:
             with connection.cursor() as cursor:
@@ -989,13 +980,12 @@ class TenantSubscriptionDetailsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
-
 @method_decorator(csrf_exempt, name='dispatch')
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for viewing and managing applications.
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]
     queryset = Application.objects.all()
@@ -1059,64 +1049,6 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data)
-
-# @method_decorator(csrf_exempt, name='dispatch')
-# class TenantByDefaultUrlView(APIView):
-#     """
-#     API endpoint to get tenant schema and URL suffix by default URL.
-#     Returns only the tenant_schema and url_suffix based on the default URL.
-#     """
-#     permission_classes = [AllowAny]
-    
-#     def get(self, request, format=None):
-#         default_url = request.query_params.get('default_url')
-        
-#         if not default_url:
-#             return Response(
-#                 {'error': 'default_url parameter is required'}, 
-#                 status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             # Try to find a tenant with the exact default_url
-#             tenant = Tenant.objects.using('default').get(default_url=default_url)
-            
-#             response_data = {
-#                 'tenant_id': tenant.id,
-#                 'tenant_schema': tenant.schema_name,
-#                 # 'url_suffix': tenant.url_suffix,
-#                 'default_url': tenant.default_url
-#             }
-            
-#             return Response(response_data)
-            
-#         except Tenant.DoesNotExist:
-#             try:
-#                 # Check if the URL exists in the tenant domains
-#                 from django_tenants.utils import get_tenant_domain_model
-#                 domain = get_tenant_domain_model().objects.get(domain=default_url)
-#                 tenant = domain.tenant
-                
-#                 response_data = {
-#                     'tenant_id': tenant.id,
-#                     'tenant_schema': tenant.schema_name,
-#                     # 'url_suffix': tenant.url_suffix,
-#                     'default_url': default_url,
-#                     'found_via': 'domain_lookup'
-#                 }
-#                 return Response(response_data)
-                
-#             except Exception:
-#                 return Response(
-#                     {'error': 'No tenant found for the provided URL'}, 
-#                     status=status.HTTP_404_NOT_FOUND
-#                 )
-                
-#         except Exception as e:
-#             return Response(
-#                 {'error': str(e)}, 
-#                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
 
 
 from django.db.models import Q
@@ -1195,6 +1127,7 @@ class LineOfBusinessViewSet(viewsets.ModelViewSet):
     API endpoint that allows Lines of Business to be viewed or edited.
     Provides CRUD operations for LineOfBusiness objects with appropriate permissions.
     """
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = LineOfBusiness.objects.all()
     serializer_class = LineOfBusinessSerializer
     permission_classes = [IsAuthenticated]

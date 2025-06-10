@@ -49,6 +49,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentication
+from ecomm_superadmin.platform_admin_jwt import PlatformAdminJWTAuthentication
 
 # Get the logger
 logger = logging.getLogger(__name__)
@@ -77,13 +79,15 @@ class CheckEmailView(APIView):
         - 400 Bad Request: Validation errors if request data is invalid
         - 403 Forbidden: If accessed from platform-admin context
         """
+
+
         # Check if we're in platform-admin context (not tenant context)
         if not hasattr(request, 'tenant_url') or not request.tenant_url:
             return Response(
                 {"detail": "Registration is not allowed in platform-admin context"},
                 status=status.HTTP_403_FORBIDDEN
             )
-            
+        
         email = request.data.get('email')
         
         if not email:
@@ -579,6 +583,7 @@ class UserProfileView(APIView):
     """
     API endpoint for retrieving user profile information.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     
     def get(self, request, *args, **kwargs):
         """
@@ -1757,6 +1762,7 @@ class RoleViewSet(ModelViewSet):
     are granted full access to all role management features regardless of specific
     role-based permissions.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [IsTenantAdmin]
@@ -1844,6 +1850,7 @@ class PermissionViewSet(ModelViewSet):
     """
     ViewSet for managing permissions.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [IsTenantAdmin]
@@ -1865,6 +1872,7 @@ class UserRoleViewSet(ModelViewSet):
     """
     ViewSet for managing user roles.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
     permission_classes = [HasTenantPermission('assign_roles')]
@@ -1955,6 +1963,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     Provides CRUD operations for Tenant objects with appropriate permissions
     and validation for tenant management.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     queryset = Tenant.objects.all().order_by('-created_at')
     serializer_class = TenantSerializer
     
@@ -2374,8 +2383,9 @@ class TenantUserViewSet(ModelViewSet):
     The TenantRoutingMiddleware ensures that this viewset only operates on
     users within the current tenant's schema.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     model = TenantUser
-    permission_classes = [IsAuthenticated, IsCurrentTenantAdmin]
+    permission_classes = [IsAuthenticated]
     queryset = TenantUser.objects.all()  # Base queryset
     
     def get_serializer_class(self):
@@ -2716,10 +2726,12 @@ class TenantUserViewSet(ModelViewSet):
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows applications to be viewed or edited.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2800,6 +2812,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
 class TenantRolesViewSet(viewsets.ViewSet):
     """API endpoint to get roles for a specific tenant based on app_id."""
+    authentication_classes = [TenantAdminJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def list_roles(self, request, tenant_slug=None):

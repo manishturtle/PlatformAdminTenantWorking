@@ -166,6 +166,7 @@ class TenantUser(AbstractBaseUser, PermissionsMixin):
         """Return the short name for the user."""
         return self.first_name
 
+
 class UserProfile(models.Model):
     """
     Model to extend the built-in User model with additional fields.

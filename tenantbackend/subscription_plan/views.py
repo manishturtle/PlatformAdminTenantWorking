@@ -21,12 +21,16 @@ from urllib.parse import urlparse
 from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import permission_classes
+from rest_framework.decorators import permission_classes, authentication_classes
 import json 
+from ecomm_superadmin.platform_admin_jwt import PlatformAdminJWTAuthentication
+from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentication
+
 
 # Create your views here.
 
 class FeatureGroupViewSet(viewsets.ModelViewSet):
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = FeatureGroup.objects.all()
     serializer_class = FeatureGroupSerializer
 
@@ -40,6 +44,7 @@ class FeatureGroupViewSet(viewsets.ModelViewSet):
 
 
 class FeatureViewSet(viewsets.ModelViewSet):
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = Feature.objects.all()
     serializer_class = FeatureSerializer
 
@@ -216,6 +221,7 @@ class FeatureViewSet(viewsets.ModelViewSet):
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
+    authentication_classes = [PlatformAdminJWTAuthentication]
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
 
@@ -438,6 +444,7 @@ from urllib.parse import urlparse
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@authentication_classes([TenantAdminJWTAuthentication])
 def change_subscription_plan(request):
     """Change a tenant's subscription plan (upgrade/downgrade/renewal)
     
@@ -571,6 +578,7 @@ def change_subscription_plan(request):
         return Response({
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 def create_subscription_snapshots(new_plan):
     """Create subscription plan and features snapshots for a plan using raw SQL"""
@@ -716,10 +724,10 @@ def create_new_subscription(tenant, new_plan, client_id, created_by):
         features_snapshot=features_snapshot
     )
 
-
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@authentication_classes([TenantAdminJWTAuthentication])
 def get_subscription_plan_by_tenant(request):
     """
     API endpoint to get subscription plan data based on tenant_id.

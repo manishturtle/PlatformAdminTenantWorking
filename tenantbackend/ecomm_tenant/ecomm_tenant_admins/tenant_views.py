@@ -19,6 +19,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 import os
+from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentication
+from ecomm_superadmin.platform_admin_jwt import PlatformAdminJWTAuthentication
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ class LoginConfigView(APIView):
     Allows tenant admins to customize their login page with a logo and brand name.
     """
     permission_classes = [AllowAny]
+    authentication_classes = [TenantAdminJWTAuthentication]
 
 
     def get_tenant(self, tenant_slug):
@@ -159,8 +162,8 @@ class TenantUserCheckView(APIView):
     This view checks if a user exists in the TenantUser table and if they have
     an entry in the UserRole table. It does not require the user to be a tenant admin.
     """
+    authentication_classes = [TenantAdminJWTAuthentication]
     permission_classes = [AllowAny]
-    authentication_classes = []
     
     def post(self, request, *args, **kwargs):
         """

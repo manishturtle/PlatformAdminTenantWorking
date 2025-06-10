@@ -222,15 +222,17 @@ export default function TenantAdminDashboard() {
                           </Typography>
                         </CardContent>
                         <CardActions>
-                          <Button
+                        <Button
                             size="small"
-                            onClick={() =>
-                              router.push(
-                                `/${tenantSlug}/tenant-admin/apps/${app.app_id}`
-                              )
-                            }
+                            onClick={() => {
+                              if (app.app_default_url) {
+                                window.open(app.app_default_url, '_blank');
+                              } else {
+                                alert("No default URL configured for this application.");
+                              }
+                            }}
                           >
-                            Open
+                            Go to app
                           </Button>
                         </CardActions>
                       </Card>
