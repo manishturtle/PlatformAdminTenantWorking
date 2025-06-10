@@ -63,14 +63,33 @@
                     <h4>Your Applications:</h4>
                     <ul style="list-style-type: none; padding-left: 0;">
                         {% for app in sub.applications %}
-                            <li style="margin-bottom: 10px;">
-                                <strong>{{ app.name }}:</strong>
-                                {% if app.url %}
-                                    <a href="{{ app.url }}" style="color: #4a90e2; text-decoration: none;">
-                                        {{ app.url }}
-                                    </a>
+                            <li style="margin-bottom: 20px;">
+                                <div style="margin-bottom: 5px; font-weight: bold; color: #333;">{{ app.name }}</div>
+                                {% if app.portals %}
+                                    <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+                                        <tr style="background-color: #f9f9f9;">
+                                            <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">Portal Name</th>
+                                            <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">URL</th>
+                                        </tr>
+                                        {% for portal in app.portals %}
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: 500;">{{ portal.portal_name }}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                                    <a href="{{ portal.portal_url }}" style="color: #4a90e2; text-decoration: none; word-break: break-all;">
+                                                        {{ portal.portal_url }}
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
                                 {% else %}
-                                    <span>No URL available</span>
+                                    {% if app.url %}
+                                        <a href="{{ app.url }}" style="color: #4a90e2; text-decoration: none;">
+                                            {{ app.url }}
+                                        </a>
+                                    {% else %}
+                                        <span>No URL available</span>
+                                    {% endif %}
                                 {% endif %}
                             </li>
                         {% endfor %}

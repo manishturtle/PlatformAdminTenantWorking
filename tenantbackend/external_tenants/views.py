@@ -623,10 +623,37 @@ class OrderProcessedView(APIView):
                     if app_url:
                         app_url = f"{app_url}/{schema_name}"
                     
+                    # Fetch all portal entries for this application
+                    portal_entries = []
+                    try:
+                        portals = TenantAppPortals.objects.filter(
+                            tenant_id=tenant.id,
+                            app_id=app['app_id']
+                        )
+                        
+                        for portal in portals:
+                            # Use custom_redirect_url if available, otherwise use redirect_url
+                            portal_url = portal.custom_redirect_url if portal.custom_redirect_url else portal.redirect_url
+                            
+                            portal_entries.append({
+                                "portal_name": portal.portal_name,
+                                "portal_url": portal_url
+                            })
+                    except Exception as e:
+                        logger.error(f"Error fetching portal entries for app {app['app_id']}: {str(e)}", exc_info=True)
+                    
+                    # If no portals found, still include the app with the default URL
+                    if not portal_entries:
+                        portal_entries = [{
+                            "portal_name": "Default",
+                            "portal_url": app_url
+                        }]
+                    
                     subscription_info["applications"].append({
                         "name": app['name'],
-                        "url": app_url,
-                        "app_id": app['app_id']
+                        "url": app_url, # Keep for backward compatibility
+                        "app_id": app['app_id'],
+                        "portals": portal_entries
                     })
                 
                 email_context["subscriptions"].append(subscription_info)
@@ -634,8 +661,8 @@ class OrderProcessedView(APIView):
             # Send welcome email with all subscription and application details
             try:
                 send_email(
-                    # to_emails=client.contact_person_email,
-                    to_emails="manish@turtlesoftware.co",
+                    to_emails=client.contact_person_email,
+                    # to_emails="manish@turtlesoftware.co",
                     subject=f"Welcome to Our Platform, {client.client_name or 'User'}!",
                     template_name="subscription_welcome",
                     template_context=email_context

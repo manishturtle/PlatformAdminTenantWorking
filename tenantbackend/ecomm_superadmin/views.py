@@ -89,7 +89,6 @@ class PlatformAdminTenantView(APIView):
             logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
             raise
 
-
     def get(self, request, format=None):
         """
         List all tenants directly from the database.
@@ -460,8 +459,8 @@ class PlatformAdminTenantView(APIView):
                 subject="Welcome to Our Platform!",
                 template_name="subscription_welcome",
                 template_context={
-                    "user_name": "Manish",  
-                    "user_email": "manish@turtlesoftware.co",
+                    "user_name": client.contact_person_name,  
+                    "user_email": client.contact_person_email,
                     "default_password":"India@123",
                     "subscriptions": [
                             {
