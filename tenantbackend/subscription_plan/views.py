@@ -908,3 +908,4 @@ def check_tenant_exist(request):
     except Exception as e:
         print("Error:", e)
         return Response({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

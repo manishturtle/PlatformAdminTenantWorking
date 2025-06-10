@@ -15,6 +15,7 @@ from django.utils.decorators import method_decorator
 import logging
 import uuid
 from subscription_plan.models import SubscriptionPlan
+from ecomm_tenant.ecomm_tenant_admins.serializers import LoginConfigSerializer
 from .models import TenantSubscriptionLicenses, LineOfBusiness
 from django.utils import timezone
 from datetime import timedelta
@@ -1052,6 +1053,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
 
 from django.db.models import Q
+from ecomm_tenant.ecomm_tenant_admins.models import LoginConfig
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TenantByDefaultUrlView(APIView):
@@ -1098,13 +1100,26 @@ class TenantByDefaultUrlView(APIView):
 
             # Step 2: Use the tenant_id from the found portal to get the tenant object.
             tenant = Tenant.objects.get(id=portal.tenant_id)
+
+            if not tenant:
+                return Response(
+                    {'error': 'Tenant not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            config = LoginConfig.objects.filter().first()
+            if config:
+                login_config_data = LoginConfigSerializer(config).data
+            else:
+                login_config_data = None
             
             # Step 3: Prepare and return the response with the tenant's schema.
             response_data = {
                 'tenant_id': tenant.id,
                 'tenant_schema': tenant.schema_name,
-                "redirect_url_column":matched_column,
-                "redirect_url": lookup_url or portal.default_url
+                # "redirect_url_column":matched_column,
+                # "redirect_url": lookup_url or portal.default_url,
+                'theme_config': login_config_data
             }
             
             return Response(response_data, status=status.HTTP_200_OK)
@@ -1121,6 +1136,7 @@ class TenantByDefaultUrlView(APIView):
                 {'error': f'An unexpected error occurred: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class LineOfBusinessViewSet(viewsets.ModelViewSet):
     """

@@ -49,27 +49,59 @@ class LoginConfigView(APIView):
             return tenant.client_id
         return None
 
+    # def get(self, request, tenant_slug):
+    #     """Get the current login configuration for the tenant"""
+    #     try:
+    #         # Ensure the LoginConfig table exists
+    #         LoginConfig.create_table_if_not_exists()
+    #         tenant = self.get_tenant(tenant_slug)
+    #         if not tenant:
+    #             return Response(
+    #                 {"error": "Invalid tenant slug",
+    #                  "message": f'The tenant "{tenant_slug}" does not exist',
+    #                  "status_code": 404}, 
+    #                 status=status.HTTP_404_NOT_FOUND
+    #             )
+
+    #         client_id = tenant.client_id
+    #         config = LoginConfig.objects.filter(client_id=client_id).first()
+    #         if not config:
+    #             return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = LoginConfigSerializer(config)
+    #         return Response(serializer.data)
+
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving login config: {str(e)}")
+    #         return Response(
+    #             {"error": "Failed to retrieve login configuration"}, 
+    #             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    #         )
+
     def get(self, request, tenant_slug):
         """Get the current login configuration for the tenant"""
         try:
-            # Ensure the LoginConfig table exists
             LoginConfig.create_table_if_not_exists()
             tenant = self.get_tenant(tenant_slug)
             if not tenant:
                 return Response(
                     {"error": "Invalid tenant slug",
-                     "message": f'The tenant "{tenant_slug}" does not exist',
-                     "status_code": 404}, 
+                    "message": f'The tenant "{tenant_slug}" does not exist',
+                    "status_code": 404}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
 
             client_id = tenant.client_id
             config = LoginConfig.objects.filter(client_id=client_id).first()
             if not config:
-                return Response({}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"theme_config": {}}, status=status.HTTP_404_NOT_FOUND)
 
             serializer = LoginConfigSerializer(config)
-            return Response(serializer.data)
+            return Response({
+                "theme_config": serializer.data,
+                "tenant_id": tenant.id,
+                "schema_name": tenant_slug
+            })
 
         except Exception as e:
             logger.error(f"Error retrieving login config: {str(e)}")
