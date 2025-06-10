@@ -371,6 +371,10 @@ class PlatformAdminTenantView(APIView):
     def post(self, request, format=None):
         """Create a new tenant and optionally assign subscription plan."""
         from django.db import transaction
+        import logging
+        import traceback
+        
+        logger = logging.getLogger(__name__)
         
         serializer = TenantSerializer(data=request.data)
         if not serializer.is_valid():
@@ -378,7 +382,6 @@ class PlatformAdminTenantView(APIView):
         
         try:
             # Start transaction for tenant creation
-            # with transaction.atomic():
             # Create tenant first
             tenant = serializer.save(
                 created_by=request.user.username if request.user.is_authenticated else None
@@ -386,6 +389,20 @@ class PlatformAdminTenantView(APIView):
 
             # Initialize response data
             response_data = {'tenant': serializer.data}
+
+            # Get client details from the database based on client_id
+            client_id = request.data.get('client_id')
+            client = None
+            try:
+                if client_id:
+                    client = CrmClient.objects.get(id=client_id)
+                    logger.info(f"Found client: {client.client_name} with email: {client.contact_person_email}")
+            except CrmClient.DoesNotExist:
+                logger.warning(f"Client with id {client_id} not found in database")
+                # Continue execution, we'll use defaults if client not found
+            except Exception as e:
+                logger.error(f"Error retrieving client details: {str(e)}", exc_info=True)
+                # Continue execution, we'll use defaults if there's an error
 
             # Handle subscription plans if provided
             subscription_plan_ids = request.data.get('subscription_plan', [])
@@ -405,7 +422,7 @@ class PlatformAdminTenantView(APIView):
                         subscription = self.create_tenant_subscription(
                             tenant=tenant,
                             subscription_plan=subscription_plan,
-                            client_id=request.data.get('client_id'),
+                            client_id=client_id,
                             company_id=request.data.get('company_id'),
                             created_by=request.user.username if request.user.is_authenticated else None
                         )
@@ -506,30 +523,37 @@ class PlatformAdminTenantView(APIView):
                     "applications": subscription_apps
                 })
             
+            # Use client info if available, otherwise use defaults
+            user_name = client.contact_person_name if client and hasattr(client, 'contact_person_name') else "User"
+            user_email = client.contact_person_email if client and hasattr(client, 'contact_person_email') else "admin@example.com"
+            
+            # Default password (should ideally be generated and stored securely)
+            default_password = "India@123"
+            
             # Send the welcome email with enhanced application data
-            send_email(
-                # to_emails=client.contact_person_email,
-                to_emails="manish@turtlesoftware.co",
-                subject="Welcome to Our Platform!",
-                template_name="subscription_welcome",
-                template_context={
-                    "user_name": "Keval",  
-                    "user_email": "kevbhai@gmail.com",
-                    "default_password":"India@123",
-                    "subscriptions": email_subscriptions,
-                    "tenant_name": tenant.name
-                }
-            )
+            if email_subscriptions:  # Only send email if we have subscriptions
+                send_email(
+                    # to_emails="manish@turtlesoftware.co",
+                    to_emails=user_email,
+                    subject=f"Welcome to Our Platform, {user_name}!",
+                    template_name="subscription_welcome",
+                    template_context={
+                        "user_name": user_name,
+                        "user_email": user_email,
+                        "default_password": default_password,
+                        "subscriptions": email_subscriptions,
+                        "tenant_name": tenant.name
+                    }
+                )
 
             return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             # Log the full error for debugging
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error in PlatformAdminTenantView.post: {str(e)}", exc_info=True)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         finally:
             connection.set_schema_to_public()
-            
+
 
 def delete(self, request, tenant_id, format=None):
     """Delete a tenant by ID.
