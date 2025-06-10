@@ -453,25 +453,71 @@ class PlatformAdminTenantView(APIView):
                         logger.error(f"Error creating portal entries: {str(e)}", exc_info=True)
                         # Don't fail the entire request if portal creation fails
 
+            # Prepare email context with enhanced application data including all portal URLs
+            email_subscriptions = []
+            
+            for subscription in subscriptions:
+                # Get applications for this subscription
+                subscription_apps = []
+                subscription_plan = SubscriptionPlan.objects.get(id=subscription.subscription_plan_id)
+                applications = self.get_applications_from_subscription(subscription_plan)
+                
+                for app in applications:
+                    app_data = {
+                        "name": app.get('application_name', 'Unknown Application'),
+                        "app_id": app.get('app_id'),
+                        "url": app.get('app_default_url', ''),  # For backward compatibility
+                        "portals": []
+                    }
+                    
+                    # Get all portal entries for this application
+                    try:
+                        portals = TenantAppPortals.objects.filter(
+                            tenant_id=tenant.id,
+                            app_id=app.get('app_id')
+                        )
+                        
+                        for portal in portals:
+                            # Use custom_redirect_url if available, otherwise use redirect_url
+                            portal_url = portal.custom_redirect_url if portal.custom_redirect_url else portal.redirect_url
+                            
+                            app_data["portals"].append({
+                                "portal_name": portal.portal_name,
+                                "portal_url": portal_url
+                            })
+                    except Exception as e:
+                        logger.error(f"Error fetching portal entries for app {app.get('app_id')}: {str(e)}", exc_info=True)
+                    
+                    # If no portals found, include a default entry
+                    if not app_data["portals"] and app_data["url"]:
+                        app_data["portals"] = [{
+                            "portal_name": "Default",
+                            "portal_url": app_data["url"]
+                        }]
+                    
+                    subscription_apps.append(app_data)
+                
+                # Create the subscription data structure for the email
+                email_subscriptions.append({
+                    "license_key": subscription.license_key,
+                    "license_status": subscription.license_status,
+                    "valid_from": subscription.valid_from.strftime("%Y-%m-%d"),
+                    "valid_until": subscription.valid_until.strftime("%Y-%m-%d") if subscription.valid_until else None,
+                    "applications": subscription_apps
+                })
+            
+            # Send the welcome email with enhanced application data
             send_email(
-                to_emails="manish@turtlesoftware.co",
                 # to_emails=client.contact_person_email,
+                to_emails="manish@turtlesoftware.co",
                 subject="Welcome to Our Platform!",
                 template_name="subscription_welcome",
                 template_context={
-                    "user_name": client.contact_person_name,  
-                    "user_email": client.contact_person_email,
+                    "user_name": "Keval",  
+                    "user_email": "kevbhai@gmail.com",
                     "default_password":"India@123",
-                    "subscriptions": [
-                            {
-                                "license_key": subscription.license_key,
-                                "license_status": subscription.license_status,
-                                "valid_from": subscription.valid_from.strftime("%Y-%m-%d"),
-                                "valid_until": subscription.valid_until.strftime("%Y-%m-%d") if subscription.valid_until else None,
-                                "activation_link": f"https://devstore.turtleit.in/default"
-                            }
-                            for subscription in subscriptions
-                        ]
+                    "subscriptions": email_subscriptions,
+                    "tenant_name": tenant.name
                 }
             )
 
