@@ -98,7 +98,7 @@ class LoginConfigView(APIView):
 
             serializer = LoginConfigSerializer(config)
             return Response({
-                "theme_config": serializer.data,
+                 **serializer.data,
                 "tenant_id": tenant.id,
                 "schema_name": tenant_slug
             })
@@ -109,6 +109,7 @@ class LoginConfigView(APIView):
                 {"error": "Failed to retrieve login configuration"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
     def post(self, request, tenant_slug):
         """Create or update login configuration for the tenant"""
@@ -140,7 +141,12 @@ class LoginConfigView(APIView):
             field_mapping = {
                 'fontFamily': 'font_family',
                 'themeColor': 'theme_color',
-                'appLangugae': 'app_language'  # Note: There's a typo in the JSON field name
+                'appLangugae': 'app_language',  # Note: There's a typo in the JSON field name
+                'companyName': 'company_name',
+                'address1': 'address_1',
+                'address2': 'address_2',
+                'pinCode': 'pincode',
+                'gstIn': 'gstin'
             }
             
             # Apply field name mapping
@@ -464,7 +470,7 @@ class TenantUserLoginView(APIView):
         # Log successful login
         logger.info(f"TenantUserLoginView - Login successful for user: {user.id}")
 
-        final_redirect_url = f'{default_url}{request.tenant.schema_name}/{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant.schema_name}&app_id={app_id}'
+        final_redirect_url = f'{default_url}{request.tenant.schema_name}/{app_endpoint_route}?token={str(refresh.access_token)}&tenant_slug={request.tenant.schema_name}&app_id={app_id}&default_url={default_url + request.tenant.schema_name}'
         
         # Return token and user data along with application details
         return Response({

@@ -105,6 +105,7 @@ class TenantRoutingMiddleware(MiddlewareMixin):
             '/media/', 
             '/platform-admin/', 
             '/api/platform-admin/', 
+            '/api/location/',  # Add location API to skip list
             '/api/ecommerce/'  # Add ecommerce API to skip list
         ]
         logger.info(f"Checking if path should be skipped: {path}")

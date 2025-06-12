@@ -222,13 +222,15 @@ export default function TenantAdminDashboard() {
                           </Typography>
                         </CardContent>
                         <CardActions>
-                        <Button
+                          <Button
                             size="small"
                             onClick={() => {
                               if (app.app_default_url) {
-                                window.open(app.app_default_url, '_blank');
+                                window.open(app.app_default_url, "_blank");
                               } else {
-                                alert("No default URL configured for this application.");
+                                alert(
+                                  "No default URL configured for this application."
+                                );
                               }
                             }}
                           >

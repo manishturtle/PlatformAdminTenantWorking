@@ -648,7 +648,17 @@ class LoginConfig(models.Model):
     theme_color = models.CharField(max_length=255, blank=True, null=True)
     app_language = models.CharField(max_length=255, blank=True, null=True)
     font_family = models.CharField(max_length=255, blank=True, null=True)
-
+    
+    # Company information fields
+    company_name = models.CharField(max_length=255, blank=True, null=True)
+    address_1 = models.CharField(max_length=255, blank=True, null=True)
+    address_2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=20, blank=True, null=True)
+    gstin = models.CharField(max_length=20, blank=True, null=True)
+    
     client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -690,6 +700,14 @@ class LoginConfig(models.Model):
                         theme_color VARCHAR(255),
                         app_language VARCHAR(255),
                         font_family VARCHAR(255),
+                        company_name VARCHAR(255),
+                        address_1 VARCHAR(255),
+                        address_2 VARCHAR(255),
+                        city VARCHAR(100),
+                        state VARCHAR(100),
+                        country VARCHAR(100),
+                        pincode VARCHAR(20),
+                        gstin VARCHAR(20),
                         client_id INTEGER,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

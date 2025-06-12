@@ -12,6 +12,8 @@ from rest_framework.permissions import AllowAny
 from services.email_service import send_email
 from ecomm_superadmin.models import TenantAppPortals
 from ecomm_superadmin.models import Tenant
+from ecomm_superadmin.rabbitMQ import setup_tenant_rabbitmq_queue
+
 
 logger = logging.getLogger(__name__)
 
@@ -480,6 +482,15 @@ class OrderProcessedView(APIView):
 
                 tenant = serializer.save()
                 logger.info(f"Created new tenant with schema: {schema_name}")
+                
+                # Create RabbitMQ queue for the new tenant
+                try:
+                    logger.info(f"Setting up RabbitMQ queue for tenant: {tenant.name} (id: {tenant.id})")
+                    setup_tenant_rabbitmq_queue(tenant)
+                    logger.info(f"Successfully set up RabbitMQ queue for tenant: {tenant.name}")
+                except Exception as e:
+                    logger.error(f"Error setting up RabbitMQ queue for tenant {tenant.name}: {str(e)}", exc_info=True)
+                    # Don't fail the entire request if queue creation fails
 
                
                 # Get applications based on subscription features

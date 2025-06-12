@@ -19,9 +19,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-8f_ln2-aly%)49y!u=*en82-i$feq0(6#y5*sbu3(9*6p4)ysg') # Example using os.environ
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
+ALLOWED_HOSTS = ["*"]
 
 INTERNAL_API_SECRET = 'secret'      # Key for backend to backend api calls of Tenant
 
@@ -50,6 +50,8 @@ SHARED_APPS = (
   
     'subscription_plan',  # Add the new app
     'external_tenants',  # Add the new app
+        'shared',  # App for shared utilities and location APIs
+
     
 )
 
@@ -101,7 +103,7 @@ WSGI_APPLICATION = 'KeyProductSettings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django_tenants.postgresql_backend', # Correct engine for django_tenants
-        'NAME': os.environ.get('DB_NAME', 'iam_login'), # Use lowercase to match existing DB
+        'NAME': os.environ.get('DB_NAME', 'PlatformAdminDB'), # Use lowercase to match existing DB
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'Qu1ckAss1st@123'),
         'HOST': os.environ.get('DB_HOST', 'localhost'), 
@@ -189,6 +191,84 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
+
+
+
+
+
+#################### Rabbit MQ ###############################
+
+TIME_ZONE = "Asia/Kolkata"
+# RabbitMQ Settings
+RABBITMQ_API_URL = os.environ.get('RABBITMQ_API_URL', 'http://localhost:15672')
+RABBITMQ_API_USER = os.environ.get('RABBITMQ_API_USER', 'guest')
+RABBITMQ_API_PASSWORD = os.environ.get('RABBITMQ_API_PASSWORD', 'guest')
+RABBITMQ_VHOST = os.environ.get('RABBITMQ_VHOST', '/')
+RABBITMQ_EXCHANGE_NAME = os.environ.get('RABBITMQ_EXCHANGE_NAME', 'cns_direct_exchange')
+CNS_STATUS_EXCHANGE_NAME = os.environ.get('CNS_STATUS_EXCHANGE_NAME', 'cns_status_exchange')
+RABBITMQ_TENANT_USER = os.environ.get('RABBITMQ_TENANT_USER', 'guest')
+
+# Celery Settings
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672//')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+
+######################### Celery ######################
+
+# --- Celery Configuration ---
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672//')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'rpc://')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_TASK_SOFT_TIME_LIMIT = 15 * 60
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_SEND_SENT_EVENT = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_CREATE_MISSING_QUEUES = True
+CELERY_TASK_DEFAULT_EXCHANGE = os.environ.get('RABBITMQ_EXCHANGE_NAME', 'cns_direct_exchange')
+CELERY_TASK_QUEUE_MAX_PRIORITY = 10
+CELERY_TASK_DEFAULT_DELIVERY_MODE = 'persistent'
+
+# --- RabbitMQ Management API Configuration ---
+RABBITMQ_API_URL = os.environ.get('RABBITMQ_API_URL', 'http://localhost:15672')
+RABBITMQ_API_USER = os.environ.get('RABBITMQ_API_USER', 'guest')
+RABBITMQ_API_PASSWORD = os.environ.get('RABBITMQ_API_PASSWORD', 'guest')
+RABBITMQ_VHOST = os.environ.get('RABBITMQ_VHOST', '%2F')  # URL-encoded '/'
+RABBITMQ_EXCHANGE_NAME = os.environ.get('RABBITMQ_EXCHANGE_NAME', 'cns_direct_exchange')
+
+################# Redis
+# Redis Configuration
+REDIS_HOST="localhost"
+REDIS_PORT=6379
+REDIS_DB_CACHE=0
+REDIS_DB_LISTS=1
+REDIS_PASSWORD="123456"
+# Google Cloud Storage Configuration
+GCS_BUCKET_NAME="email-checker"
+
+# AI Service Configuration
+AI_PROVIDER="gemini"
+AI_MODEL_GEMINI="gemini-2.5-pro-preview-03-25"
+AI_MODEL_OPENAI="gpt-4o-mini"
+AI_MAX_TOKENS=65536
+AI_SERVICE_PROVIDER="gemini"
+AI_MICROSERVICE_URL="https://aibe.turtleit.in/api/multi-model/"
+
+# Email Verification Service Settings
+EVS_AI_DEA_CONFIDENCE_THRESHOLD=0.85
+EVS_AI_ROLE_CONFIDENCE_THRESHOLD=0.80
+
 
 # --- CORS ---
 # Configure CORS to allow requests from your frontend

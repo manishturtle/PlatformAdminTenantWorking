@@ -33,6 +33,16 @@ export default function LoginConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Company information fields
+  const [companyName, setCompanyName] = useState("");
+  const [address1, setAddress1] = useState("");
+  const [address2, setAddress2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
+  const [pinCode, setPinCode] = useState("");
+  const [gstIn, setGstIn] = useState("");
+
   // Available language options
   const languageOptions = [
     { value: "en", label: "English" },
@@ -57,6 +67,17 @@ export default function LoginConfigPage() {
           setFontFamily(data.font_family || "");
           setThemeColor(data.theme_color || "#1976d2");
           setAppLanguage(data.app_language || "en");
+
+          // Set company information fields
+          setCompanyName(data.company_name || "");
+          setAddress1(data.address_1 || "");
+          setAddress2(data.address_2 || "");
+          setCity(data.city || "");
+          setState(data.state || "");
+          setCountry(data.country || "");
+          setPinCode(data.pincode || "");
+          setGstIn(data.gstin || "");
+
           if (data.logo) {
             setLogoPreview(`http://localhost:8000${data.logo}`);
           }
@@ -103,6 +124,17 @@ export default function LoginConfigPage() {
       formData.append("font_family", fontFamily);
       formData.append("theme_color", themeColor);
       formData.append("app_language", appLanguage);
+
+      // Add company information fields
+      formData.append("company_name", companyName);
+      formData.append("address_1", address1);
+      formData.append("address_2", address2);
+      formData.append("city", city);
+      formData.append("state", state);
+      formData.append("country", country);
+      formData.append("pincode", pinCode);
+      formData.append("gstin", gstIn);
+
       if (logoFile) {
         formData.append("logo", logoFile);
       }
@@ -159,15 +191,101 @@ export default function LoginConfigPage() {
             </Button>
           </Box>
           <Typography variant="body1" color="text.secondary" paragraph>
-            Customize the appearance of your login page to match your brand identity.
+            Customize the appearance of your login page to match your brand
+            identity.
           </Typography>
           <Divider sx={{ my: 3 }} />
 
           {/* MAIN CONTENT GRID */}
           <Grid container spacing={4}>
+            {/* --- COMPANY INFORMATION SECTION --- */}
+            <Grid xs={12}>
+              <Typography variant="h5" gutterBottom>
+                Company Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Company Name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Address Line 1"
+                    value={address1}
+                    onChange={(e) => setAddress1(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Address Line 2"
+                    value={address2}
+                    onChange={(e) => setAddress2(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="City"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="State"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Country"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="PIN Code"
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    variant="outlined"
+                  />
+                </Grid>
+                <Grid xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="GSTIN"
+                    value={gstIn}
+                    onChange={(e) => setGstIn(e.target.value)}
+                    variant="outlined"
+                    helperText="Goods and Services Tax Identification Number"
+                  />
+                </Grid>
+              </Grid>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h5" gutterBottom>
+                Login & Branding Configuration
+              </Typography>
+            </Grid>
             {/* --- COLUMN 1: BRAND NAME, FONT, LOGO --- */}
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Grid xs={12} md={6}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <TextField
                   fullWidth
                   label="Brand Name"
@@ -183,87 +301,91 @@ export default function LoginConfigPage() {
                   variant="outlined"
                   placeholder="e.g., 'Roboto', sans-serif"
                 />
-                
+
                 <Box mt={2}>
-                   <Typography variant="h6" gutterBottom>
-                     Company Logo
-                   </Typography>
-                   <Paper
-                     variant="outlined"
-                     sx={{
-                       p: 2,
-                       display: "flex",
-                       alignItems: "center",
-                       justifyContent: "center",
-                       minHeight: 180,
-                       bgcolor: "grey.50",
-                       mb: 2,
-                     }}
-                   >
-                     {logoPreview ? (
-                       <Box
-                         component="img"
-                         src={logoPreview}
-                         alt="Logo preview"
-                         sx={{ maxWidth: "80%", maxHeight: 150, objectFit: "contain" }}
-                       />
-                     ) : (
-                       <Typography color="text.secondary">
-                         Logo preview
-                       </Typography>
-                     )}
-                   </Paper>
-                   <Button
-                     component="label"
-                     variant="outlined"
-                     startIcon={<CloudUploadIcon />}
-                     fullWidth
-                   >
-                     Upload Logo
-                     <input
-                       type="file"
-                       accept="image/png, image/jpeg, image/svg+xml"
-                       onChange={handleLogoChange}
-                       hidden
-                     />
-                   </Button>
-                    <FormHelperText sx={{ mt: 1, textAlign: 'center' }}>
-                      PNG, JPG, SVG. Max size: 2MB.
-                    </FormHelperText>
+                  <Typography variant="h6" gutterBottom>
+                    Company Logo
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 180,
+                      bgcolor: "grey.50",
+                      mb: 2,
+                    }}
+                  >
+                    {logoPreview ? (
+                      <Box
+                        component="img"
+                        src={logoPreview}
+                        alt="Logo preview"
+                        sx={{
+                          maxWidth: "80%",
+                          maxHeight: 150,
+                          objectFit: "contain",
+                        }}
+                      />
+                    ) : (
+                      <Typography color="text.secondary">
+                        Logo preview
+                      </Typography>
+                    )}
+                  </Paper>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUploadIcon />}
+                    fullWidth
+                  >
+                    Upload Logo
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/svg+xml"
+                      onChange={handleLogoChange}
+                      hidden
+                    />
+                  </Button>
+                  <FormHelperText sx={{ mt: 1, textAlign: "center" }}>
+                    PNG, JPG, SVG. Max size: 2MB.
+                  </FormHelperText>
                 </Box>
               </Box>
             </Grid>
 
             {/* --- COLUMN 2: THEME COLOR, LANGUAGE --- */}
-            <Grid item xs={12} md={6}>
-               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                 <TextField
-                   fullWidth
-                   label="Theme Color"
-                   type="color"
-                   value={themeColor}
-                   onChange={(e) => setThemeColor(e.target.value)}
-                   variant="outlined"
-                   InputLabelProps={{ shrink: true }}
-                   helperText="Select the primary color for your theme."
-                 />
-                 <TextField
-                   fullWidth
-                   select
-                   label="Application Language"
-                   value={appLanguage}
-                   onChange={(e) => setAppLanguage(e.target.value)}
-                   variant="outlined"
-                   SelectProps={{ native: true }}
-                   helperText="Select the default language."
-                 >
-                   {languageOptions.map((option) => (
-                     <option key={option.value} value={option.value}>
-                       {option.label}
-                     </option>
-                   ))}
-                 </TextField>
-               </Box>
+            <Grid xs={12} md={6}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Theme Color"
+                  type="color"
+                  value={themeColor}
+                  onChange={(e) => setThemeColor(e.target.value)}
+                  variant="outlined"
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Select the primary color for your theme."
+                />
+                <TextField
+                  fullWidth
+                  select
+                  label="Application Language"
+                  value={appLanguage}
+                  onChange={(e) => setAppLanguage(e.target.value)}
+                  variant="outlined"
+                  SelectProps={{ native: true }}
+                  helperText="Select the default language."
+                >
+                  {languageOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </TextField>
+              </Box>
             </Grid>
           </Grid>
 
@@ -281,10 +403,14 @@ export default function LoginConfigPage() {
         open={success}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-          Login page configuration saved successfully!
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Configuration updated successfully!
         </Alert>
       </Snackbar>
     </Container>

@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='tenantsubscriptionlicenses',
             name='access_key',
-            field=models.CharField(blank=True, max_length=64, unique=True),
+            field=models.CharField(blank=True, max_length=64),
         ),
     ]

@@ -96,27 +96,31 @@ export default function CreatePlanForm({
   initialData,
   isEditMode = false,
 }: CreatePlanFormProps): JSX.Element {
-  const [formData, setFormData] = useState<FormData>(initialData || {
-    detailed_entitlements: {},
-    name: "",
-    description: "",
-    status: "active",
-    price: "",
-    billing_cycle: "monthly",
-    max_users: "",
-    transaction_limit: "",
-    api_call_limit: "",
-    storage_limit: "",
-    session_type: "concurrent",
-    support_level: "basic",
-    valid_from: new Date(),
-    valid_until: null,
-    line_of_business: null,
-    detailed_entitlements: {},
-  });
+  const [formData, setFormData] = useState<FormData>(
+    initialData || {
+      detailed_entitlements: {},
+      name: "",
+      description: "",
+      status: "active",
+      price: "",
+      billing_cycle: "monthly",
+      max_users: "",
+      transaction_limit: "",
+      api_call_limit: "",
+      storage_limit: "",
+      session_type: "concurrent",
+      support_level: "basic",
+      valid_from: new Date(),
+      valid_until: null,
+      line_of_business: null,
+      detailed_entitlements: {},
+    }
+  );
 
   const [applications, setApplications] = useState<ApplicationFeatures[]>([]);
-  const [selectedApps, setSelectedApps] = useState<number[]>(initialData?.selectedApps || []);
+  const [selectedApps, setSelectedApps] = useState<number[]>(
+    initialData?.selectedApps || []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linesOfBusiness, setLinesOfBusiness] = useState<LineOfBusiness[]>([]);
@@ -158,28 +162,30 @@ export default function CreatePlanForm({
       }
 
       const data = await response.json();
-      
+
       if (initialData?.applications) {
         // Create a map of existing features by app_id and feature_id
         const existingFeatures = new Map();
-        initialData.applications.forEach(app => {
-          app.features.forEach(feature => {
+        initialData.applications.forEach((app) => {
+          app.features.forEach((feature) => {
             const key = `${app.application}_${feature.id}`;
             existingFeatures.set(key, feature);
           });
         });
 
         // Merge existing features' settings with all available features
-        const mergedData = data.map(app => ({
+        const mergedData = data.map((app) => ({
           ...app,
-          features: app.features.map(feature => {
+          features: app.features.map((feature) => {
             const key = `${app.application}_${feature.id}`;
             const existingFeature = existingFeatures.get(key);
-            return existingFeature ? {
-              ...feature,
-              granual_settings: existingFeature.granual_settings
-            } : feature;
-          })
+            return existingFeature
+              ? {
+                  ...feature,
+                  granual_settings: existingFeature.granual_settings,
+                }
+              : feature;
+          }),
         }));
         setApplications(mergedData);
       } else {
@@ -216,7 +222,9 @@ export default function CreatePlanForm({
   };
 
   const isFeatureSelected = (featureId: string): boolean => {
-    return Object.keys(formData.detailed_entitlements || {}).includes(featureId);
+    return Object.keys(formData.detailed_entitlements || {}).includes(
+      featureId
+    );
   };
 
   const isSubfeatureEnabled = (
@@ -330,7 +338,9 @@ export default function CreatePlanForm({
     const submissionData = {
       ...formData,
       valid_from: formData.valid_from.toISOString(),
-      valid_until: formData.valid_until ? formData.valid_until.toISOString() : null,
+      valid_until: formData.valid_until
+        ? formData.valid_until.toISOString()
+        : null,
     };
 
     try {
@@ -424,7 +434,9 @@ export default function CreatePlanForm({
         <Paper sx={{ p: 3, mb: 3 }}>
           <Grid container justifyContent="space-between" alignItems="center">
             <Grid item>
-              <Typography variant="h5">{isEditMode ? "Edit Plan" : "Create New Plan"}</Typography>
+              <Typography variant="h5">
+                {isEditMode ? "Edit Plan" : "Create New Plan"}
+              </Typography>
             </Grid>
             <Grid item>
               <Grid container spacing={2}>
@@ -442,7 +454,7 @@ export default function CreatePlanForm({
                     disabled={loading}
                   >
                     {/* Create Plan */}
-                    {isEditMode ? 'Edit Plan' : 'Create Plan'}
+                    {isEditMode ? "Edit Plan" : "Create Plan"}
                   </Button>
                 </Grid>
               </Grid>
@@ -674,7 +686,7 @@ export default function CreatePlanForm({
       <Grid item xs={12} width="100%">
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            {isEditMode ? 'Edit Features' : 'Features'}
+            {isEditMode ? "Edit Features" : "Features"}
           </Typography>
           {loading ? (
             <Grid container justifyContent="center" sx={{ p: 3 }}>
@@ -824,22 +836,14 @@ export default function CreatePlanForm({
       <Grid item xs={12} container spacing={2} justifyContent="flex-end">
         {onCancel && (
           <Grid item>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={onCancel}
-            >
+            <Button variant="outlined" color="primary" onClick={onCancel}>
               Cancel
             </Button>
           </Grid>
         )}
         <Grid item>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-          >
-            {isEditMode ? 'Edit Plan' : 'Create Plan'}
+          <Button variant="contained" color="primary" type="submit">
+            {isEditMode ? "Edit Plan" : "Create Plan"}
           </Button>
         </Grid>
       </Grid>

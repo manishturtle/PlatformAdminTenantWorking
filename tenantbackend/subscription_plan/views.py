@@ -854,43 +854,12 @@ def check_tenant_exist(request):
             """, [schema_name])
             tenant = cursor.fetchone()
 
-            if not tenant:
-                return Response({'message': 'Tenant not found'}, status=status.HTTP_404_NOT_FOUND)
-
-            # Initialize login config
-            login_config = {}
-            client_id = tenant[4]  # Get client_id from tenant data
-
-            # Get login config if client_id exists
-            if client_id:
-                # cursor.execute(f"SET search_path TO {schema_name}, public;")
-                cursor.execute(sql.SQL("SET search_path TO {}, public;").format(
-                    sql.Identifier(schema_name)
-                ))
-                cursor.execute("""
-                    SELECT id, brand_name, logo, is_2fa_enabled, 
-                           theme_color, app_language, font_family
-                    FROM ecomm_tenant_admins_loginconfig
-                    WHERE client_id = %s
-                """, [client_id])
-
-                login_config_data = cursor.fetchone()
-                if login_config_data:
-                    login_config = {
-                        'id': login_config_data[0],
-                        'brand_name': login_config_data[1],
-                        'logo': login_config_data[2],
-                        'is_2fa_enabled': login_config_data[3],
-                        'theme_color': login_config_data[4],
-                        'app_language': login_config_data[5],
-                        'font_family': login_config_data[6]
-                    }
 
             # Decide the login redirect path based on URL
             if is_tenant_admin:
-                redirect_path = f"http://localhost:3000/{schema_name}/tenant-admin/login?currentUrl={application_url}"
+                redirect_path = f"https://devcockpit.turtleit.in/{schema_name}/tenant-admin/login?currentUrl={application_url}"
             else:
-                redirect_path = f"http://localhost:3000/{schema_name}/login?currentUrl={application_url}"
+                redirect_path = f"https://devcockpit.turtleit.in/{schema_name}/login?currentUrl={application_url}"
 
             response_data = {
                 'message': f"Tenant with schema_name '{schema_name}'",
@@ -899,8 +868,8 @@ def check_tenant_exist(request):
                 'schema_name': tenant[2],
                 'status': tenant[3],
                 'default_url': default_url,
-                'redirect_to_iam': redirect_path,
-                'login_config': login_config
+                'redirect_to_iam': redirect_path
+               
             }
 
             return Response(response_data, status=status.HTTP_200_OK)

@@ -36,11 +36,15 @@ export const plansService = {
 
   async updatePlan(id: string, planData: Plan) {
     try {
-      const response = await axios.put(`${API_BASE_URL}/plans/${id}/`, planData, {
-        headers: {
-          ...getAuthHeader(),
-        },
-      });
+      const response = await axios.put(
+        `${API_BASE_URL}/plans/${id}/`,
+        planData,
+        {
+          headers: {
+            ...getAuthHeader(),
+          },
+        }
+      );
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error.message;

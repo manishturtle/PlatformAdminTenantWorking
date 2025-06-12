@@ -47,6 +47,9 @@ urlpatterns = [
     
     # Frontend routes - catch all tenant admin routes and let the frontend router handle them
     re_path(r'^(?P<tenant_slug>[^/]+)/tenant-admin/', TemplateView.as_view(template_name='index.html')),
+    
+     # Location API endpoints (countries, states, cities)
+    path('api/', include('shared.urls')),
 ]
 
 # Add this if you're using Django's static files in development

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Box, Typography, Button, Alert } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { GridColDef, GridRowId } from "@mui/x-data-grid";
-import { DataGrid } from '@/components';
+import { DataGrid } from "@/components";
 
 interface Application {
   app_id: number;
@@ -115,13 +115,15 @@ export default function ApplicationsPage() {
       width: 150,
       valueGetter: (params) => {
         const date = params;
-        return date ? new Date(date).toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : '';
+        return date
+          ? new Date(date).toLocaleString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
       },
     },
     {
@@ -130,13 +132,15 @@ export default function ApplicationsPage() {
       width: 150,
       valueGetter: (params) => {
         const date = params;
-        return date ? new Date(date).toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : '';
+        return date
+          ? new Date(date).toLocaleString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
       },
     },
   ];
@@ -157,7 +161,11 @@ export default function ApplicationsPage() {
         </Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
       <DataGrid<Application>
         rows={applications}
@@ -167,7 +175,6 @@ export default function ApplicationsPage() {
         onDelete={handleDelete}
         getRowId={(row) => row.app_id}
       />
-
     </Box>
   );
 }

@@ -232,12 +232,14 @@ const TenantForm: React.FC<TenantFormProps> = ({
     console.log("Select changed:", name, value);
 
     // Special handling for subscription_plan to ensure it's always an array of numbers
-    if (name === 'subscription_plan') {
+    if (name === "subscription_plan") {
       // Convert string values to numbers
-      const numericValues = Array.isArray(value) 
-        ? value.map(val => parseInt(val, 10))
-        : value ? [parseInt(value as string, 10)] : [];
-      
+      const numericValues = Array.isArray(value)
+        ? value.map((val) => parseInt(val, 10))
+        : value
+        ? [parseInt(value as string, 10)]
+        : [];
+
       setFormData((prev) => ({
         ...prev,
         [name]: numericValues,
@@ -336,14 +338,15 @@ const TenantForm: React.FC<TenantFormProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
       newErrors.contact_email = "Invalid email format";
     }
-    
+
     // Validate subscription plan is selected
     if (formData.subscription_plan.length === 0) {
-      newErrors.subscription_plan = "At least one subscription plan is required";
+      newErrors.subscription_plan =
+        "At least one subscription plan is required";
     }
-    
+
     // Validate CRM client is selected
-    if (!formData.client_id || formData.client_id === '') {
+    if (!formData.client_id || formData.client_id === "") {
       newErrors.client_id = "CRM client is required";
     }
 
@@ -602,7 +605,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
               {/* <InputLabel id="client-id-label">CRM Client</InputLabel> */}
               <Select
                 name="subscription_plan"
-                value={formData.subscription_plan.map(id => id.toString())}
+                value={formData.subscription_plan.map((id) => id.toString())}
                 onChange={handleSelectChange}
                 label="Subscription Plan"
                 error={Boolean(errors.subscription_plan)}
@@ -612,15 +615,17 @@ const TenantForm: React.FC<TenantFormProps> = ({
                   if ((selected as string[]).length === 0) {
                     return <em>Select plan(s)</em>;
                   }
-                  
+
                   // Get names of selected plans
-                  const selectedPlanNames = (selected as string[]).map(idStr => {
-                    const id = parseInt(idStr, 10);
-                    const plan = plans.find(p => p.id === id);
-                    return plan ? plan.name : '';
-                  }).filter(Boolean);
-                  
-                  return selectedPlanNames.join(', ');
+                  const selectedPlanNames = (selected as string[])
+                    .map((idStr) => {
+                      const id = parseInt(idStr, 10);
+                      const plan = plans.find((p) => p.id === id);
+                      return plan ? plan.name : "";
+                    })
+                    .filter(Boolean);
+
+                  return selectedPlanNames.join(", ");
                 }}
               >
                 {/* Empty MenuItem not needed for multiple select */}
@@ -631,47 +636,49 @@ const TenantForm: React.FC<TenantFormProps> = ({
                 ) : plans && plans.length > 0 ? (
                   plans.map((plan: Plan) => {
                     const planIdStr = plan.id.toString();
-                    const isSelected = formData.subscription_plan.map(id => id.toString()).includes(planIdStr);
-                    
+                    const isSelected = formData.subscription_plan
+                      .map((id) => id.toString())
+                      .includes(planIdStr);
+
                     // Function to toggle this plan's selection
                     const toggleSelection = () => {
                       let newValues: number[];
-                      
+
                       if (isSelected) {
                         // Remove from selection if already selected
                         newValues = formData.subscription_plan.filter(
-                          id => id.toString() !== planIdStr
+                          (id) => id.toString() !== planIdStr
                         );
                       } else {
                         // Add to selection if not selected
                         newValues = [...formData.subscription_plan, plan.id];
                       }
-                      
+
                       // Update form data with new selection
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
-                        subscription_plan: newValues
+                        subscription_plan: newValues,
                       }));
-                      
+
                       // Clear any subscription plan error
                       if (errors.subscription_plan) {
-                        setErrors(prev => ({
+                        setErrors((prev) => ({
                           ...prev,
-                          subscription_plan: ''
+                          subscription_plan: "",
                         }));
                       }
                     };
-                    
+
                     return (
-                      <MenuItem 
+                      <MenuItem
                         key={plan.id}
                         value={plan.id}
                         dense
-                        sx={{ 
-                          padding: '8px 16px',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                          }
+                        sx={{
+                          padding: "8px 16px",
+                          "&:hover": {
+                            backgroundColor: "rgba(0, 0, 0, 0.04)",
+                          },
                         }}
                         // Override default MenuItem behavior
                         // Instead use our custom selection handler
@@ -681,16 +688,16 @@ const TenantForm: React.FC<TenantFormProps> = ({
                           toggleSelection();
                         }}
                       >
-                        <Box 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          display="flex"
+                          alignItems="center"
                           width="100%"
-                          sx={{ cursor: 'pointer' }}
+                          sx={{ cursor: "pointer" }}
                         >
-                          <Checkbox 
+                          <Checkbox
                             checked={isSelected}
                             size="small"
-                            sx={{ padding: '4px', marginRight: '8px' }}
+                            sx={{ padding: "4px", marginRight: "8px" }}
                             // Use MUI checkbox for better styling and accessibility
                             onClick={(e) => {
                               e.stopPropagation();

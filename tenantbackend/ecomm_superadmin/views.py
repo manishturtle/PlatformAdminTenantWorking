@@ -29,6 +29,8 @@ from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentica
 
 from .models import Tenant, User, CrmClient, Application, TenantAppPortals
 from .serializers import TenantSerializer, LoginSerializer, UserSerializer, UserAdminSerializer, CrmClientSerializer, ApplicationSerializer, LineOfBusinessSerializer
+from .rabbitMQ import setup_tenant_rabbitmq_queue
+import json
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -386,6 +388,15 @@ class PlatformAdminTenantView(APIView):
             tenant = serializer.save(
                 created_by=request.user.username if request.user.is_authenticated else None
             )
+            
+            # Create RabbitMQ queue for the new tenant
+            try:
+                logger.info(f"Setting up RabbitMQ queue for tenant: {tenant.name} (id: {tenant.id})")
+                setup_tenant_rabbitmq_queue(tenant)
+                logger.info(f"Successfully set up RabbitMQ queue for tenant: {tenant.name}")
+            except Exception as e:
+                logger.error(f"Error setting up RabbitMQ queue for tenant {tenant.name}: {str(e)}", exc_info=True)
+                # Don't fail the entire request if queue creation fails
 
             # Initialize response data
             response_data = {'tenant': serializer.data}
@@ -822,15 +833,11 @@ class CrmClientViewSet(viewsets.ModelViewSet):
 import json
 @method_decorator(csrf_exempt, name='dispatch')
 class TenantApplicationsByUrlView(APIView):
-    """
-    API endpoint to get applications for a specific tenant using their URL suffix.
-    """
+    # permission_classes = [AllowAny]
     authentication_classes = [TenantAdminJWTAuthentication]
     def get(self, request, url_suffix):
         try:
-            # Close any stale connection
             connection.close()
-            print("kk:")
             with connection.cursor() as cursor:
                 # Step 1: Get the tenant
                 cursor.execute("""
@@ -845,121 +852,74 @@ class TenantApplicationsByUrlView(APIView):
 
                 tenant_id = tenant_row[0]
 
-                # Step 2: Get the latest active license for the tenant
+                # Step 2: Get all licenses for the tenant
                 cursor.execute("""
                     SELECT id, subscription_plan_id, features_snapshot
                     FROM public.ecomm_superadmin_tenant_subscriptions_licenses
                     WHERE tenant_id = %s
                     ORDER BY valid_from DESC
-                    LIMIT 1
                 """, [tenant_id])
 
-                license_row = cursor.fetchone()
-                if not license_row:
-                    return Response({"error": "No active license found for tenant."}, status=status.HTTP_404_NOT_FOUND)
+                license_rows = cursor.fetchall()
+                if not license_rows:
+                    return Response({"error": "No active licenses found for tenant."}, status=status.HTTP_404_NOT_FOUND)
 
-                feature_snapshot = license_row[2]
-                if not feature_snapshot:
-                    return Response({"error": "No features found in license."}, status=status.HTTP_400_BAD_REQUEST)
-
-                # Step 3: Extract unique app_ids from feature_snapshot JSON
-                import json
-                if isinstance(feature_snapshot, str):
-                    feature_snapshot = json.loads(feature_snapshot)
-
+                # Step 3: Extract app_ids from all features_snapshots
                 app_ids = set()
-                for feature in feature_snapshot.values():
-                    app_id = feature.get("app_id")
-                    if app_id:
-                        app_ids.add(app_id)
+                for row in license_rows:
+                    license_id, plan_id, features_snapshot = row
+                    if features_snapshot:
+                        if isinstance(features_snapshot, str):
+                            features_snapshot = json.loads(features_snapshot)
+                        for feature in features_snapshot.values():
+                            app_id = feature.get("app_id")
+                            if app_id:
+                                app_ids.add(app_id)
 
                 if not app_ids:
                     return Response([], status=status.HTTP_200_OK)
 
-                # Step 4: Fetch application details
-                # placeholders = ','.join(['%s'] * len(app_ids))
-                # cursor.execute(f"""
-                #     SELECT DISTINCT a.app_id, a.application_name, a.app_default_url, 
-                #                     a.description, a.is_active, a.created_at
-                #     FROM public.application a
-                #     WHERE a.app_id IN ({placeholders})
-                #       AND a.is_active = TRUE
-                # """, list(app_ids))
-
-                # columns = [col[0] for col in cursor.description]
-                # rows = cursor.fetchall()
-                # applications = [dict(zip(columns, row)) for row in rows]
-
-                # Step 4: Fetch application details along with portal URLs
-                # placeholders = ','.join(['%s'] * len(app_ids))
-                # query_params = [tenant_id] + list(app_ids)
-
-                # cursor.execute(f"""
-                #     SELECT DISTINCT
-                #         a.app_id,
-                #         a.application_name,
-                #         a.app_default_url,
-                #         a.description,
-                #         a.is_active,
-                #         a.created_at,
-                #         p.default_url AS portal_default_url,
-                #         p.redirect_url AS portal_redirect_url,
-                #         p.custom_redirect_url AS portal_custom_redirect_url
-                #     FROM public.application a
-                #     LEFT JOIN public.ecomm_superadmin_tenant_app_portals p
-                #         ON a.app_id = p.app_id AND p.tenant_id = %s
-                #     WHERE a.app_id IN ({placeholders})
-                #     AND a.is_active = TRUE
-                # """, query_params)
-
-                # columns = [col[0] for col in cursor.description]
-                # rows = cursor.fetchall()
-                # applications = [dict(zip(columns, row)) for row in rows]
-
-                # Step 4: Fetch application details + portal URLs
-                if app_ids:
-                    placeholders = ','.join(['%s'] * len(app_ids))
-                    cursor.execute(f"""
-                        SELECT DISTINCT 
-                            a.app_id, 
-                            a.application_name, 
-                            a.app_default_url, 
-                            a.description, 
-                            a.is_active, 
-                            a.created_at,
-                            p.default_url AS portal_default_url,
-                            p.redirect_url AS portal_redirect_url,
-                            p.custom_redirect_url AS portal_custom_redirect_url
-                        FROM public.application a
-                        JOIN public.ecomm_superadmin_tenant_app_portals p
+                # Step 4: Fetch application and portal details
+                placeholders = ','.join(['%s'] * len(app_ids))
+                cursor.execute(f"""
+                    SELECT DISTINCT 
+                        a.app_id, 
+                        a.application_name, 
+                        a.app_default_url, 
+                        a.description, 
+                        a.is_active, 
+                        a.created_at,
+                        p.default_url AS portal_default_url,
+                        p.redirect_url AS portal_redirect_url,
+                        p.custom_redirect_url AS portal_custom_redirect_url
+                    FROM public.application a
+                    JOIN public.ecomm_superadmin_tenant_app_portals p
                         ON a.app_id = p.app_id
-                        WHERE a.app_id IN ({placeholders})
+                    WHERE a.app_id IN ({placeholders})
                         AND a.is_active = TRUE
                         AND p.tenant_id = %s
-                    """, list(app_ids) + [tenant_id])
+                """, list(app_ids) + [tenant_id])
 
-                    columns = [col[0] for col in cursor.description]
-                    rows = cursor.fetchall()
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
 
-                    # Step 5: Deduplicate apps and choose proper redirect URL
-                    apps_by_id = {}
-                    for row in rows:
-                        app = dict(zip(columns, row))
-                        app_id = app["app_id"]
-                        redirect_url = app["portal_custom_redirect_url"] or app["portal_redirect_url"]
+                # Step 5: Build response
+                apps_by_id = {}
+                for row in rows:
+                    app = dict(zip(columns, row))
+                    app_id = app["app_id"]
+                    redirect_url = app["portal_custom_redirect_url"] or app["portal_redirect_url"]
+                    if app_id not in apps_by_id:
+                        apps_by_id[app_id] = {
+                            "app_id": app_id,
+                            "application_name": app["application_name"],
+                            "app_default_url": redirect_url,
+                            "description": app["description"],
+                            "is_active": app["is_active"],
+                            "created_at": app["created_at"]
+                        }
 
-                        if app_id not in apps_by_id:
-                            apps_by_id[app_id] = {
-                                "app_id": app_id,
-                                "application_name": app["application_name"],
-                                "app_default_url": redirect_url,  # overriding with redirect logic
-                                "description": app["description"],
-                                "is_active": app["is_active"],
-                                "created_at": app["created_at"]
-                            }
-
-                    applications = list(apps_by_id.values())
-                 
+                applications = list(apps_by_id.values())
                 return Response(applications)
 
         except Exception as e:
@@ -971,6 +931,8 @@ class TenantApplicationsByUrlView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1144,6 +1106,7 @@ class TenantByDefaultUrlView(APIView):
             )
         
         try:
+          
             # Step 1: Find a portal record where the incoming URL matches any of the URL fields.
             # Using .first() is safer than .get() as it returns None instead of raising an error
             # if no record is found.
@@ -1158,7 +1121,7 @@ class TenantByDefaultUrlView(APIView):
                     {'error': 'This URL or tenant is not configured'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
-
+           
 
             if portal.redirect_url == lookup_url:
                 matched_column = "redirect_url"
@@ -1169,18 +1132,14 @@ class TenantByDefaultUrlView(APIView):
 
             # Step 2: Use the tenant_id from the found portal to get the tenant object.
             tenant = Tenant.objects.get(id=portal.tenant_id)
-
+            
             if not tenant:
                 return Response(
                     {'error': 'Tenant not found'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
-
-            config = LoginConfig.objects.filter().first()
-            if config:
-                login_config_data = LoginConfigSerializer(config).data
-            else:
-                login_config_data = None
+               
+            
             
             # Step 3: Prepare and return the response with the tenant's schema.
             response_data = {
@@ -1188,7 +1147,7 @@ class TenantByDefaultUrlView(APIView):
                 'tenant_schema': tenant.schema_name,
                 # "redirect_url_column":matched_column,
                 # "redirect_url": lookup_url or portal.default_url,
-                'theme_config': login_config_data
+                
             }
             
             return Response(response_data, status=status.HTTP_200_OK)
