@@ -101,8 +101,9 @@ export default function SideNav({ isOpen, onClose, userType, isAuthenticated, is
           { text: 'Dashboard', icon: <DashboardIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/dashboard` },
                  { text: 'User Management', icon: <PeopleIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/users` },
                  { text: 'Billing & Invoicing', icon: <ReceiptIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/billing-invoicing` },
-                 { text: 'Subscription', icon: <ReceiptIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/subscription` },
+                 { text: 'Subscription', icon: <ReceiptIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/tenant-subscriptions` },
                  { text: 'Settings', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/login-config` },
+                 { text: 'TenantDashboard', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/tenant-dashboard` },
                 // { text: 'Theme Configuration', icon: <ColorLens />, path: `/${pathname?.split('/')[1]}/tenant-admin/theme-configuration` },
         ]
       }];
@@ -110,6 +111,10 @@ export default function SideNav({ isOpen, onClose, userType, isAuthenticated, is
   }, [userType, pathname]);
 
   
+   // Don't render drawer if not authenticated or on login page (but allow for login-config)
+  // if (!isAuthenticated || (isLoginPage && !pathname?.includes('/login-config'))) {
+  //   return null;
+  // }
 
   // Toggle section open state
   const toggleSectionOpenState = (title: string): void => {
@@ -236,7 +241,7 @@ export default function SideNav({ isOpen, onClose, userType, isAuthenticated, is
     );
   };
 
-  const drawerWidth = isOpen ? 240 : 0;
+  const drawerWidth = 240; // Fixed width for the drawer
 
   return (
     <Drawer

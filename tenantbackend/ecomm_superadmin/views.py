@@ -843,8 +843,8 @@ class TenantApplicationsByUrlView(APIView):
                 cursor.execute("""
                     SELECT id AS tenant_id, name AS tenant_name, status AS tenant_status 
                     FROM public.ecomm_superadmin_tenants
-                    WHERE url_suffix = %s
-                """, [url_suffix])
+                    WHERE url_suffix = %s or schema_name = %s
+                """, [url_suffix, url_suffix])
 
                 tenant_row = cursor.fetchone()
                 if not tenant_row:

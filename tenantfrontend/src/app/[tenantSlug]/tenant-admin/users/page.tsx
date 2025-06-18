@@ -5,20 +5,16 @@ import {
   Container,
   Typography,
   Box,
-  Paper,
   Breadcrumbs,
   Link,
-  CircularProgress,
-  Button
+  CircularProgress
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import dynamic from 'next/dynamic';
 
-// Import the component directly without dynamic import
-import TenantUserList from '../../../../components/TenantUserList';
+// Import our new UserManagement component
+import UserManagement from '@/components/tenant_management/UserManagement';
 
-export default function TenantUserManagement() {
+export default function TenantUserManagementPage() {
   const router = useRouter();
   const params = useParams();
   const tenantSlug = params?.tenantSlug as string;
@@ -99,31 +95,8 @@ export default function TenantUserManagement() {
         <Typography color="text.primary">User Management</Typography>
       </Breadcrumbs>
       
-      {/* Page header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          User Management
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            // This will be handled by the TenantUserList component
-            const addButton = document.querySelector('#add-user-button');
-            if (addButton) {
-              (addButton as HTMLElement).click();
-            }
-          }}
-        >
-          Add User
-        </Button>
-      </Box>
-      
-      {/* User list component */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <TenantUserList />
-      </Paper>
+      {/* Modern User Management component */}
+      <UserManagement tenantSlug={tenantSlug} />
     </Container>
   );
 }
