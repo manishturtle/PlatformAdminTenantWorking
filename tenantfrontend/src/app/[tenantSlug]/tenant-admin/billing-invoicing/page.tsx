@@ -8,17 +8,12 @@ import {
   Paper,
   Breadcrumbs,
   Link,
-  CircularProgress,
-  Button
+  CircularProgress
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import dynamic from 'next/dynamic';
+import BillingPage from '@/components/billing/BillingPage';
 
-// Import the component directly without dynamic import
-import TenantUserList from '../../../../components/TenantUserList';
-
-export default function TenantUserManagement() {
+export default function BillingInvoicingPage() {
   const router = useRouter();
   const params = useParams();
   const tenantSlug = params?.tenantSlug as string;
@@ -96,33 +91,19 @@ export default function TenantUserManagement() {
         >
           Dashboard
         </Link>
-        <Typography color="text.primary">User Management</Typography>
+        <Typography color="text.primary">Billing & Invoicing</Typography>
       </Breadcrumbs>
       
       {/* Page header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          User Management
+          Billing & Invoicing
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            // This will be handled by the TenantUserList component
-            const addButton = document.querySelector('#add-user-button');
-            if (addButton) {
-              (addButton as HTMLElement).click();
-            }
-          }}
-        >
-          Add User
-        </Button>
       </Box>
       
-      {/* User list component */}
+      {/* Billing page component */}
       <Paper sx={{ p: 3, mb: 4 }}>
-        <TenantUserList />
+        <BillingPage />
       </Paper>
     </Container>
   );

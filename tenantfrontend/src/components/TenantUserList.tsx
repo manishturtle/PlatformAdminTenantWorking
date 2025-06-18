@@ -228,28 +228,28 @@ const TenantUserList = () => {
     );
   }
 
+  // Add a hidden button that can be triggered by the parent component
+  useEffect(() => {
+    const handleAddUserClick = () => {
+      handleOpenAddUserModal();
+    };
+
+    const addButton = document.querySelector('#add-user-button');
+    if (addButton) {
+      addButton.addEventListener('click', handleAddUserClick);
+    }
+
+    return () => {
+      if (addButton) {
+        addButton.removeEventListener('click', handleAddUserClick);
+      }
+    };
+  }, []);
+
   return (
     <Box sx={{ width: "100%" }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
-        }}
-      >
-        <Typography variant="h5" component="h2">
-          Tenant Users
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleOpenAddUserModal}
-        >
-          Add User
-        </Button>
-      </Box>
+      {/* Hidden button that can be triggered by the parent */}
+      <button id="add-user-button" style={{ display: 'none' }} />
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
