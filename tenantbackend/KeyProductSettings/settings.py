@@ -103,7 +103,7 @@ WSGI_APPLICATION = 'KeyProductSettings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django_tenants.postgresql_backend', # Correct engine for django_tenants
-        'NAME': os.environ.get('DB_NAME', 'PlatformAdminDB'), # Use lowercase to match existing DB
+        'NAME': os.environ.get('DB_NAME', 'iam_login'), # Use lowercase to match existing DB
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'Qu1ckAss1st@123'),
         'HOST': os.environ.get('DB_HOST', 'localhost'), 

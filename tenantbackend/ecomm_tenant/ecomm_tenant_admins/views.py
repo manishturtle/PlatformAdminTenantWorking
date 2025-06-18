@@ -2726,7 +2726,6 @@ class TenantUserViewSet(ModelViewSet):
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows applications to be viewed or edited.

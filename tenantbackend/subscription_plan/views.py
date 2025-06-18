@@ -857,9 +857,9 @@ def check_tenant_exist(request):
 
             # Decide the login redirect path based on URL
             if is_tenant_admin:
-                redirect_path = f"https://devcockpit.turtleit.in/{schema_name}/tenant-admin/login?currentUrl={application_url}"
+                redirect_path = f"http://localhost:3000/{schema_name}/tenant-admin/login?currentUrl={application_url}"
             else:
-                redirect_path = f"https://devcockpit.turtleit.in/{schema_name}/login?currentUrl={application_url}"
+                redirect_path = f"http://localhost:3000/{schema_name}/login?currentUrl={application_url}"
 
             response_data = {
                 'message': f"Tenant with schema_name '{schema_name}'",

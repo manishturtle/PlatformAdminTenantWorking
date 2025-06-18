@@ -393,6 +393,7 @@ class OrderProcessedView(APIView):
                         
             except Exception as e:
                 logger.error(f"Error processing order: {str(e)}", exc_info=True)
+                connection.set_schema_to_public() 
                 return JsonResponse(
                     {'error': f'Error processing order: {str(e)}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
