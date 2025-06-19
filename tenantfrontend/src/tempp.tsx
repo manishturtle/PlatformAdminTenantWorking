@@ -49,7 +49,9 @@ type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
 interface GeneralSettingsProps {
-  // Removed onSave prop since we'll handle saving directly
+  onSave: (data: FormData) => Promise<void>;
+  isSaving?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface FormData {
@@ -72,7 +74,25 @@ interface FormData {
   firstDayOfWeek: FirstDayOfWeek;
 }
 
-const GeneralSettings = ({}: GeneralSettingsProps) => {
+const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSettingsProps) => {
+  // Date format options
+
+    // Date format options
+    const dateFormats = [
+      { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
+      { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
+      { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
+      { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
+      { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
+      { label: 'YYYY/MM/DD', value: 'yyyy/MM/dd' },
+      { label: 'Do MMM YYYY', value: 'do MMM yyyy' },         // 18th Jun 2025
+      { label: 'MMMM Do, YYYY', value: 'MMMM do, yyyy' },     // June 18th, 2025
+      { label: 'ddd, MMM D YYYY', value: 'EEE, MMM d yyyy' }, // Wed, Jun 18 2025
+      { label: 'Full ISO', value: "yyyy-MM-dd'T'HH:mm:ssxxx" } // 2025-06-18T14:23:00+05:30
+    ];
+    
+ 
+
   const { control, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<FormData>({
     defaultValues: {
       companyName: '',
@@ -88,24 +108,30 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
       taxId: '',
       language: 'en',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      dateFormat: 'yyyy-MM-dd',
+      dateFormat: dateFormats[0].value, // Set initial value from array
       timeFormat: '12h',
       currency: 'usd',
       firstDayOfWeek: 'sunday',
     },
   });
 
-  // Watch form values
+  // Watch form values and dirty state
   const watchedValues = watch();
   
-  // UI state
-  const [isSaving, setIsSaving] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ 
-    open: false, 
-    message: '', 
-    severity: 'success' 
-  });
-  const [activeTab, setActiveTab] = useState('general');
+  // Debug: Log form values when they change
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      console.log('Form value changed:', { name, type, value });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+  
+  // Notify parent when dirty state changes
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
   
   // Location data state
   // Define types for consistent use across the component
@@ -121,7 +147,6 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
   const [states, setStates] = useState<Array<{id: string, name: string}>>([]);
   const [cities, setCities] = useState<Array<{id: string, name: string}>>([]);
   
-  
   // UI state for dropdowns
   const [searchQueries, setSearchQueries] = useState({
     country: '',
@@ -132,7 +157,6 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     dateFormat: '', 
     currency: ''
   });
-  
   
   const [open, setOpen] = useState({
     country: false,
@@ -153,10 +177,11 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
   
   // Loading states
   const [isLoading, setIsLoading] = useState({
-    initial: true,  // For initial page load
-    country: false, // For country loading
-    state: false,   // For state loading
-    city: false     // For city loading
+    initial: true,    // For initial page load
+    country: false,   // For country loading
+    state: false,     // For state loading
+    city: false,      // For city loading
+    form: false       // For form submission
   });
   
   const [error, setError] = useState<{
@@ -169,20 +194,7 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     city: null
   });
 
-  // Date format options
-  const dateFormats = [
-    { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
-    { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
-    { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
-    { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
-    { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
-    { label: 'YYYY/MM/DD', value: 'yyyy/MM/dd' },
-    { label: 'Do MMM YYYY', value: 'do MMM yyyy' },         // 18th Jun 2025
-    { label: 'MMMM Do, YYYY', value: 'MMMM do, yyyy' },     // June 18th, 2025
-    { label: 'ddd, MMM D YYYY', value: 'EEE, MMM d yyyy' }, // Wed, Jun 18 2025
-    { label: 'Full ISO', value: "yyyy-MM-dd'T'HH:mm:ssxxx" } // 2025-06-18T14:23:00+05:30
-  ];
-  
+
   // Language options
  
   
@@ -196,47 +208,28 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     { code: 'es', name: 'Spanish', nativeName: 'Español' }
   ];
   
-    // const timezones  = Intl.supportedValuesOf('timeZone');
+  // Timezone options
+  const timezones = Intl.supportedValuesOf('timeZone');
   
   // Currency options
   const currencies: CurrencyType[] = [
-    { code: 'usd', symbol: '$', name: 'US Dollar (USD)' },
-    {code: 'inr', symbol: '₹', name: 'Indian Rupee (INR)' }
-   
+    { code: 'USD', symbol: '$', name: 'US Dollar (USD)' },
+    { code: 'EUR', symbol: '€', name: 'Euro (EUR)' },
+    { code: 'GBP', symbol: '£', name: 'British Pound (GBP)' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen (JPY)' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar (AUD)' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar (CAD)' },
+    { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc (CHF)' },
+    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan (CNY)' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee (INR)' },
+    { code: 'BRL', symbol: 'R$', name: 'Brazilian Real (BRL)' },
   ];
-    const timezoneOptions = Intl.supportedValuesOf('timeZone').map(tz => ({
-      code: tz,
-      name: tz.replace(/_/g, ' ')
-    }));
-
-  const timezones = [
-    { code: 'Pacific/Midway', name: '(UTC-11:00) Midway Island, Samoa' },
-    { code: 'Pacific/Honolulu', name: '(UTC-10:00) Hawaii' },
-    { code: 'America/Anchorage', name: '(UTC-09:00) Alaska' },
-    { code: 'America/Los_Angeles', name: '(UTC-08:00) Pacific Time (US & Canada)' },
-    { code: 'America/Denver', name: '(UTC-07:00) Mountain Time (US & Canada)' },
-    { code: 'America/Chicago', name: '(UTC-06:00) Central Time (US & Canada)' },
-    { code: 'America/New_York', name: '(UTC-05:00) Eastern Time (US & Canada)' },
-    { code: 'America/Halifax', name: '(UTC-04:00) Atlantic Time (Canada)' },
-    { code: 'America/Argentina/Buenos_Aires', name: '(UTC-03:00) Buenos Aires' },
-    { code: 'Atlantic/South_Georgia', name: '(UTC-02:00) Mid-Atlantic' },
-    { code: 'Atlantic/Azores', name: '(UTC-01:00) Azores' },
-    { code: 'UTC', name: '(UTC±00:00) Coordinated Universal Time' },
-    { code: 'Europe/London', name: '(UTC+00:00) London, Edinburgh, Dublin' },
-    { code: 'Europe/Paris', name: '(UTC+01:00) Paris, Amsterdam, Berlin' },
-    { code: 'Europe/Athens', name: '(UTC+02:00) Athens, Istanbul, Helsinki' },
-    { code: 'Asia/Kuwait', name: '(UTC+03:00) Kuwait, Riyadh, Moscow' },
-    { code: 'Asia/Dubai', name: '(UTC+04:00) Dubai, Abu Dhabi' },
-    { code: 'Asia/Karachi', name: '(UTC+05:00) Karachi, Islamabad' },
-    { code: 'Asia/Kolkata', name: '(UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi' },
-    { code: 'Asia/Dhaka', name: '(UTC+06:00) Dhaka, Astana' },
-    { code: 'Asia/Bangkok', name: '(UTC+07:00) Bangkok, Jakarta' },
-    { code: 'Asia/Shanghai', name: '(UTC+08:00) Beijing, Hong Kong, Singapore' },
-    { code: 'Asia/Tokyo', name: '(UTC+09:00) Tokyo, Seoul' },
-    { code: 'Australia/Sydney', name: '(UTC+10:00) Sydney, Brisbane' },
-    { code: 'Pacific/Noumea', name: '(UTC+11:00) Solomon Is.' },
-    { code: 'Pacific/Auckland', name: '(UTC+12:00) Auckland, Wellington' }
-  ];  
+  
+  // Timezone options
+  const timezoneOptions = Intl.supportedValuesOf('timeZone').map(tz => ({
+    code: tz,
+    name: tz.replace(/_/g, ' ')
+  }));
 
   // Fetch tenant config and countries on component mount
   useEffect(() => {
@@ -248,25 +241,41 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
         const config = await getTenantConfig();
         const formData = mapFromApiFormat(config);
         
+        console.log('Fetched tenant config:', config);
+        console.log('Mapped form data:', formData);
+        
         // Reset form with API data
         reset({
           ...formData,
-          country: formData.country || '',
-          state: formData.state || '',
+          // Ensure all required fields have default values
+          companyName: formData.companyName || '',
+          contactEmail: formData.contactEmail || '',
+          contactPhone: formData.contactPhone || '',
+          taxId: formData.taxId || '',
+          addressLine1: formData.addressLine1 || '',
+          addressLine2: formData.addressLine2 || '',
           city: formData.city || '',
+          state: formData.state || '',
+          postalCode: formData.postalCode || '',
+          country: formData.country || '',
+          language: formData.language || 'en',
+          timezone: formData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          dateFormat: formData.dateFormat || 'yyyy-MM-dd',
+          timeFormat: formData.timeFormat || '12h',
+          currency: formData.currency || 'usd',
+          firstDayOfWeek: formData.firstDayOfWeek || 'sunday',
         });
-
-        // Set default values for time format and first day of week
-        setValue('timeFormat', '12h');
-        setValue('firstDayOfWeek', 'sunday');
         
         // Fetch countries
-        const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
-        if (!response.ok) {
-          throw new Error('Failed to fetch countries');
+        try {
+          const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
+          if (response.ok) {
+            const countriesData = await response.json();
+            setCountries(countriesData);
+          }
+        } catch (error) {
+          console.error('Error fetching countries:', error);
         }
-        const countriesData = await response.json();
-        setCountries(countriesData);
         
       } catch (err) {
         console.error('Error fetching initial data:', err);
@@ -361,7 +370,10 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
     
   const filterTimezones = (items: TimezoneType[], query: string): TimezoneType[] =>
-    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    query && items ? items.filter(item => 
+      item?.name?.toLowerCase().includes(query.toLowerCase()) || 
+      item?.code?.toLowerCase().includes(query.toLowerCase())
+    ) : items || [];
     
   const filterLanguages = (items: LanguageType[], query: string): LanguageType[] =>
     query ? items.filter(item => 
@@ -375,11 +387,11 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
   const filterCurrencies = (items: CurrencyType[], query: string): CurrencyType[] =>
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase()) || 
                           item.code.toLowerCase().includes(query.toLowerCase())) : items;
-
+  
   const filteredCountries = filterCountries(countries, searchQueries.country);
   const filteredStates = filterStates(states, searchQueries.state);
   const filteredCities = filterCities(cities, searchQueries.city);
-  const filteredTimezones = filterTimezones(timezones, searchQueries.timezone);
+  const filteredTimezones = filterTimezones(timezoneOptions, searchQueries.timezone);
   const filteredLanguages = filterLanguages(languages, searchQueries.language);
   const filteredDateFormats = filterDateFormats(dateFormats, searchQueries.dateFormat);
   const filteredCurrencies = filterCurrencies(currencies, searchQueries.currency);
@@ -394,36 +406,36 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     setValue('firstDayOfWeek', newFirstDay);
   };
 
-  const handleSave = async (data: any) => {
+  const onSubmit = async (data: FormData) => {
     try {
-      setIsSaving(true);
-      
-      // Map form data to API format
-      const apiData = mapToApiFormat(data);
-      
-      // Save to API
-      await saveTenantConfig(apiData);
-      
-      // Show success message
-      setSnackbar({
-        open: true,
-        message: 'Settings saved successfully',
-        severity: 'success',
-      });
+      console.log('Submitting form data:', data);
+      await onSave(data);
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error('Error in form submission:', error);
       setSnackbar({
         open: true,
         message: 'Failed to save settings. Please try again.',
-        severity: 'error',
+        severity: 'error'
       });
-    } finally {
-      setIsSaving(false);
+      throw error;
     }
   };
+  
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: '100%' }}>
+      <form 
+        id="settings-form-general"
+        onSubmit={handleSubmit(onSubmit)} 
+        style={{ width: '100%' }}
+      >
     {/* Company Details Section */}
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Basic Company Details</Typography>
@@ -863,11 +875,8 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
             onClose={() => setOpen(prev => ({ ...prev, language: false }))}
             options={filteredLanguages}
             getOptionLabel={(option) => option.name}
-            onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                language: newValue?.code || ''
-              }));
+            onChange={(_: any, newValue: any) => {
+              setValue('language', newValue?.code || '', { shouldDirty: true });
             }}
             inputValue={searchQueries.language}
             onInputChange={(_, newInputValue) => handleSearchQueryChange('language', newInputValue)}
@@ -932,239 +941,239 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
         
         {/* Column 2 - Row 1 */}
         <Box>
-                  <Controller
-                    name="timezone"
-                    control={control}
-                    render={({ field: { onChange, value, ...field } }) => (
-                      <Autocomplete
-                        {...field}
-                        options={timezoneOptions}
-                        getOptionLabel={(option) => option.name}
-                        value={timezoneOptions.find(opt => opt.code === value) || null}
-                        onChange={(_, newValue) => {
-                          onChange(newValue?.code || '');
-                        }}
-                        inputValue={searchQueries.timezone}
-                        onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            size="small"
-                            label="Time Zone"
-                            variant="outlined"
-                          />
-                        )}
-                        renderOption={(props, option) => (
-                          <li {...props} key={option.code}>
-                            {option.name}
-                          </li>
-                        )}
-                        ListboxComponent={CustomScrollbar}
-                        ListboxProps={{
-                          style: {
-                            maxHeight: 200,
-                            paddingRight: '8px',
-                          },
-                        }}
-                        PaperComponent={({ children }) => (
-                          <Paper 
-                            sx={{ 
-                              width: 'auto',
-                              minWidth: '300px',
-                              boxShadow: 3,
-                              mt: 0.5,
-                              '& .MuiAutocomplete-listbox': {
-                                p: 0,
-                              },
-                              '& .MuiAutocomplete-option': {
-                                minHeight: '40px',
-                                '&[data-focus="true"]': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                },
-                                '&[aria-selected="true"]': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                  '&.Mui-focused': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                                  },
-                                },
-                              },
-                            }}
-                          >
-                            {children}
-                          </Paper>
-                        )}
-                        sx={{
-                          '& .MuiAutocomplete-popper': {
-                            minWidth: '300px',
-                          },
-                          '& .MuiAutocomplete-inputRoot': {
-                            paddingRight: '8px !important',
-                          },
-                        }}
-                        noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
-                      />
-                    )}
+          <Controller
+            name="timezone"
+            control={control}
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                options={timezoneOptions}
+                getOptionLabel={(option) => option.name}
+                value={timezoneOptions.find(opt => opt.code === value) || null}
+                onChange={(_, newValue) => {
+                  onChange(newValue?.code || '');
+                }}
+                inputValue={searchQueries.timezone}
+                onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Time Zone"
+                    variant="outlined"
                   />
-                </Box>
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.code}>
+                    {option.name}
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
+                      },
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
+              />
+            )}
+          />
+        </Box>
         
         {/* Column 1 - Row 2 */}
-          {/* Column 1 - Row 2 */}
-                <Box>
-                  <Controller
-                    name="dateFormat"
-                    control={control}
-                    render={({ field: { onChange, value, ...field } }) => (
-                      <Autocomplete
-                        {...field}
-                        open={open.dateFormat}
-                        onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
-                        onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
-                        options={dateFormats}
-                        getOptionLabel={(option) => option?.label || ''}
-                        value={value ? dateFormats.find(opt => opt.value === value) : dateFormats[0]}
-                        onChange={(_, newValue) => {
-                          if (newValue) {
-                            onChange(newValue.value);
-                          }
-                        }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            size="small"
-                            label="Date Format"
-                            variant="outlined"
-                          />
-                        )}
-                        renderOption={(props, option) => (
-                          <li {...props} key={option?.value}>
-                            {option?.label || 'Select a date format'}
-                          </li>
-                        )}
-                        ListboxComponent={CustomScrollbar}
-                        ListboxProps={{
-                          style: {
-                            maxHeight: 200,
-                            paddingRight: '8px',
-                          },
-                        }}
-                        PaperComponent={({ children }) => (
-                          <Paper 
-                            sx={{ 
-                              width: 'auto',
-                              minWidth: '300px',
-                              boxShadow: 3,
-                              mt: 0.5,
-                              '& .MuiAutocomplete-listbox': {
-                                p: 0,
-                              },
-                              '& .MuiAutocomplete-option': {
-                                minHeight: '40px',
-                                '&[data-focus="true"]': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                },
-                                '&[aria-selected="true"]': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                  '&.Mui-focused': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                                  },
-                                },
-                              },
-                            }}
-                          >
-                            {children}
-                          </Paper>
-                        )}
-                        sx={{
-                          '& .MuiAutocomplete-popper': {
-                            minWidth: '300px',
-                          },
-                          '& .MuiAutocomplete-inputRoot': {
-                            paddingRight: '8px !important',
-                          },
-                        }}
-                        noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
-                      />
-                    )}
+        <Box>
+          <Controller
+            name="dateFormat"
+            control={control}
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                open={open.dateFormat}
+                onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
+                onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
+                options={dateFormats}
+                getOptionLabel={(option) => option?.label || ''}
+                value={value ? dateFormats.find(opt => opt.value === value) : dateFormats[0]}
+                onChange={(_, newValue) => {
+                  if (newValue) {
+                    onChange(newValue.value);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Date Format"
+                    variant="outlined"
                   />
-                </Box>
-        
-        
-                {/* Column 2 - Row 2 */}
-                <Box>
-                  <Controller
-                    name="currency"
-                    control={control}
-                    render={({ field: { onChange, value, ...field } }) => (
-                      <Autocomplete
-                        {...field}
-                        options={currencies}
-                        getOptionLabel={(option) => `${option.code} - ${option.name} (${option.symbol})`}
-                        value={currencies.find(curr => curr.code === value) || null}
-                        onChange={(_, newValue) => {
-                          onChange(newValue?.code || '');
-                        }}
-                        inputValue={searchQueries.currency}
-                        onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            size="small"
-                            label="Currency"
-                            variant="outlined"
-                          />
-                        )}
-                        renderOption={(props, option) => (
-                          <li {...props} key={option.code}>
-                            {option.code} - {option.name} ({option.symbol})
-                          </li>
-                        )}
-                        ListboxComponent={CustomScrollbar}
-                        ListboxProps={{
-                          style: {
-                            maxHeight: 200,
-                            paddingRight: '8px',
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option?.value}>
+                    {option?.label || 'Select a date format'}
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
+                      },
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
                           },
-                        }}
-                        PaperComponent={({ children }) => (
-                          <Paper 
-                            sx={{ 
-                              width: 'auto',
-                              minWidth: '300px',
-                              boxShadow: 3,
-                              mt: 0.5,
-                              '& .MuiAutocomplete-listbox': {
-                                p: 0,
-                              },
-                              '& .MuiAutocomplete-option': {
-                                minHeight: '40px',
-                                '&[data-focus="true"]': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                },
-                                '&[aria-selected="true"]': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                  '&.Mui-focused': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                                  },
-                                },
-                              },
-                            }}
-                          >
-                            {children}
-                          </Paper>
-                        )}
-                        sx={{
-                          '& .MuiAutocomplete-popper': {
-                            minWidth: '300px',
-                          },
-                          '& .MuiAutocomplete-inputRoot': {
-                            paddingRight: '8px !important',
-                          },
-                        }}
-                        noOptionsText={!searchQueries.currency ? 'Type to search for currencies' : 'No currencies found'}
-                      />
-                    )}
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
+              />
+            )}
+          />
+        </Box>
+
+
+        {/* Column 2 - Row 2 */}
+        <Box>
+          <Controller
+            name="currency"
+            control={control}
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                options={currencies}
+                getOptionLabel={(option) => `${option.code} - ${option.name} (${option.symbol})`}
+                value={currencies.find(curr => curr.code === value) || null}
+                onChange={(_, newValue) => {
+                  onChange(newValue?.code || '');
+                }}
+                inputValue={searchQueries.currency}
+                onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Currency"
+                    variant="outlined"
                   />
-                </Box>
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.code}>
+                    {option.code} - {option.name} ({option.symbol})
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
+                      },
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.currency ? 'Type to search for currencies' : 'No currencies found'}
+              />
+            )}
+          />
+        </Box>
+        
         {/* Column 1 - Row 3 */}
         <Box>
           <FormControl component="fieldset">
@@ -1204,18 +1213,7 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
       
       </Box>
     </Paper>
-    
-    {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, mb: 1 }}>
-      <Button 
-        type="submit"
-        variant="contained" 
-        color="primary"
-        disabled={!isDirty || isSaving}
-        sx={{ px: 3, py: 1, minWidth: 120 }}
-      >
-        {isSaving ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
-      </Button>
-    </Box> */}
+    </form>
   </Box>
   );
 };
