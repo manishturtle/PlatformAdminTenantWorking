@@ -76,6 +76,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+################## GCS Cred #####################
+GCS_BUCKET_NAME = "turtle_qrosity"
+GCS_PROJECT_ID = "turtle-software-qrosity"
+GCS_SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, "services/gcp-service-account.json")
+
 # --- Templates ---
 TEMPLATES = [
     {

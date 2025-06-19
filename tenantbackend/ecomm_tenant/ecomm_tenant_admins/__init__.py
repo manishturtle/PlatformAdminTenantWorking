@@ -1,1 +1,0 @@
-default_app_config = 'ecomm_tenant.ecomm_tenant_admins.apps.EcommTenantAdminsConfig'

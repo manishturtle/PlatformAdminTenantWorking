@@ -21,6 +21,8 @@ from django.core.files.uploadedfile import UploadedFile
 import os
 from ecomm_tenant.ecomm_tenant_admins.tenant_jwt import TenantAdminJWTAuthentication
 from ecomm_superadmin.platform_admin_jwt import PlatformAdminJWTAuthentication
+from ecomm_tenant.ecomm_tenant_admins.models import TenantConfiguration
+from ecomm_tenant.ecomm_tenant_admins.serializers import TenantConfigurationSerializer
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -493,3 +495,162 @@ class TenantUserLoginView(APIView):
             },
            
         })
+
+
+class TenantConfigurationView(APIView):
+    """
+    API endpoint for managing tenant configuration.
+    Handles CRUD operations for tenant configuration including:
+    - Branding & Visuals
+    - Company Information
+    - Localization & Time
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = [TenantAdminJWTAuthentication]
+    
+    def get_tenant(self, tenant_slug):
+        """Get tenant from url_suffix"""
+        try:
+            return EcommSuperadminTenant.objects.get(url_suffix=tenant_slug)
+        except EcommSuperadminTenant.DoesNotExist:
+            return None
+
+    def get_client_id(self, tenant_slug):
+        """Get client_id from tenant slug"""
+        tenant = self.get_tenant(tenant_slug)
+        if tenant:
+            return tenant.client_id
+        return None
+
+    def get_object(self, client_id):
+        """Get the TenantConfiguration instance for the current tenant"""
+        try:
+            return TenantConfiguration.objects.get(client_id=client_id)
+        except TenantConfiguration.DoesNotExist:
+            return None
+
+    def get(self, request, tenant_slug):
+        """Get the current tenant configuration"""
+        try:
+            tenant = self.get_tenant(tenant_slug)
+            if not tenant:
+                return Response(
+                    {"error": "Invalid tenant slug",
+                     "message": f'The tenant "{tenant_slug}" does not exist',
+                     "status_code": 404}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            client_id = tenant.client_id
+            config = self.get_object(client_id)
+            
+            if not config:
+                return Response({
+                    "branding_config": {},
+                    "company_info": {},
+                    "localization_config": {}
+                }, status=status.HTTP_200_OK)
+
+            serializer = TenantConfigurationSerializer(config)
+            return Response({
+                **serializer.data,
+                "tenant_id": tenant.id,
+                "schema_name": tenant_slug
+            })
+
+        except Exception as e:
+            logger.error(f"Error retrieving tenant config: {str(e)}")
+            return Response(
+                {"error": "Failed to retrieve tenant configuration"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request, tenant_slug):
+        """Create or update tenant configuration"""
+        try:
+            logger.info(f"Received tenant config POST request for tenant: {tenant_slug}")
+            logger.info(f"Request data: {request.data}")
+            
+            tenant = self.get_tenant(tenant_slug)
+            if not tenant:
+                return Response(
+                    {"error": "Invalid tenant slug",
+                     "message": f'The tenant "{tenant_slug}" does not exist',
+                     "status_code": 404}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Add tenant to request object for serializer context
+            setattr(request, 'tenant', tenant)
+            
+            client_id = tenant.client_id
+            config = self.get_object(client_id)
+            
+            # Map frontend field names to model field names if needed
+            data = request.data.copy()
+            
+            if config:
+                # Update existing config
+                serializer = TenantConfigurationSerializer(
+                    config, 
+                    data=data,
+                    partial=True,
+                    context={'request': request}
+                )
+            else:
+                # Create new config
+                data['client_id'] = client_id
+                serializer = TenantConfigurationSerializer(
+                    data=data,
+                    context={'request': request}
+                )
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    **serializer.data,
+                    "tenant_id": tenant.id,
+                    "schema_name": tenant_slug,
+                    "message": "Tenant configuration saved successfully"
+                }, status=status.HTTP_200_OK if config else status.HTTP_201_CREATED)
+            
+            return Response(
+                {"error": "Invalid data", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        except Exception as e:
+            logger.error(f"Error saving tenant config: {str(e)}")
+            return Response(
+                {"error": "Failed to save tenant configuration"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def delete(self, request, tenant_slug):
+        """Delete tenant configuration"""
+        try:
+            tenant = self.get_tenant(tenant_slug)
+            if not tenant:
+                return Response(
+                    {"error": "Invalid tenant slug"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+                
+            # Add tenant to request object for serializer context
+            setattr(request, 'tenant', tenant)
+            
+            config = self.get_object(tenant.client_id)
+            if config:
+                config.delete()
+                
+            return Response(
+                {"message": "Tenant configuration deleted successfully"},
+                status=status.HTTP_204_NO_CONTENT
+            )
+            
+        except Exception as e:
+            logger.error(f"Error deleting tenant config: {str(e)}")
+            return Response(
+                {"error": "Failed to delete tenant configuration"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

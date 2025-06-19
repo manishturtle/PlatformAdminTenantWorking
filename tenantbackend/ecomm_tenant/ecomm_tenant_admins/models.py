@@ -716,4 +716,44 @@ class LoginConfig(models.Model):
                     );
                 """)
                 logger.info(f"Table {table_name} created successfully")
-    
+
+from django.db.models import JSONField
+
+class TenantConfiguration(models.Model):
+    """
+    Model to store centralized, customizable configuration settings for each tenant.
+    This model excludes an ORM-level foreign key constraint to the Tenant model,
+    relying on the 'tenant_id' field for identification.
+    Security and authentication-related configurations are also excluded.
+    """
+    # Django will automatically add an 'id' field as the primary key (AutoField)
+    # --- JSONB Columns for Logical Groupings ---
+
+    company_info = JSONField(
+        default=dict,
+        help_text="Stores core company information like name, registered address, and primary contacts."
+    )
+    branding_config = JSONField(
+        default=dict,
+        help_text="Stores branding and visual identity settings like logos, colors, fonts, theme mode."
+    )
+    localization_config = JSONField(
+        default=dict,
+        help_text="Stores default language, time zone, date/time formats."
+    )
+
+    # --- Metadata / Audit Fields ---
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who created this record")
+    updated_by = models.CharField(max_length=255, null=True, blank=True, help_text="User who last updated this record")
+    client_id = models.IntegerField(null=True, blank=True, help_text="ID of the client associated with this record")
+    company_id = models.IntegerField(null=True, blank=True, help_text="ID of the company associated with this record")
+
+
+    class Meta:
+        db_table = 'tenant_configurations'
+        verbose_name = "Tenant Configuration"
+        verbose_name_plural = "Tenant Configurations"
+      
+  

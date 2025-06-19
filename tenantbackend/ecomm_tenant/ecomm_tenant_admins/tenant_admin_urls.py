@@ -11,7 +11,7 @@ from .views import (
 )
 from .views_2fa import TwoFactorSetupStartView, TwoFactorSetupConfirmView, TwoFactorVerifyView, TwoFactorRecoveryVerifyView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .tenant_views import LoginConfigView
+from .tenant_views import LoginConfigView, TenantConfigurationView
 
 # Define app_name for namespace support
 app_name = 'tenant_admin'
@@ -49,6 +49,9 @@ urlpatterns = [
     
     # Login Configuration endpoint
     path('login-config/', LoginConfigView.as_view(), name='login-config'),
+    
+    # Tenant Configuration endpoint
+    path('tenant-config/', TenantConfigurationView.as_view(), name='tenant-config'),
     path('login-config/<str:tenant_slug>/', LoginConfigView.as_view(), name='get-login-config'),
     
     # 2FA endpoints

@@ -491,7 +491,6 @@ import {
   Popover,
   Autocomplete,
   Grid,
-  styled,
 } from '@mui/material';
 import { CloudUpload, Image as ImageIcon } from '@mui/icons-material';
 import { ChromePicker, type ColorResult } from 'react-color';
@@ -596,25 +595,6 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       setSecondaryColor(color.hex);
     }
   };
-
-  const CustomScrollbar = styled('div')({
-    '&::-webkit-scrollbar': {
-      width: '6px',
-      height: '6px',
-    },
-    '&::-webkit-scrollbar-track': {
-      background: '#f1f1f1',
-      borderRadius: '10px',
-    },
-    '&::-webkit-scrollbar-thumb': {
-      background: '#888',
-      borderRadius: '10px',
-      '&:hover': {
-        background: '#555',
-      },
-    },
-  });
-
 
   return (
     <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>

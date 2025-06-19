@@ -826,7 +826,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Secret key must be at least 32 characters long.")
         return value
 
-from ecomm_tenant.ecomm_tenant_admins.models import LoginConfig
+from ecomm_tenant.ecomm_tenant_admins.models import LoginConfig, TenantConfiguration
 
 from PIL import Image
 import io
@@ -946,3 +946,101 @@ class LoginConfigSerializer(serializers.ModelSerializer):
                 )
 
         return value
+
+
+class TenantConfigurationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the TenantConfiguration model.
+    Handles tenant configuration including branding, company info, and localization.
+    """
+    class Meta:
+        model = TenantConfiguration
+        fields = [
+            'id',
+            'company_info',
+            'branding_config',
+            'localization_config',
+            'client_id',
+            'company_id',
+            'created_at',
+            'updated_at',
+            'created_by',
+            'updated_by'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        extra_kwargs = {
+            'company_info': {'required': False},
+            'branding_config': {'required': False},
+            'localization_config': {'required': False},
+        }
+
+    def validate_company_info(self, value):
+        """Validate company info structure."""
+        if value and not isinstance(value, dict):
+            raise serializers.ValidationError("Company info must be a JSON object")
+        return value
+
+    def validate_branding_config(self, value):
+        """Validate branding config structure."""
+        if value and not isinstance(value, dict):
+            raise serializers.ValidationError("Branding config must be a JSON object")
+        
+        # Validate required fields if branding config is provided
+        if value:
+            required_fields = [
+                'company_logo_light',
+                'company_logo_dark',
+                'favicon',
+                'primary_brand_color',
+                'secondary_brand_color',
+                'default_font_style',
+                'default_theme_mode'
+            ]
+            
+            for field in required_fields:
+                if field not in value:
+                    value[field] = None
+        
+        return value
+
+    def validate_localization_config(self, value):
+        """Validate localization config structure."""
+        if value and not isinstance(value, dict):
+            raise serializers.ValidationError("Localization config must be a JSON object")
+        
+        # Validate required fields if localization config is provided
+        if value:
+            required_fields = [
+                'default_language',
+                'default_time_zone',
+                'default_date_format',
+                'default_time_format'
+            ]
+            
+            for field in required_fields:
+                if field not in value:
+                    value[field] = None
+        
+        return value
+
+    def create(self, validated_data):
+        """Create a new tenant configuration."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'tenant'):
+            # Store only the tenant ID
+            print("kk:", request.tenant)
+            tenant_id = str(request.tenant.id)
+            
+            validated_data['created_by'] = tenant_id
+            validated_data['updated_by'] = tenant_id
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update an existing tenant configuration."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'tenant'):
+            # Store only the tenant ID
+            tenant_id = str(request.tenant.id)
+            
+            validated_data['updated_by'] = tenant_id
+        return super().update(instance, validated_data)
