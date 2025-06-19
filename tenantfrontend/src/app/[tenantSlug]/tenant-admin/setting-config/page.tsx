@@ -25,7 +25,7 @@ const SettingsPage = () => {
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error'
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
 
   const generalFormRef = useRef<{ triggerSubmit: () => void }>(null);
@@ -48,8 +48,23 @@ const SettingsPage = () => {
       
       if (activeTab === 'general' && generalFormRef.current) {
         // Trigger general form submission
+        console.log('Triggering general form submission');
         generalFormRef.current.triggerSubmit();
       } else if (activeTab === 'branding' && brandingFormRef.current) {
+        // Verify we have generalFormData before saving branding
+        if (!generalFormData) {
+          console.warn('No general form data available when trying to save branding');
+          setSnackbar({
+            open: true,
+            message: 'Please complete and save the general settings first.',
+            severity: 'warning'
+          });
+          setActiveTab('general');
+          setIsSaving(false);
+          return;
+        }
+        
+        console.log('Triggering branding form submission with general data:', generalFormData);
         // Trigger branding form submission
         brandingFormRef.current.triggerSubmit();
       }
@@ -66,6 +81,17 @@ const SettingsPage = () => {
   
   const saveCombinedData = async (generalData: GeneralFormData, brandingData: BrandingFormData) => {
     try {
+      // Validate that both datasets are available
+      if (!generalData || Object.keys(generalData).length === 0) {
+        throw new Error('General settings data is missing or empty');
+      }
+      
+      if (!brandingData || Object.keys(brandingData).length === 0) {
+        throw new Error('Branding settings data is missing or empty');
+      }
+
+      console.log('Creating API data with:\nGeneral:', generalData, '\nBranding:', brandingData);
+      
       // Create the API data structure according to the backend model
       const apiData: TenantConfig = {
         company_info: {
@@ -123,15 +149,23 @@ const SettingsPage = () => {
         updated_at: new Date().toISOString()
       };
       
-      console.log('Saving tenant config:', apiData);
+      console.log('Saving tenant config:', JSON.stringify(apiData, null, 2));
       
       await saveTenantConfig(apiData);
+      
+      // Save the data to localStorage as backup
+      localStorage.setItem('lastSavedConfig', JSON.stringify({
+        generalData,
+        brandingData,
+        timestamp: new Date().toISOString()
+      }));
       
       setSnackbar({
         open: true,
         message: 'Settings saved successfully!',
         severity: 'success'
       });
+      
       return true;
     } catch (error) {
       console.error('Error saving tenant config:', error);
@@ -147,32 +181,93 @@ const SettingsPage = () => {
   };
 
   const handleGeneralSubmit = async (data: GeneralFormData) => {
-    console.log('General form submitted:', data);
-    const newGeneralData = { ...data };
-    setGeneralFormData(newGeneralData);
-    setIsGeneralComplete(true);
-    
-    // Move to branding tab after saving general settings
-    setActiveTab('branding');
-    
-    setSnackbar({
-      open: true,
-      message: 'General settings saved. Please configure branding.',
-      severity: 'success'
-    });
+    try {
+      console.log('General form submitted:', data);
+      setIsSaving(true);
+      // Create a deep copy of the data to ensure it's fully captured
+      const newGeneralData = JSON.parse(JSON.stringify(data));
+      console.log('Storing general data in state:', newGeneralData);
+      // Store the data in state for later use
+      setGeneralFormData(newGeneralData);
+      setIsGeneralComplete(true);
+      
+      // Store in localStorage as backup (will help debug persistence issues)
+      localStorage.setItem('cachedGeneralSettings', JSON.stringify(newGeneralData));
+      
+      // Move to branding tab after saving general settings
+      setActiveTab('branding');
+      
+      setSnackbar({
+        open: true,
+        message: 'General settings saved. Please configure branding.',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error in handleGeneralSubmit:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to save general settings',
+        severity: 'error'
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleBrandingSubmit = async (data: BrandingFormData) => {
-    if (!generalFormData) {
-      throw new Error('General settings are required before saving branding');
+    try {
+      setIsSaving(true);
+      let generalData = generalFormData;
+      
+      // If general form data is missing, try to recover from localStorage
+      if (!generalData) {
+        console.warn('General form data not found in state, attempting to recover from localStorage');
+        const cachedData = localStorage.getItem('cachedGeneralSettings');
+        if (cachedData) {
+          try {
+            generalData = JSON.parse(cachedData);
+            console.log('Recovered general data from localStorage:', generalData);
+            // Update the state with the recovered data
+            setGeneralFormData(generalData);
+            setIsGeneralComplete(true);
+          } catch (e) {
+            console.error('Failed to parse cached general settings:', e);
+          }
+        }
+      }
+      
+      // If still no general data, redirect to general tab
+      if (!generalData) {
+        setSnackbar({
+          open: true,
+          message: 'Please complete general settings first before saving branding.',
+          severity: 'warning'
+        });
+        setActiveTab('general');
+        setIsSaving(false);
+        return;
+      }
+      
+      console.log('Branding form submitted:', data);
+      console.log('Using general form data:', generalData);
+      setBrandingFormData(data);
+      
+      // Save both general and branding data
+      await saveCombinedData(generalData, data);
+    } catch (error) {
+      console.error('Error in handleBrandingSubmit:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to save branding settings',
+        severity: 'error'
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
     }
-    
-    console.log('Branding form submitted:', data);
-    setBrandingFormData(data);
-    
-    // Save both general and branding data
-    await saveCombinedData(generalFormData, data);
   };
+
   
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
