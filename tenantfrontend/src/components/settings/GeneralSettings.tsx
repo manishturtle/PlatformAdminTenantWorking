@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { 
   Box, 
@@ -48,8 +48,27 @@ const CustomScrollbar = styled('div')({
 type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
+export interface GeneralFormData {
+  companyName: string;
+  contactEmail: string;
+  contactPhone: string;
+  taxId?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  timezone: string;
+  dateFormat: string;
+  timeFormat: '12h' | '24h' | '24-hour';
+  firstDayOfWeek: 'sunday' | 'monday';
+  currency: string;
+  language: string;
+}
+
 interface GeneralSettingsProps {
-  // Removed onSave prop since we'll handle saving directly
+  onSave: (data: GeneralFormData) => void;
 }
 
 interface FormData {
@@ -72,7 +91,13 @@ interface FormData {
   firstDayOfWeek: FirstDayOfWeek;
 }
 
-const GeneralSettings = ({}: GeneralSettingsProps) => {
+const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref) => {
+  // Expose the triggerSubmit method to parent
+  React.useImperativeHandle(ref, () => ({
+    triggerSubmit: () => {
+      handleSubmit(onSave)();
+    }
+  }));
   const { control, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<FormData>({
     defaultValues: {
       companyName: '',
@@ -423,7 +448,9 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <form onSubmit={handleSubmit(onSave)}>
+      <Box sx={{ width: '100%' }}>
+        <input type="submit" style={{ display: 'none' }} />
     {/* Company Details Section */}
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Basic Company Details</Typography>
@@ -1216,8 +1243,11 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
         {isSaving ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
       </Button>
     </Box> */}
-  </Box>
+      </Box>
+    </form>
   );
-};
+});
+
+GeneralSettings.displayName = 'GeneralSettings';
 
 export default GeneralSettings;

@@ -79,8 +79,18 @@ import {
 import { CloudUpload, Image as ImageIcon } from '@mui/icons-material';
 import { ChromePicker, type ColorResult } from 'react-color';
 
+export interface BrandingFormData {
+  default_theme_mode: 'light' | 'dark' | 'system';
+  primary_brand_color: string;
+  secondary_brand_color: string;
+  default_font_style: string;
+  company_logo_light?: string;
+  company_logo_dark?: string;
+  favicon?: string;
+}
+
 interface BrandingVisualsProps {
-  // Add any props if needed
+  onSave: (data: BrandingFormData) => void;
 }
 
 type FontType = {
@@ -88,8 +98,26 @@ type FontType = {
   name: string;
 };
 
-const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
-  const [themeMode, setThemeMode] = useState<string>('light');
+const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, BrandingVisualsProps>(({ onSave }, ref) => {
+  // Handle save functionality
+  const handleSave = () => {
+    const formData: BrandingFormData = {
+      default_theme_mode: themeMode,
+      primary_brand_color: primaryColor,
+      secondary_brand_color: secondaryColor,
+      default_font_style: selectedFont?.code || 'roboto',
+      company_logo_light: imagePreviews['light-logo'],
+      company_logo_dark: imagePreviews['dark-logo'] || undefined,
+      favicon: imagePreviews['favicon'] || undefined
+    };
+    onSave(formData);
+  };
+
+  // Expose the triggerSubmit method to parent
+  React.useImperativeHandle(ref, () => ({
+    triggerSubmit: handleSave
+  }));
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('light');
   const [primaryColor, setPrimaryColor] = useState<string>('#000080');
   const [secondaryColor, setSecondaryColor] = useState<string>('#D3D3D3');
   const [selectedFont, setSelectedFont] = useState<FontType | null>({ code: 'roboto', name: 'Roboto' });
@@ -196,10 +224,11 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
     } else if (colorPickerFor === 'secondary') {
       setSecondaryColor(color.hex);
     }
+    setAnchorEl(null);
   };
 
   return (
-    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>
+    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0 }}>
       {/* Color Picker Popover */}
       <Popover
         open={Boolean(anchorEl)}
@@ -576,6 +605,9 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       </Paper>
     </Box>
   );
-};
+});
 
+BrandingVisuals.displayName = 'BrandingVisuals';
+
+export { BrandingFormData };
 export default BrandingVisuals;

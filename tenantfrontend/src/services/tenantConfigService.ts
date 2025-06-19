@@ -1,6 +1,13 @@
 import axios from 'axios';
 import { getTenantApiBaseUrl } from '../utils/tenantUtils';
 
+// Helper function to get auth headers
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'X-CSRFToken': getCsrfToken(),
+  // Add any other required headers here (e.g., Authorization)
+});
+
 
 // Interfaces for the API response
 export interface Address {
@@ -283,12 +290,16 @@ export const getTenantConfig = async (): Promise<TenantConfig> => {
 // Save tenant configuration
 export const saveTenantConfig = async (data: Partial<TenantConfig>): Promise<void> => {
   try {
-    // The getTenantApiBaseUrl already includes the base URL and tenant slug
-    await api.post(`${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`, data, {
+    console.log('Saving tenant config with data:', data);
+    const response = await api.post('/tenant-admin/tenant-config/', data, {
       headers: getAuthHeaders()
     });
+    console.log('Save successful:', response.data);
   } catch (error) {
     console.error('Error saving tenant config:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Error response:', error.response?.data);
+    }
     throw error;
   }
 };
