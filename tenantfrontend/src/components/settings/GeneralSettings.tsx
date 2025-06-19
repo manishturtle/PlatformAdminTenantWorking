@@ -6,6 +6,7 @@ import {
   Typography, 
   TextField, 
   FormControl, 
+  FormLabel,
   InputLabel, 
   Select, 
   MenuItem, 
@@ -70,23 +71,23 @@ interface FormData {
 const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   // Form data state
   const [formData, setFormData] = useState<FormData>({
-    companyName: 'Acme Inc',
-    contactEmail: 'contact@acme.com',
-    contactPhone: '+1 (555) 123-4567',
+    companyName: '',
+    contactEmail: '',
+    contactPhone: '',
     country: '',
     countryCode: '',
-    addressLine1: '123 Main St',
-    addressLine2: 'Suite 100',
+    addressLine1: '',
+    addressLine2: '',
     city: '',
     state: '',
-    postalCode: '10001',
-    taxId: '12-3456789',
-    language: 'en',
-    timezone: 'America/New_York',
-    dateFormat: 'MM/dd/yyyy',  // Updated to match dateFormats array value
+    postalCode: '',
+    taxId: '',
+    language: '',
+    timezone: '',
+    dateFormat: '',  // Updated to match dateFormats array value
     timeFormat: '12h',
-    currency: 'usd',  // Updated to lowercase to match currency code in the dropdown
-    firstDayOfWeek: 'sunday',
+    currency: '',  // Updated to lowercase to match currency code in the dropdown
+    firstDayOfWeek: '',
   });
 
   // UI state
@@ -96,11 +97,11 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   
   // Location data state
   // Define types for consistent use across the component
-  type CountryType = {id: string; name: string; code: string};
+  type CountryType = {id: string; name: string; code: string};  
   type StateType = {id: string; name: string};
   type CityType = {id: string; name: string};
   type TimezoneType = {code: string; name: string};
-  type LanguageType = {code: string; name: string};
+  type LanguageType = {code: string; name: string; nativeName: string};
   type DateFormatType = {value: string; label: string};
   type CurrencyType = {code: string; symbol: string; name: string};
   
@@ -116,7 +117,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     city: '',
     timezone: '',
     language: '',
-    dateFormat: '',
+    dateFormat: '', 
     currency: ''
   });
   
@@ -131,7 +132,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     timezone: false
   });
   
-  const handleSearchQueryChange = (field: 'country' | 'state' | 'city' | 'timezone', value: string) => {
+  const handleSearchQueryChange = (field: 'country' | 'state' | 'city' | 'timezone' | 'language' | 'dateFormat' | 'currency', value: string) => {
     setSearchQueries(prev => ({
       ...prev,
       [field]: value
@@ -170,32 +171,23 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   ];
   
   // Language options
+ 
+  
+  
   const languages: LanguageType[] = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'ar', name: 'Arabic' },
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'it', name: 'Italian' }
+    { code: 'en', name: 'English', nativeName: 'English' },
+    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+    { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia' },
+    { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+    { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español' }
   ];
   
   // Currency options
   const currencies: CurrencyType[] = [
     { code: 'usd', symbol: '$', name: 'US Dollar (USD)' },
-    // { code: 'eur', symbol: '€', name: 'Euro (EUR)' },
-    // { code: 'gbp', symbol: '£', name: 'British Pound (GBP)' },
-    // { code: 'jpy', symbol: '¥', name: 'Japanese Yen (JPY)' },
-    { code: 'inr', symbol: '₹', name: 'Indian Rupee (INR)' },
-    // { code: 'cny', symbol: '¥', name: 'Chinese Yuan (CNY)' },
-    // { code: 'cad', symbol: '$', name: 'Canadian Dollar (CAD)' },
-    // { code: 'aud', symbol: '$', name: 'Australian Dollar (AUD)' },
-    // { code: 'chf', symbol: 'Fr', name: 'Swiss Franc (CHF)' },
-    // { code: 'aed', symbol: 'د.إ', name: 'UAE Dirham (AED)' }
+ 
+   
   ];
 
   const timezones = [
@@ -325,7 +317,10 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
     
   const filterLanguages = (items: LanguageType[], query: string): LanguageType[] =>
-    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    query ? items.filter(item => 
+      item.name.toLowerCase().includes(query.toLowerCase()) || 
+      item.nativeName.toLowerCase().includes(query.toLowerCase())
+    ) : items;
     
   const filterDateFormats = (items: DateFormatType[], query: string): DateFormatType[] =>
     query ? items.filter(item => item.label.toLowerCase().includes(query.toLowerCase())) : items;
@@ -382,45 +377,64 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: '100%' }}>
     {/* Company Details Section */}
-    <Paper elevation={0} sx={{ p: 2, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-      <Typography variant="h6" fontWeight="medium" sx={{ mb: 1 }}>Basic Company Details</Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+      <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>Basic Company Details</Typography>
       
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+        <Box>
           <TextField
             fullWidth
             label="Company Name"
             variant="outlined"
             size="small"
             margin="dense"
+            name="companyName"
+            value={formData.companyName}
+            onChange={handleInputChange}
           />
-        </Grid>
-        <Grid item xs={12} md={6}>
+        </Box>
+        <Box>
           <TextField
             fullWidth
             label="Primary Contact Email"
             variant="outlined"
             size="small"
             margin="dense"
-            value="contact@company.com"
+            name="contactEmail"
+            value={formData.contactEmail}
+            onChange={handleInputChange}
           />
-        </Grid>
+        </Box>
         
-        {/* Add more form fields here */}
-        <Grid item xs={12} md={6}>
+        <Box>
           <TextField
             fullWidth
             label="Primary Contact Phone"
             variant="outlined"
             size="small"
             margin="dense"
-            value="+1 (555) 123-4567"
+            name="contactPhone"
+            value={formData.contactPhone}
+            onChange={handleInputChange}
           />
-        </Grid>
+        </Box>
+
+        <Box>
+          <TextField
+            fullWidth
+            label="Tax ID/VAT Number"
+            variant="outlined"
+            size="small"
+            margin="dense"
+            name="taxId"
+            value={formData.taxId}
+            onChange={handleInputChange}
+          />
+        </Box>
         
-        <Grid item xs={12} md={6}>
+        <Box>
           <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
             <Autocomplete
               open={open.country}
@@ -513,13 +527,9 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               </Typography>
             )}
           </FormControl>
-        </Grid>
-      </Grid>
-      
-      <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 'medium' }}>Address</Typography>
-      
-      <Grid container spacing={2} sx={{ mt: 0.5 }}>
-        <Grid item xs={12}>
+        </Box>
+
+        <Box>
           <TextField
             fullWidth
             label="Address Line 1"
@@ -527,9 +537,12 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             size="small"
             margin="dense"
             placeholder="Street address"
+            name="addressLine1"
+            value={formData.addressLine1}
+            onChange={handleInputChange}
           />
-        </Grid>
-        <Grid item xs={12}>
+        </Box>
+        <Box>
           <TextField
             fullWidth
             label="Address Line 2 (Optional)"
@@ -537,10 +550,13 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             size="small"
             margin="dense"
             placeholder="Suite, floor, etc."
+            name="addressLine2"
+            value={formData.addressLine2}
+            onChange={handleInputChange}
           />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 260 }}>
+        </Box>
+        <Box>
+          <FormControl fullWidth size="small" margin="dense">
             <Autocomplete
               open={open.state}
               onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
@@ -631,9 +647,9 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               </Typography>
             )}
           </FormControl>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 250 }}>
+          </Box>
+          <Box>
+          <FormControl fullWidth size="small" margin="dense">
             <Autocomplete
               open={open.city}
               onOpen={() => setOpen(prev => ({ ...prev, city: true }))}
@@ -723,8 +739,8 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               </Typography>
             )}
           </FormControl>
-        </Grid>
-        <Grid item xs={12} md={4}>
+          </Box>
+          <Box>
           <TextField
             fullWidth
             label="ZIP/Postal Code"
@@ -732,34 +748,24 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             size="small"
             margin="dense"
           />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Tax ID/VAT Number"
-            variant="outlined"
-            size="small"
-            margin="dense"
-          />
-        </Grid>
-      </Grid>
+          </Box>
+      
+      </Box>
     </Paper>
 
     {/* Regional & Display Preferences Section */}
-    <Paper elevation={0} sx={{ p: 4, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-      <Typography variant="h6" sx={{ mb: 3 }}>Regional & Display Preferences</Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+      <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>Regional & Display Preferences</Typography>
       
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
         {/* Column 1 - Row 1 */}
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Default Language</Typography>
           <Autocomplete
             open={open.language}
             onOpen={() => setOpen(prev => ({ ...prev, language: true }))}
             onClose={() => setOpen(prev => ({ ...prev, language: false }))}
             options={filteredLanguages}
             getOptionLabel={(option) => option.name}
-            value={languages.find(lang => lang.code === formData.language) || null}
             onChange={(_, newValue) => {
               setFormData(prev => ({
                 ...prev,
@@ -772,42 +778,69 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               <TextField
                 {...params}
                 size="small"
-                placeholder="Select language"
-                InputProps={{
-                  ...params.InputProps,
-                }}
+                label="Default Language"
+                variant="outlined"
               />
             )}
             renderOption={(props, option) => (
-              <MenuItem
-                {...props}
-                component="li"
-                key={option.code}
-              >
-                {option.name}
-              </MenuItem>
+              <li {...props} key={option.code}>
+                {option.name} ({option.nativeName})
+              </li>
             )}
-            noOptionsText={!searchQueries.language ? 'Type to search for languages' : 'No languages found'}
+            ListboxComponent={CustomScrollbar}
             ListboxProps={{
               style: {
-                maxHeight: '220px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#bdbdbd #f5f5f5',
-              }
+                maxHeight: 200,
+                paddingRight: '8px',
+              },
             }}
+            PaperComponent={({ children }) => (
+              <Paper 
+                sx={{ 
+                  width: 'auto',
+                  minWidth: '300px',
+                  boxShadow: 3,
+                  mt: 0.5,
+                  '& .MuiAutocomplete-listbox': {
+                    p: 0,
+                  },
+                  '& .MuiAutocomplete-option': {
+                    minHeight: '40px',
+                    '&[data-focus="true"]': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    },
+                    '&[aria-selected="true"]': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                      },
+                    },
+                  },
+                }}
+              >
+                {children}
+              </Paper>
+            )}
+            sx={{
+              '& .MuiAutocomplete-popper': {
+                minWidth: '300px',
+              },
+              '& .MuiAutocomplete-inputRoot': {
+                paddingRight: '8px !important',
+              },
+            }}
+            noOptionsText={!searchQueries.language ? 'Type to search for languages' : 'No languages found'}
           />
         </Box>
         
         {/* Column 2 - Row 1 */}
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Time Zone</Typography>
           <Autocomplete
             open={open.timezone}
             onOpen={() => setOpen(prev => ({ ...prev, timezone: true }))}
             onClose={() => setOpen(prev => ({ ...prev, timezone: false }))}
             options={filteredTimezones}
             getOptionLabel={(option) => option.name}
-            value={timezones.find(tz => tz.code === formData.timezone) || null}
             onChange={(_, newValue) => {
               setFormData(prev => ({
                 ...prev,
@@ -820,47 +853,69 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               <TextField
                 {...params}
                 size="small"
-                placeholder="Select timezone"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
+                label="Time Zone"
+                variant="outlined"
               />
             )}
             renderOption={(props, option) => (
-              <MenuItem
-                {...props}
-                component="li"
-                key={option.code}
-              >
+              <li {...props} key={option.code}>
                 {option.name}
-              </MenuItem>
+              </li>
             )}
-            noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
+            ListboxComponent={CustomScrollbar}
             ListboxProps={{
               style: {
-                maxHeight: '220px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#bdbdbd #f5f5f5',
-              }
+                maxHeight: 200,
+                paddingRight: '8px',
+              },
             }}
+            PaperComponent={({ children }) => (
+              <Paper 
+                sx={{ 
+                  width: 'auto',
+                  minWidth: '300px',
+                  boxShadow: 3,
+                  mt: 0.5,
+                  '& .MuiAutocomplete-listbox': {
+                    p: 0,
+                  },
+                  '& .MuiAutocomplete-option': {
+                    minHeight: '40px',
+                    '&[data-focus="true"]': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    },
+                    '&[aria-selected="true"]': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                      },
+                    },
+                  },
+                }}
+              >
+                {children}
+              </Paper>
+            )}
+            sx={{
+              '& .MuiAutocomplete-popper': {
+                minWidth: '300px',
+              },
+              '& .MuiAutocomplete-inputRoot': {
+                paddingRight: '8px !important',
+              },
+            }}
+            noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
           />
         </Box>
         
         {/* Column 1 - Row 2 */}
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Date Format</Typography>
           <Autocomplete
             open={open.dateFormat}
             onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
             onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
             options={filteredDateFormats}
             getOptionLabel={(option) => option.label}
-            value={dateFormats.find(format => format.value === formData.dateFormat) || null}
             onChange={(_, newValue) => {
               setFormData(prev => ({
                 ...prev,
@@ -873,64 +928,72 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               <TextField
                 {...params}
                 size="small"
-                placeholder="Select date format"
-                InputProps={{
-                  ...params.InputProps,
-                }}
+                label="Date Format"
+                variant="outlined"
               />
             )}
             renderOption={(props, option) => (
-              <MenuItem
-                {...props}
-                component="li"
-                key={option.value}
-              >
+              <li {...props} key={option.value}>
                 {option.label}
-              </MenuItem>
+              </li>
             )}
-            noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
+            ListboxComponent={CustomScrollbar}
             ListboxProps={{
               style: {
-                maxHeight: '220px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#bdbdbd #f5f5f5',
-              }
+                maxHeight: 200,
+                paddingRight: '8px',
+              },
             }}
+            PaperComponent={({ children }) => (
+              <Paper 
+                sx={{ 
+                  width: 'auto',
+                  minWidth: '300px',
+                  boxShadow: 3,
+                  mt: 0.5,
+                  '& .MuiAutocomplete-listbox': {
+                    p: 0,
+                  },
+                  '& .MuiAutocomplete-option': {
+                    minHeight: '40px',
+                    '&[data-focus="true"]': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    },
+                    '&[aria-selected="true"]': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                      },
+                    },
+                  },
+                }}
+              >
+                {children}
+              </Paper>
+            )}
+            sx={{
+              '& .MuiAutocomplete-popper': {
+                minWidth: '300px',
+              },
+              '& .MuiAutocomplete-inputRoot': {
+                paddingRight: '8px !important',
+              },
+            }}
+            noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
           />
         </Box>
         
         {/* Column 2 - Row 2 */}
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Time Format</Typography>
-          <RadioGroup
-            row
-            value={timeFormat}
-            onChange={handleTimeFormatChange}
-          >
-            <FormControlLabel 
-              value="12h" 
-              control={<Radio size="small" />} 
-              label="12-hour (AM/PM)" 
-              sx={{ mr: 4 }}
-            />
-            <FormControlLabel 
-              value="24h" 
-              control={<Radio size="small" />} 
-              label="24-hour" 
-            />
-          </RadioGroup>
-        </Box>
+       
         
         {/* Column 1 - Row 3 */}
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Default Currency</Typography>
           <Autocomplete
             open={open.currency}
             onOpen={() => setOpen(prev => ({ ...prev, currency: true }))}
             onClose={() => setOpen(prev => ({ ...prev, currency: false }))}
             options={filteredCurrencies}
             getOptionLabel={(option) => option.name}
-            value={currencies.find(curr => curr.code === formData.currency) || null}
             onChange={(_, newValue) => {
               setFormData(prev => ({
                 ...prev,
@@ -943,7 +1006,8 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
               <TextField
                 {...params}
                 size="small"
-                placeholder="Select currency"
+                label="Default Currency"
+                variant="outlined"
                 InputProps={{
                   ...params.InputProps,
                 }}
@@ -971,36 +1035,46 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             }}
           />
         </Box>
-        
-        {/* Column 2 - Row 3 */}
         <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>First Day of Week</Typography>
-          <RadioGroup
-            row
-            value={firstDayOfWeek}
-            onChange={handleFirstDayOfWeekChange}
-          >
-            <FormControlLabel 
-              value="sunday" 
-              control={<Radio size="small" />} 
-              label="Sunday" 
-              sx={{ mr: 4 }}
-            />
-            <FormControlLabel 
-              value="monday" 
-              control={<Radio size="small" />} 
-              label="Monday" 
-            />
-          </RadioGroup>
+          <FormControl component="fieldset">
+            <FormLabel component="legend" sx={{ 
+              fontSize: '0.875rem', 
+              '&.Mui-focused': {
+                color: 'primary.main'
+              }
+            }}>
+              Time Format
+            </FormLabel>
+            <RadioGroup
+              row
+              value={timeFormat}
+              onChange={handleTimeFormatChange}
+              sx={{ mt: 0.5 }}
+            >
+              <FormControlLabel 
+                value="12h" 
+                control={<Radio size="small" />} 
+                label="12-hour (AM/PM)" 
+                sx={{ mr: 4 }}
+              />
+              <FormControlLabel 
+                value="24h" 
+                control={<Radio size="small" />} 
+                label="24-hour" 
+              />
+            </RadioGroup>
+          </FormControl>
         </Box>
+      
       </Box>
     </Paper>
     
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, mb: 1 }}>
       <Button 
         variant="contained" 
-        color="primary"
-        sx={{ textTransform: 'none', px: 4, py: 1 }}
+        color="primary" 
+        onClick={handleSubmit}
+        sx={{ px: 3, py: 1 }}
       >
         Save Changes
       </Button>

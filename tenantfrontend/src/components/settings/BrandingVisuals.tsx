@@ -597,7 +597,7 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
   };
 
   return (
-    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 3 }}>
+    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>
       {/* Color Picker Popover */}
       <Popover
         open={Boolean(anchorEl)}

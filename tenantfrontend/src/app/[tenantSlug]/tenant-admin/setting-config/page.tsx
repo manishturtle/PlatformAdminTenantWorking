@@ -33,19 +33,7 @@ const SettingsPage = () => {
     <Box sx={{ minHeight: '100vh' }}>
       {/* Main Content */}
       <Box component="main" sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Box>
-            <Typography variant="h5" fontWeight="bold" gutterBottom>Organization Settings</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Manage and configure your organization settings to enhance control over company details, preferences, and security settings.
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <NotificationsIcon color="action" />
-            <HelpOutlineIcon color="action" />
-          </Box>
-        </Box>
-
+      
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
           <Box sx={{ display: 'flex', gap: 4 }}>
