@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { getTenantApiBaseUrl } from '@/utils/tenantUtils';
+import { getTenantApiBaseUrl } from '../utils/tenantUtils';
+
 
 // Interfaces for the API response
 export interface Address {
@@ -282,7 +283,10 @@ export const getTenantConfig = async (): Promise<TenantConfig> => {
 // Save tenant configuration
 export const saveTenantConfig = async (data: Partial<TenantConfig>): Promise<void> => {
   try {
-    await api.post(`${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`, data);
+    // The getTenantApiBaseUrl already includes the base URL and tenant slug
+    await api.post(`${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`, data, {
+      headers: getAuthHeaders()
+    });
   } catch (error) {
     console.error('Error saving tenant config:', error);
     throw error;
