@@ -491,6 +491,7 @@ import {
   Popover,
   Autocomplete,
   Grid,
+  styled,
 } from '@mui/material';
 import { CloudUpload, Image as ImageIcon } from '@mui/icons-material';
 import { ChromePicker, type ColorResult } from 'react-color';
@@ -595,6 +596,25 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       setSecondaryColor(color.hex);
     }
   };
+
+  const CustomScrollbar = styled('div')({
+    '&::-webkit-scrollbar': {
+      width: '6px',
+      height: '6px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: '#f1f1f1',
+      borderRadius: '10px',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#888',
+      borderRadius: '10px',
+      '&:hover': {
+        background: '#555',
+      },
+    },
+  });
+
 
   return (
     <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>
@@ -868,9 +888,6 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
-              Default Font Style
-            </Typography>
             <Autocomplete
               open={open.font}
               onOpen={() => setOpen(prev => ({ ...prev, font: true }))}
@@ -883,11 +900,60 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
               onInputChange={(_, newInputValue) => handleSearchQueryChange('font', newInputValue)}
               renderInput={(params) => (
                 <TextField
-                  {...params}
+                  {...params} 
                   size="small"
-                  placeholder="Select font"
+                  label="Default Font Style"
+                  variant="outlined"
                 />
               )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.code}>
+                  {option.name}
+                </li>
+              )}
+              ListboxComponent={CustomScrollbar}
+              ListboxProps={{
+                style: {
+                  maxHeight: 200,
+                  paddingRight: '8px',
+                },
+              }}
+              PaperComponent={({ children }) => (
+                <Paper 
+                  sx={{ 
+                    width: 'auto',
+                    minWidth: '300px',
+                    boxShadow: 3,
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': {
+                      p: 0,
+                    },
+                    '& .MuiAutocomplete-option': {
+                      minHeight: '40px',
+                      '&[data-focus="true"]': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  {children}
+                </Paper>
+              )}
+              sx={{
+                '& .MuiAutocomplete-popper': {
+                  minWidth: '300px',
+                },
+                '& .MuiAutocomplete-inputRoot': {
+                  paddingRight: '8px !important',
+                },
+              }}
+              noOptionsText={!searchQueries.font ? 'Type to search for fonts' : 'No fonts found'}
             />
             <Typography variant="caption" color="text.secondary">
               This font will be used throughout the application
