@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Box, Typography, Container, Button, Paper, TextField, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Radio, RadioGroup, Divider } from '@mui/material';
+import { TenantConfig } from '@/services/tenantConfigService';
 import Grid from '@mui/material/Grid'; // Import Grid v2
 import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutline as HelpOutlineIcon } from '@mui/icons-material';
 
@@ -20,6 +21,7 @@ const SettingsPage = () => {
   const [generalFormData, setGeneralFormData] = useState<GeneralFormData | null>(null);
   const [brandingFormData, setBrandingFormData] = useState<BrandingFormData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneralComplete, setIsGeneralComplete] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -30,6 +32,13 @@ const SettingsPage = () => {
   const brandingFormRef = useRef<{ triggerSubmit: () => void }>(null);
 
   const handleTabChange = (tab: string) => {
+    if (tab === 'branding' && !isGeneralComplete) {
+      // If trying to go to branding tab without completing general settings
+      if (generalFormRef.current) {
+        generalFormRef.current.triggerSubmit();
+      }
+      return;
+    }
     setActiveTab(tab);
   };
 
@@ -37,26 +46,12 @@ const SettingsPage = () => {
     try {
       setIsSaving(true);
       
-      // First, trigger form validation and submission for the active tab
-      // This will update the formData state
       if (activeTab === 'general' && generalFormRef.current) {
+        // Trigger general form submission
         generalFormRef.current.triggerSubmit();
-        return; // The save will continue in handleGeneralSubmit
       } else if (activeTab === 'branding' && brandingFormRef.current) {
+        // Trigger branding form submission
         brandingFormRef.current.triggerSubmit();
-        return; // The save will continue in handleBrandingSubmit
-      }
-      
-      // If we get here, we're not in a form submission flow, but have both data
-      if (generalFormData && brandingFormData) {
-        await saveCombinedData();
-      } else {
-        // If we don't have both forms' data, show an error
-        setSnackbar({
-          open: true,
-          message: 'Please fill out all required fields',
-          severity: 'error'
-        });
       }
     } catch (error) {
       console.error('Error in handleSave:', error);
@@ -65,64 +60,118 @@ const SettingsPage = () => {
         message: error instanceof Error ? error.message : 'Failed to save settings. Please try again.',
         severity: 'error'
       });
-    } finally {
       setIsSaving(false);
     }
   };
   
-  const saveCombinedData = async () => {
-    if (!generalFormData || !brandingFormData) {
-      throw new Error('Missing form data');
+  const saveCombinedData = async (generalData: GeneralFormData, brandingData: BrandingFormData) => {
+    try {
+      // Create the API data structure according to the backend model
+      const apiData: TenantConfig = {
+        company_info: {
+          name: generalData.companyName || '',
+          contact_email: generalData.contactEmail || '',
+          contact_phone: generalData.contactPhone || '',
+          tax_id: generalData.taxId || '',
+          currency: generalData.currency || 'USD',
+          timezone: generalData.timezone || 'UTC',
+          date_format: generalData.dateFormat || 'yyyy-MM-dd',
+          time_format: generalData.timeFormat === '24h' ? '24-hour' : generalData.timeFormat || '12h',
+          first_day_of_week: generalData.firstDayOfWeek || 'sunday',
+          locale: generalData.language || 'en',
+          registered_address: {
+            street_address: generalData.addressLine1 || '',
+            street_address2: generalData.addressLine2 || '',
+            city: generalData.city || '',
+            state: generalData.state || '',
+            postal_code: generalData.postalCode || '',
+            country: generalData.country || ''
+          }
+        },
+        branding_config: {
+          theme_mode: brandingData.default_theme_mode || 'light',
+          primary_color: brandingData.primary_brand_color || '#1976d2',
+          secondary_color: brandingData.secondary_brand_color || '#9c27b0',
+          default_font_style: brandingData.default_font_style || 'Roboto',
+          company_logo_light: brandingData.company_logo_light ? {
+            url: brandingData.company_logo_light,
+            filename: 'logo-light.png'
+          } : undefined,
+          company_logo_dark: brandingData.company_logo_dark ? {
+            url: brandingData.company_logo_dark,
+            filename: 'logo-dark.png'
+          } : undefined,
+          favicon: brandingData.favicon ? {
+            url: brandingData.favicon,
+            filename: 'favicon.ico'
+          } : undefined,
+          custom_css: ''
+        },
+        localization_config: {
+          default_language: generalData.language || 'en',
+          supported_languages: [generalData.language || 'en'],
+          default_timezone: generalData.timezone || 'UTC',
+          date_format: generalData.dateFormat || 'yyyy-MM-dd',
+          time_format: generalData.timeFormat === '24h' ? '24-hour' : generalData.timeFormat || '12h',
+          first_day_of_week: generalData.firstDayOfWeek || 'sunday',
+          number_format: 'en-US',
+          currency: generalData.currency || 'USD',
+          measurement_system: 'metric' as const
+        },
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Saving tenant config:', apiData);
+      
+      await saveTenantConfig(apiData);
+      
+      setSnackbar({
+        open: true,
+        message: 'Settings saved successfully!',
+        severity: 'success'
+      });
+      return true;
+    } catch (error) {
+      console.error('Error saving tenant config:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to save settings',
+        severity: 'error'
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleGeneralSubmit = async (data: GeneralFormData) => {
+    console.log('General form submitted:', data);
+    const newGeneralData = { ...data };
+    setGeneralFormData(newGeneralData);
+    setIsGeneralComplete(true);
     
-    const combinedData = {
-      ...generalFormData,
-      ...brandingFormData
-    };
-    
-    console.log('Saving tenant config:', combinedData);
-    
-    // Map to API format and save
-    const apiData = mapToApiFormat(combinedData);
-    await saveTenantConfig(apiData);
+    // Move to branding tab after saving general settings
+    setActiveTab('branding');
     
     setSnackbar({
       open: true,
-      message: 'Settings saved successfully!',
+      message: 'General settings saved. Please configure branding.',
       severity: 'success'
     });
   };
 
-  const handleGeneralSubmit = (data: GeneralFormData) => {
-    console.log('General form submitted:', data);
-    const newGeneralData = { ...data };
-    setGeneralFormData(newGeneralData);
-    
-    // If we have branding data, save the combined data
-    if (brandingFormData) {
-      const combinedData = {
-        ...newGeneralData,
-        ...brandingFormData
-      };
-      console.log('Saving after general form submit:', combinedData);
-      saveCombinedData();
+  const handleBrandingSubmit = async (data: BrandingFormData) => {
+    if (!generalFormData) {
+      throw new Error('General settings are required before saving branding');
     }
-  };
-
-  const handleBrandingSubmit = (data: BrandingFormData) => {
+    
     console.log('Branding form submitted:', data);
-    const newBrandingData = { ...data };
-    setBrandingFormData(newBrandingData);
+    setBrandingFormData(data);
     
-    // If we have general data, save the combined data
-    if (generalFormData) {
-      const combinedData = {
-        ...generalFormData,
-        ...newBrandingData
-      };
-      console.log('Saving after branding form submit:', combinedData);
-      saveCombinedData();
-    }
+    // Save both general and branding data
+    await saveCombinedData(generalFormData, data);
   };
   
   const handleCloseSnackbar = () => {

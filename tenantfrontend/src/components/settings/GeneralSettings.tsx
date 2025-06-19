@@ -891,10 +891,7 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
             options={filteredLanguages}
             getOptionLabel={(option) => option.name}
             onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                language: newValue?.code || ''
-              }));
+              setValue('language', newValue?.code || '');
             }}
             inputValue={searchQueries.language}
             onInputChange={(_, newInputValue) => handleSearchQueryChange('language', newInputValue)}
