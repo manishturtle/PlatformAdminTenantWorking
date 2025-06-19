@@ -1012,9 +1012,6 @@ class TenantConfigurationSerializer(serializers.ModelSerializer):
         if value:
             required_fields = [
                 'default_language',
-                'default_time_zone',
-                'default_date_format',
-                'default_time_format'
             ]
             
             for field in required_fields:

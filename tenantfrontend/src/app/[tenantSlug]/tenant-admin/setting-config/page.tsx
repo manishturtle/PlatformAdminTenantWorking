@@ -95,19 +95,13 @@ const SettingsPage = () => {
       // Create the API data structure according to the backend model
       const apiData: TenantConfig = {
         company_info: {
-          name: generalData.companyName || '',
-          contact_email: generalData.contactEmail || '',
-          contact_phone: generalData.contactPhone || '',
+          company_name: generalData.companyName || '',
+          primary_contact_email: generalData.contactEmail || '',
+          primary_contact_phone: generalData.contactPhone || '',
           tax_id: generalData.taxId || '',
-          currency: generalData.currency || 'USD',
-          timezone: generalData.timezone || 'UTC',
-          date_format: generalData.dateFormat || 'yyyy-MM-dd',
-          time_format: generalData.timeFormat === '24h' ? '24-hour' : generalData.timeFormat || '12h',
-          first_day_of_week: generalData.firstDayOfWeek || 'sunday',
-          locale: generalData.language || 'en',
           registered_address: {
-            street_address: generalData.addressLine1 || '',
-            street_address2: generalData.addressLine2 || '',
+            address_line_1: generalData.addressLine1 || '',
+            address_line_2: generalData.addressLine2 || '',
             city: generalData.city || '',
             state: generalData.state || '',
             postal_code: generalData.postalCode || '',
@@ -135,14 +129,11 @@ const SettingsPage = () => {
         },
         localization_config: {
           default_language: generalData.language || 'en',
-          supported_languages: [generalData.language || 'en'],
           default_timezone: generalData.timezone || 'UTC',
           date_format: generalData.dateFormat || 'yyyy-MM-dd',
-          time_format: generalData.timeFormat === '24h' ? '24-hour' : generalData.timeFormat || '12h',
-          first_day_of_week: generalData.firstDayOfWeek || 'sunday',
-          number_format: 'en-US',
           currency: generalData.currency || 'USD',
-          measurement_system: 'metric' as const
+          time_format: generalData.timeFormat === '24h' ? '24-hour' : generalData.timeFormat || '12h',
+          
         },
         is_active: true,
         created_at: new Date().toISOString(),

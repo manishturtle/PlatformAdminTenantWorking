@@ -36,9 +36,6 @@ interface BrandingConfig {
 
 interface LocalizationConfig {
   default_language: string;
-  default_time_zone: string;
-  default_date_format: string;
-  default_time_format: '12h' | '24h';
 }
 
 export interface TenantConfigData {
