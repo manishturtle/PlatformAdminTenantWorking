@@ -7,6 +7,7 @@ import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutli
 
 import GeneralSettings from '@/components/settings/GeneralSettings';
 import BrandingVisuals from '@/components/settings/BrandingVisuals';
+import SecurityAuthentication from '@/components/settings/SecurityAuthentication';
 // Types
 type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
@@ -77,6 +78,9 @@ const SettingsPage = () => {
           <BrandingVisuals onSave={() => {}} />
         )}
         
+        {activeTab === 'security' && (
+          <SecurityAuthentication onSave={() => {}} />
+        )}
        
       </Box>
     </Box>
@@ -87,8 +91,8 @@ const SettingsPage = () => {
 const tabs = [
   { id: 'general', label: 'General Settings' },
   { id: 'branding', label: 'Branding & Visuals' },
-  { id: 'security', label: 'Security & Authentication' },
-  { id: 'notifications', label: 'Notifications & Channels' },
+  { id: 'security', label: 'Security & Authentication' }
+  // { id: 'notifications', label: 'Notifications & Channels' },
 ];
 
 export default SettingsPage;
