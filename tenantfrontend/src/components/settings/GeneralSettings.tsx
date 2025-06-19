@@ -52,6 +52,7 @@ interface FormData {
   contactEmail: string;
   contactPhone: string;
   country: string;
+  countryCode: string; // Added to store country code for API calls
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -67,16 +68,75 @@ interface FormData {
 }
 
 const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
+  // Form data state
+  const [formData, setFormData] = useState<FormData>({
+    companyName: 'Acme Inc',
+    contactEmail: 'contact@acme.com',
+    contactPhone: '+1 (555) 123-4567',
+    country: '',
+    countryCode: '',
+    addressLine1: '123 Main St',
+    addressLine2: 'Suite 100',
+    city: '',
+    state: '',
+    postalCode: '10001',
+    taxId: '12-3456789',
+    language: 'en',
+    timezone: 'America/New_York',
+    dateFormat: 'MM/DD/YYYY',
+    timeFormat: '12h',
+    currency: 'USD',
+    firstDayOfWeek: 'sunday',
+  });
 
-   const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
+  // UI state
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
   const [activeTab, setActiveTab] = useState('general');
-  const [countries, setCountries] = useState<Array<{id: string, name: string}>>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
+  // Location data state
+  const [countries, setCountries] = useState<Array<{id: string, name: string, code: string}>>([]);
+  const [states, setStates] = useState<Array<{id: string, name: string}>>([]);
+  const [cities, setCities] = useState<Array<{id: string, name: string}>>([]);
+  
+  // UI state for dropdowns
+  const [searchQueries, setSearchQueries] = useState({
+    country: '',
+    state: '',
+    city: ''
+  });
+  
+  const [open, setOpen] = useState({
+    country: false,
+    state: false,
+    city: false
+  });
+  
+  const handleSearchQueryChange = (field: 'country' | 'state' | 'city', value: string) => {
+    setSearchQueries(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState({
+    country: false,
+    state: false,
+    city: false
+  });
+  
+  const [error, setError] = useState<{
+    country: string | null;
+    state: string | null;
+    city: string | null;
+  }>({
+    country: null,
+    state: null,
+    city: null
+  });
+  
+  // Language options
   const languages = [
     { code: 'en', name: 'English' },
     { code: 'es', name: 'Spanish' },
@@ -89,8 +149,10 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   // Fetch countries from API
   useEffect(() => {
     const fetchCountries = async () => {
-      setIsLoading(true);
-      setError(null);
+      if (countries.length > 0) return; // Don't fetch if we already have countries
+      
+      setIsLoading(prev => ({...prev, country: true}));
+      setError(prev => ({...prev, country: null}));
       try {
         const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
         if (!response.ok) {
@@ -100,41 +162,81 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
         setCountries(data);
       } catch (err) {
         console.error('Error fetching countries:', err);
-        setError('Failed to load countries. Please try again later.');
+        setError(prev => ({...prev, country: 'Failed to load countries. Please try again later.'}));
       } finally {
-        setIsLoading(false);
+        setIsLoading(prev => ({...prev, country: false}));
       }
     };
 
-    if (open && countries.length === 0) {
-      fetchCountries();
-    }
-  }, [open]);
+    fetchCountries();
+  }, []); // Empty dependency array to run only once on mount
 
-  // Filter countries based on search query
-  const filteredCountries = countries.filter(country =>
-    country.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  
-  const [formData, setFormData] = useState<FormData>({
-    companyName: 'Acme Inc',
-    contactEmail: 'contact@acme.com',
-    contactPhone: '+1 (555) 123-4567',
-    country: 'US',
-    addressLine1: '123 Main St',
-    addressLine2: 'Suite 100',
-    city: 'New York',
-    state: 'NY',
-    postalCode: '10001',
-    taxId: '12-3456789',
-    language: 'en',
-    timezone: 'America/New_York',
-    dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12h',
-    currency: 'USD',
-    firstDayOfWeek: 'sunday',
-  });
+  // Fetch states when country changes
+  useEffect(() => {
+    const fetchStates = async () => {
+      if (!formData.country) return;
+      
+      setIsLoading(prev => ({...prev, state: true}));
+      setError(prev => ({...prev, state: null}));
+      setStates([]);
+      setCities([]);
+      
+      try {
+        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/states/?countryCode=${formData.countryCode}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch states');
+        }
+        const data = await response.json();
+        setStates(data);
+      } catch (err) {
+        console.error('Error fetching states:', err);
+        setError(prev => ({...prev, state: 'Failed to load states. Please try again later.'}));
+      } finally {
+        setIsLoading(prev => ({...prev, state: false}));
+      }
+    };
+
+    if (formData.country) {
+      fetchStates();
+    }
+  }, [formData.country]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    const fetchCities = async () => {
+      if (!formData.state) return;
+      
+      setIsLoading(prev => ({...prev, city: true}));
+      setError(prev => ({...prev, city: null}));
+      setCities([]);
+      
+      try {
+        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/cities/?stateId=${formData.state}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch cities');
+        }
+        const data = await response.json();
+        setCities(data);
+      } catch (err) {
+        console.error('Error fetching cities:', err);
+        setError(prev => ({...prev, city: 'Failed to load cities. Please try again later.'}));
+      } finally {
+        setIsLoading(prev => ({...prev, city: false}));
+      }
+    };
+
+    if (formData.state) {
+      fetchCities();
+    }
+  }, [formData.state]);
+
+  // Filter data based on search query
+  const filterItems = (items: Array<{id: string, name: string}>, query: string) => 
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+
+  const filteredCountries = filterItems(countries, searchQueries.country);
+  const filteredStates = filterItems(states, searchQueries.state);
+  const filteredCities = filterItems(cities, searchQueries.city);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -195,8 +297,6 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             size="small"
             margin="dense"
             value="contact@company.com"
-            disabled
-            sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: 'text.disabled' } }}
           />
         </Grid>
         
@@ -209,29 +309,30 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             size="small"
             margin="dense"
             value="+1 (555) 123-4567"
-            disabled
-            sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: 'text.disabled' } }}
           />
         </Grid>
         
         <Grid item xs={12} md={6}>
           <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
             <Autocomplete
-              open={open}
-              onOpen={() => setOpen(true)}
-              onClose={() => setOpen(false)}
+              open={open.country}
+              onOpen={() => setOpen(prev => ({ ...prev, country: true }))}
+              onClose={() => setOpen(prev => ({ ...prev, country: false }))}
               options={filteredCountries}
               getOptionLabel={(option) => option.name}
               value={countries.find(country => country.id === formData.country) || null}
               onChange={(_, newValue) => {
                 setFormData(prev => ({
                   ...prev,
-                  country: newValue?.id || ''
+                  country: newValue?.id || '',
+                  countryCode: newValue?.code || '',
+                  state: '', // Reset state when country changes
+                  city: '' // Reset city when country changes
                 }));
               }}
-              inputValue={searchQuery}
-              onInputChange={(_, newInputValue) => setSearchQuery(newInputValue)}
-              loading={isLoading}
+              inputValue={searchQueries.country}
+              onInputChange={(_, newInputValue) => handleSearchQueryChange('country', newInputValue)}
+              loading={isLoading.country}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -242,7 +343,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {isLoading.country ? <CircularProgress color="inherit" size={20} /> : null}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -296,11 +397,11 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
                   paddingRight: '8px !important',
                 },
               }}
-              noOptionsText={searchQuery ? 'No countries found' : 'Start typing to search'}
+              noOptionsText={searchQueries.country ? 'No countries found' : 'Start typing to search'}
             />
-            {error && (
+            {error.country && (
               <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                {error}
+                {String(error.country)}
               </Typography>
             )}
           </FormControl>
@@ -331,22 +432,189 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
           />
         </Grid>
         <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="City"
-            variant="outlined"
-            size="small"
-            margin="dense"
-          />
+          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+            <Autocomplete
+              open={open.state}
+              onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
+              onClose={() => setOpen(prev => ({ ...prev, state: false }))}
+              options={filteredStates}
+              getOptionLabel={(option) => option.name}
+              value={states.find(state => state.id === formData.state) || null}
+              onChange={(_, newValue) => {
+                setFormData(prev => ({
+                  ...prev,
+                  state: newValue?.id || '',
+                  city: '' // Reset city when state changes
+                }));
+              }}
+              inputValue={searchQueries.state}
+              onInputChange={(_, newInputValue) => handleSearchQueryChange('state', newInputValue)}
+              loading={isLoading.state}
+              disabled={!formData.country}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="State/Province"
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoading.state ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  {option.name}
+                </li>
+              )}
+              ListboxComponent={CustomScrollbar}
+              ListboxProps={{
+                style: {
+                  maxHeight: 200,
+                  paddingRight: '8px',
+                },
+              }}
+              PaperComponent={({ children }) => (
+                <Paper 
+                  sx={{ 
+                    width: 'auto',
+                    minWidth: '300px',
+                    boxShadow: 3,
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': {
+                      p: 0,
+                    },
+                    '& .MuiAutocomplete-option': {
+                      minHeight: '40px',
+                      '&[data-focus="true"]': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  {children}
+                </Paper>
+              )}
+              sx={{
+                '& .MuiAutocomplete-popper': {
+                  minWidth: '300px',
+                },
+                '& .MuiAutocomplete-inputRoot': {
+                  paddingRight: '8px !important',
+                },
+              }}
+              noOptionsText={searchQueries.state ? 'No states found' : 'Start typing to search'}
+            />
+            {error.state && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                {String(error.state)}
+              </Typography>
+            )}
+          </FormControl>
         </Grid>
         <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="State/Province"
-            variant="outlined"
-            size="small"
-            margin="dense"
-          />
+          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+            <Autocomplete
+              open={open.city}
+              onOpen={() => setOpen(prev => ({ ...prev, city: true }))}
+              onClose={() => setOpen(prev => ({ ...prev, city: false }))}
+              options={filteredCities}
+              getOptionLabel={(option) => option.name}
+              value={cities.find(city => city.id === formData.city) || null}
+              onChange={(_, newValue) => {
+                setFormData(prev => ({
+                  ...prev,
+                  city: newValue?.id || ''
+                }));
+              }}
+              inputValue={searchQueries.city}
+              onInputChange={(_, newInputValue) => handleSearchQueryChange('city', newInputValue)}
+              loading={isLoading.city}
+              disabled={!formData.state}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="City"
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoading.city ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  {option.name}
+                </li>
+              )}
+              ListboxComponent={CustomScrollbar}
+              ListboxProps={{
+                style: {
+                  maxHeight: 200,
+                  paddingRight: '8px',
+                },
+              }}
+              PaperComponent={({ children }) => (
+                <Paper 
+                  sx={{ 
+                    width: 'auto',
+                    minWidth: '300px',
+                    boxShadow: 3,
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': {
+                      p: 0,
+                    },
+                    '& .MuiAutocomplete-option': {
+                      minHeight: '40px',
+                      '&[data-focus="true"]': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  {children}
+                </Paper>
+              )}
+              sx={{
+                '& .MuiAutocomplete-popper': {
+                  minWidth: '300px',
+                },
+                '& .MuiAutocomplete-inputRoot': {
+                  paddingRight: '8px !important',
+                },
+              }}
+              noOptionsText={searchQueries.city ? 'No cities found' : 'Start typing to search'}
+            />
+            {error.city && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                {String(error.city)}
+              </Typography>
+            )}
+          </FormControl>
         </Grid>
         <Grid item xs={12} md={4}>
           <TextField
