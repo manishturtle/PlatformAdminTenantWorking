@@ -118,6 +118,14 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
   // Watch form values and dirty state
   const watchedValues = watch();
   
+  // Debug: Log form values when they change
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      console.log('Form value changed:', { name, type, value });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+  
   // Notify parent when dirty state changes
   useEffect(() => {
     if (onDirtyChange) {
@@ -169,10 +177,11 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
   
   // Loading states
   const [isLoading, setIsLoading] = useState({
-    initial: true,  // For initial page load
-    country: false, // For country loading
-    state: false,   // For state loading
-    city: false     // For city loading
+    initial: true,    // For initial page load
+    country: false,   // For country loading
+    state: false,     // For state loading
+    city: false,      // For city loading
+    form: false       // For form submission
   });
   
   const [error, setError] = useState<{
@@ -232,25 +241,41 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
         const config = await getTenantConfig();
         const formData = mapFromApiFormat(config);
         
+        console.log('Fetched tenant config:', config);
+        console.log('Mapped form data:', formData);
+        
         // Reset form with API data
         reset({
           ...formData,
-          country: formData.country || '',
-          state: formData.state || '',
+          // Ensure all required fields have default values
+          companyName: formData.companyName || '',
+          contactEmail: formData.contactEmail || '',
+          contactPhone: formData.contactPhone || '',
+          taxId: formData.taxId || '',
+          addressLine1: formData.addressLine1 || '',
+          addressLine2: formData.addressLine2 || '',
           city: formData.city || '',
+          state: formData.state || '',
+          postalCode: formData.postalCode || '',
+          country: formData.country || '',
+          language: formData.language || 'en',
+          timezone: formData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          dateFormat: formData.dateFormat || 'yyyy-MM-dd',
+          timeFormat: formData.timeFormat || '12h',
+          currency: formData.currency || 'usd',
+          firstDayOfWeek: formData.firstDayOfWeek || 'sunday',
         });
-
-        // Set default values for time format and first day of week
-        setValue('timeFormat', '12h');
-        setValue('firstDayOfWeek', 'sunday');
         
         // Fetch countries
-        const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
-        if (!response.ok) {
-          throw new Error('Failed to fetch countries');
+        try {
+          const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
+          if (response.ok) {
+            const countriesData = await response.json();
+            setCountries(countriesData);
+          }
+        } catch (error) {
+          console.error('Error fetching countries:', error);
         }
-        const countriesData = await response.json();
-        setCountries(countriesData);
         
       } catch (err) {
         console.error('Error fetching initial data:', err);
@@ -383,13 +408,26 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
 
   const onSubmit = async (data: FormData) => {
     try {
+      console.log('Submitting form data:', data);
       await onSave(data);
     } catch (error) {
       console.error('Error in form submission:', error);
-      // Error handling is done in the parent component
+      setSnackbar({
+        open: true,
+        message: 'Failed to save settings. Please try again.',
+        severity: 'error'
+      });
       throw error;
     }
   };
+  
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: '100%' }}>

@@ -99,8 +99,10 @@ export interface BrandingFormData {
 }
 
 interface BrandingVisualsProps {
-  onChange?: (data: Partial<BrandingFormData>) => void;
+  onChange: (data: Partial<BrandingFormData>) => void;
   initialData?: Partial<BrandingFormData>;
+  isSaving?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 type FontType = {
@@ -108,13 +110,24 @@ type FontType = {
   name: string;
 };
 
-const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData = {} }) => {
+const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
+  onChange,
+  initialData = {},
+  isSaving = false,
+  onDirtyChange,
+}) => {
   // Initialize state with initialData or defaults
-  const [themeMode, setThemeMode] = useState<string>(initialData.default_theme_mode || 'light');
-  const [primaryColor, setPrimaryColor] = useState<string>(initialData.primary_brand_color || '#000080');
-  const [secondaryColor, setSecondaryColor] = useState<string>(initialData.secondary_brand_color || '#D3D3D3');
+  const [themeMode, setThemeMode] = useState<string>(
+    initialData.default_theme_mode || 'light'
+  );
+  const [primaryColor, setPrimaryColor] = useState<string>(
+    initialData.primary_brand_color || '#000080'
+  );
+  const [secondaryColor, setSecondaryColor] = useState<string>(
+    initialData.secondary_brand_color || '#D3D3D3'
+  );
   const [selectedFont, setSelectedFont] = useState<FontType | null>(
-    initialData.default_font_style 
+    initialData.default_font_style
       ? { code: initialData.default_font_style, name: initialData.default_font_style }
       : { code: 'roboto', name: 'Roboto' }
   );
@@ -123,16 +136,16 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
   const [imagePreviews, setImagePreviews] = useState({
     'light-logo': initialData.company_logo_light?.url || '',
     'dark-logo': initialData.company_logo_dark?.url || '',
-    'favicon': initialData.favicon?.url || ''
+    'favicon': initialData.favicon?.url || '',
   });
 
   // States for Autocomplete dropdowns
   const [open, setOpen] = useState({
-    font: false
+    font: false,
   });
 
   const [searchQueries, setSearchQueries] = useState({
-    font: ''
+    font: '',
   });
 
   // Font data
@@ -183,9 +196,9 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
       default_font_style: selectedFont?.code,
       // Note: File uploads need to be handled separately
     };
-    
+
     debouncedOnChange(formData);
-    
+
     return () => {
       debouncedOnChange.cancel();
     };
@@ -205,13 +218,13 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
   const handleSearchQueryChange = (field: string, value: string): void => {
     setSearchQueries((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const filterFonts = (items: FontType[], query: string): FontType[] => {
     return query
-      ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase()))
+      ? items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
       : items;
   };
 
@@ -235,32 +248,32 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
       setSecondaryColor(color.hex);
     }
   };
-  
+
   // Handle font selection
   const handleFontChange = (event: React.SyntheticEvent, value: FontType | null) => {
     setSelectedFont(value);
   };
-  
+
   // Handle file upload
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'light-logo' | 'dark-logo' | 'favicon') => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     // Create preview URL
     const previewUrl = URL.createObjectURL(file);
-    
+
     // Update previews
-    setImagePreviews(prev => ({
+    setImagePreviews((prev) => ({
       ...prev,
-      [type]: previewUrl
+      [type]: previewUrl,
     }));
-    
+
     // Prepare file data for upload
     const fileData = {
       url: previewUrl, // In a real app, upload to your storage and get the URL
-      filename: file.name
+      filename: file.name,
     };
-    
+
     // Update form data
     if (onChange) {
       if (type === 'light-logo') {
@@ -271,13 +284,102 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
         onChange({ favicon: fileData });
       }
     }
-    
+
     // In a real app, you would upload the file to your storage here
     // and then update the form with the actual URL
   };
 
+  // Track form changes
+  const updateDirtyState = useCallback((newValue: boolean) => {
+    if (newValue !== isDirty) {
+      setIsDirty(newValue);
+      if (onDirtyChange) {
+        onDirtyChange(newValue);
+      }
+    }
+  }, [isDirty, onDirtyChange]);
+
+  // Notify parent of changes
+  const notifyChange = useCallback(
+    (updates: Partial<BrandingFormData>) => {
+      if (onChange) {
+        const formData = {
+          default_theme_mode: themeMode,
+          primary_brand_color: primaryColor,
+          secondary_brand_color: secondaryColor,
+          default_font_style: selectedFont?.code,
+          ...updates,
+        };
+        onChange(formData);
+        updateDirtyState(true);
+      }
+    },
+    [themeMode, primaryColor, secondaryColor, selectedFont, onChange, updateDirtyState]
+  );
+
+  // Handle theme mode change
+  const handleThemeModeChange = (event: SelectChangeEvent<'light' | 'dark' | 'system'>) => {
+    const newThemeMode = event.target.value as 'light' | 'dark' | 'system';
+    setThemeMode(newThemeMode);
+    notifyChange({ default_theme_mode: newThemeMode });
+  };
+
+  // Handle color changes
+  const handlePrimaryColorChange = (color: string) => {
+    setPrimaryColor(color);
+    notifyChange({ primary_brand_color: color });
+  };
+
+  const handleSecondaryColorChange = (color: string) => {
+    setSecondaryColor(color);
+    notifyChange({ secondary_brand_color: color });
+  };
+
+  // Handle font selection
+  const handleFontSelection = (event: React.SyntheticEvent, value: FontType | null) => {
+    setSelectedFont(value);
+    notifyChange({ default_font_style: value?.code });
+  };
+
+  // Handle logo upload
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // In a real app, upload the file to your server here
+      // const formData = new FormData();
+      // formData.append('file', file);
+      // const response = await fetch('/api/upload', {
+      //   method: 'POST',
+      //   body: formData,
+      // });
+      // const result = await response.json();
+      // const uploadedUrl = result.url;
+
+      // For demo, create a local URL for preview
+      const previewUrl = URL.createObjectURL(file);
+      notifyChange({ company_logo_light: { url: previewUrl, filename: file.name } });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.default_theme_mode) setThemeMode(initialData.default_theme_mode);
+      if (initialData.primary_brand_color) setPrimaryColor(initialData.primary_brand_color);
+      if (initialData.secondary_brand_color) setSecondaryColor(initialData.secondary_brand_color);
+      if (initialData.default_font_style) setSelectedFont({ code: initialData.default_font_style, name: initialData.default_font_style });
+      if (initialData.company_logo_light) setImagePreviews((prev) => ({ ...prev, 'light-logo': initialData.company_logo_light.url }));
+      if (initialData.company_logo_dark) setImagePreviews((prev) => ({ ...prev, 'dark-logo': initialData.company_logo_dark.url }));
+      if (initialData.favicon) setImagePreviews((prev) => ({ ...prev, favicon: initialData.favicon.url }));
+    }
+  }, [initialData]);
+
   return (
-    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>
+    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0 }}>
       {/* Color Picker Popover */}
       <Popover
         open={Boolean(anchorEl)}
@@ -338,7 +440,7 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData
                 type="file"
                 hidden
                 accept="image/png, image/svg+xml"
-                onChange={(e) => handleFileUpload(e, 'light-logo')}
+                onChange={(e) => handleLogoUpload(e)}
               />
             </Button>
             <Typography variant="caption" color="text.secondary" display="block">

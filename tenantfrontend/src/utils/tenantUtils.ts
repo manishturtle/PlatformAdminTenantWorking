@@ -4,21 +4,20 @@
  * @returns {string} The tenant slug from the URL
  */
 export const getTenantFromUrl = (): string => {
-  // In a browser environment
-  if (typeof window !== 'undefined') {
-    // Get the pathname (e.g., "/tenant-slug/dashboard")
-    const pathname = window.location.pathname;
-    
-    // Split the pathname by '/' and filter out empty strings
-    const pathSegments = pathname.split('/').filter(segment => segment);
-    
-    // The first segment should be the tenant slug
-    // If no tenant slug is found, return a default or throw an error
-    return pathSegments[0] || 'default-tenant';
+  // This is a simplified example. In a real app, you would extract the tenant from the URL
+  // For example: https://tenant1.yourdomain.com -> 'tenant1'
+  if (typeof window === 'undefined') return '';
+  
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  
+  // If localhost, use a default tenant for development
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'default-tenant';
   }
   
-  // For server-side rendering or other environments
-  return 'default-tenant';
+  // Otherwise, return the first subdomain
+  return parts.length > 1 ? parts[0] : 'default-tenant';
 };
 
 /**
@@ -26,7 +25,46 @@ export const getTenantFromUrl = (): string => {
  * @returns {string} The base API URL with the tenant prefix
  */
 export const getTenantApiBaseUrl = (): string => {
+  // For development, use the hardcoded URL
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8000/api';
+  }
+  
+  // In production, use the actual domain
   const tenant = getTenantFromUrl();
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  return `http://localhost:8000/api/${tenant}`;
+  return `${window.location.protocol}//${window.location.host}/api/${tenant}`;
+};
+
+/**
+ * Returns the authentication headers for API requests
+ * @returns {object} The authentication headers
+ */
+export const getAuthHeaders = () => {
+  const token = getCookie('auth_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    'X-CSRFToken': getCookie('csrftoken') || '',
+  };
+};
+
+/**
+ * Handles API errors by logging and re-throwing the error
+ * @param {object} error The API error
+ */
+export const handleApiError = (error: any) => {
+  if (error.response) {
+    // The request was made and the server responded with a status code
+    // that falls out of the range of 2xx
+    console.error('API Error Response:', error.response.data);
+    throw new Error(error.response.data.message || 'An error occurred');
+  } else if (error.request) {
+    // The request was made but no response was received
+    console.error('API Request Error:', error.request);
+    throw new Error('No response from server');
+  } else {
+    // Something happened in setting up the request that triggered an Error
+    console.error('API Error:', error.message);
+    throw error;
+  }
 };

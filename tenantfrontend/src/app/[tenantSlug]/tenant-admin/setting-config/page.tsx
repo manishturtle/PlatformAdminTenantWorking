@@ -10,14 +10,19 @@ import {
   Paper, 
   Snackbar, 
   Alert,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab,
+  AppBar,
+  Toolbar
 } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
 
 import GeneralSettings, { FormData as GeneralFormData } from '@/components/settings/GeneralSettings';
 import BrandingVisuals, { BrandingFormData } from '@/components/settings/BrandingVisuals';
 import SecurityAuthentication from '@/components/settings/SecurityAuthentication';
-import { saveTenantConfig } from '@/services/tenantApi';
+import { saveTenantConfig, mapToApiFormat } from '@/services/tenantConfigService';
+
 type TabType = 'general' | 'branding' | 'security';
 
 interface SnackbarState {
@@ -30,6 +35,7 @@ const SettingsPage = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>({ 
     open: false, 
     message: '', 
@@ -39,38 +45,45 @@ const SettingsPage = () => {
   // Form data states
   const [generalData, setGeneralData] = useState<Partial<GeneralFormData>>({});
   const [brandingData, setBrandingData] = useState<Partial<BrandingFormData>>({});
-
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-  };
-
+  
+  // Handle form data changes
   const handleGeneralChange = useCallback((data: Partial<GeneralFormData>) => {
-    setGeneralData(prev => ({ ...prev, ...data }));
+    setGeneralData(prev => ({
+      ...prev,
+      ...data
+    }));
+  }, []);
+  
+  const handleBrandingChange = useCallback((data: Partial<BrandingFormData>) => {
+    setBrandingData(prev => ({
+      ...prev,
+      ...data
+    }));
+  }, []);
+  
+  // Handle dirty state change from forms
+  const handleDirtyChange = useCallback((dirty: boolean) => {
+    setIsDirty(dirty);
   }, []);
 
-  const handleBrandingChange = useCallback((data: Partial<BrandingFormData>) => {
-    setBrandingData(prev => ({ ...prev, ...data }));
-  }, []);
+  const handleTabChange = (_: React.SyntheticEvent, newValue: TabType) => {
+    setActiveTab(newValue);
+  };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
       
-      // Combine form data
-      const dataToSave = {
-        company_info: { ...generalData },
-        branding_config: { ...brandingData },
-        // Add localization config from general data if needed
-        ...(generalData.language || generalData.timezone ? {
-          localization_config: {
-            ...(generalData.language && { default_language: generalData.language }),
-            ...(generalData.timezone && { default_time_zone: generalData.timezone }),
-            // Add other localization fields as needed
-          }
-        } : {})
-      };
-
-      await saveTenantConfig(dataToSave);
+      // Map form data to API format
+      const apiData = mapToApiFormat({
+        ...generalData,
+        ...brandingData
+      });
+      
+      console.log('Saving data to API:', apiData);
+      
+      // Save to API
+      await saveTenantConfig(apiData);
       
       setSnackbar({
         open: true,
@@ -88,62 +101,69 @@ const SettingsPage = () => {
         message: error instanceof Error ? error.message : 'Failed to save settings',
         severity: 'error'
       });
+      throw error;
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <Box sx={{ minHeight: '100vh' }}>
-      {/* Main Content */}
-      <Box component="main" sx={{ p: 3 }}>
-      
-       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                sx={{
-                  color: activeTab === tab.id ? 'primary.main' : 'text.secondary',
-                  borderBottom: activeTab === tab.id ? '2px solid' : 'none',
-                  borderColor: 'primary.main',
-                  borderRadius: 0,
-                  pb: 1.5,
-                  px: 1,
-                  minWidth: 'auto',
-                  textTransform: 'none',
-                  fontWeight: activeTab === tab.id ? 600 : 400,
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    color: 'primary.main',
-                  },
-                }}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </Box>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Settings
+          </Typography>
           <Button
             variant="contained"
             color="primary"
             startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             onClick={handleSave}
-            disabled={isSaving}
-            sx={{ textTransform: 'none', fontWeight: 500 }}
+            disabled={!isDirty || isSaving}
+            sx={{ minWidth: 150 }}
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
-        </Box>
+        </Toolbar>
+        
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="fullWidth"
+        >
+          <Tab label="General" value="general" />
+          <Tab label="Branding" value="branding" />
+          <Tab label="Security" value="security" />
+        </Tabs>
+      </AppBar>
+      
+      {/* Main Content */}
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        {activeTab === 'general' && (
+          <GeneralSettings 
+            onSave={handleSave}
+            isSaving={isSaving}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+        {activeTab === 'branding' && (
+          <BrandingVisuals 
+            onChange={handleBrandingChange} 
+            initialData={brandingData} 
+          />
+        )}
+        {activeTab === 'security' && <SecurityAuthentication />}
       </Box>
       
       {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert 
           onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
@@ -153,20 +173,6 @@ const SettingsPage = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-
-      {activeTab === 'general' && (
-        <GeneralSettings onSave={handleGeneralChange} />
-      )}
-
-      {activeTab === 'branding' && (
-        <BrandingVisuals onSave={handleBrandingChange} />
-      )}
-        
-      {activeTab === 'security' && (
-        <SecurityAuthentication onSave={() => {}} />
-      )}
-       
-      </Box>
     </Box>
   );
 };
