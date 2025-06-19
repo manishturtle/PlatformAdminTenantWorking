@@ -75,6 +75,24 @@ interface FormData {
 }
 
 const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSettingsProps) => {
+  // Date format options
+
+    // Date format options
+    const dateFormats = [
+      { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
+      { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
+      { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
+      { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
+      { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
+      { label: 'YYYY/MM/DD', value: 'yyyy/MM/dd' },
+      { label: 'Do MMM YYYY', value: 'do MMM yyyy' },         // 18th Jun 2025
+      { label: 'MMMM Do, YYYY', value: 'MMMM do, yyyy' },     // June 18th, 2025
+      { label: 'ddd, MMM D YYYY', value: 'EEE, MMM d yyyy' }, // Wed, Jun 18 2025
+      { label: 'Full ISO', value: "yyyy-MM-dd'T'HH:mm:ssxxx" } // 2025-06-18T14:23:00+05:30
+    ];
+    
+ 
+
   const { control, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<FormData>({
     defaultValues: {
       companyName: '',
@@ -90,7 +108,7 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
       taxId: '',
       language: 'en',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      dateFormat: 'yyyy-MM-dd',
+      dateFormat: dateFormats[0].value, // Set initial value from array
       timeFormat: '12h',
       currency: 'usd',
       firstDayOfWeek: 'sunday',
@@ -167,20 +185,7 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
     city: null
   });
 
-  // Date format options
-  const dateFormats = [
-    { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
-    { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
-    { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
-    { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
-    { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
-    { label: 'YYYY/MM/DD', value: 'yyyy/MM/dd' },
-    { label: 'Do MMM YYYY', value: 'do MMM yyyy' },         // 18th Jun 2025
-    { label: 'MMMM Do, YYYY', value: 'MMMM do, yyyy' },     // June 18th, 2025
-    { label: 'ddd, MMM D YYYY', value: 'EEE, MMM d yyyy' }, // Wed, Jun 18 2025
-    { label: 'Full ISO', value: "yyyy-MM-dd'T'HH:mm:ssxxx" } // 2025-06-18T14:23:00+05:30
-  ];
-  
+
   // Language options
  
   
@@ -194,41 +199,28 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
     { code: 'es', name: 'Spanish', nativeName: 'Español' }
   ];
   
+  // Timezone options
+  const timezones = Intl.supportedValuesOf('timeZone');
+  
   // Currency options
   const currencies: CurrencyType[] = [
-    { code: 'usd', symbol: '$', name: 'US Dollar (USD)' },
- 
-   
+    { code: 'USD', symbol: '$', name: 'US Dollar (USD)' },
+    { code: 'EUR', symbol: '€', name: 'Euro (EUR)' },
+    { code: 'GBP', symbol: '£', name: 'British Pound (GBP)' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen (JPY)' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar (AUD)' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar (CAD)' },
+    { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc (CHF)' },
+    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan (CNY)' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee (INR)' },
+    { code: 'BRL', symbol: 'R$', name: 'Brazilian Real (BRL)' },
   ];
-
-  const timezones = [
-    { code: 'Pacific/Midway', name: '(UTC-11:00) Midway Island, Samoa' },
-    { code: 'Pacific/Honolulu', name: '(UTC-10:00) Hawaii' },
-    { code: 'America/Anchorage', name: '(UTC-09:00) Alaska' },
-    { code: 'America/Los_Angeles', name: '(UTC-08:00) Pacific Time (US & Canada)' },
-    { code: 'America/Denver', name: '(UTC-07:00) Mountain Time (US & Canada)' },
-    { code: 'America/Chicago', name: '(UTC-06:00) Central Time (US & Canada)' },
-    { code: 'America/New_York', name: '(UTC-05:00) Eastern Time (US & Canada)' },
-    { code: 'America/Halifax', name: '(UTC-04:00) Atlantic Time (Canada)' },
-    { code: 'America/Argentina/Buenos_Aires', name: '(UTC-03:00) Buenos Aires' },
-    { code: 'Atlantic/South_Georgia', name: '(UTC-02:00) Mid-Atlantic' },
-    { code: 'Atlantic/Azores', name: '(UTC-01:00) Azores' },
-    { code: 'UTC', name: '(UTC±00:00) Coordinated Universal Time' },
-    { code: 'Europe/London', name: '(UTC+00:00) London, Edinburgh, Dublin' },
-    { code: 'Europe/Paris', name: '(UTC+01:00) Paris, Amsterdam, Berlin' },
-    { code: 'Europe/Athens', name: '(UTC+02:00) Athens, Istanbul, Helsinki' },
-    { code: 'Asia/Kuwait', name: '(UTC+03:00) Kuwait, Riyadh, Moscow' },
-    { code: 'Asia/Dubai', name: '(UTC+04:00) Dubai, Abu Dhabi' },
-    { code: 'Asia/Karachi', name: '(UTC+05:00) Karachi, Islamabad' },
-    { code: 'Asia/Kolkata', name: '(UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi' },
-    { code: 'Asia/Dhaka', name: '(UTC+06:00) Dhaka, Astana' },
-    { code: 'Asia/Bangkok', name: '(UTC+07:00) Bangkok, Jakarta' },
-    { code: 'Asia/Shanghai', name: '(UTC+08:00) Beijing, Hong Kong, Singapore' },
-    { code: 'Asia/Tokyo', name: '(UTC+09:00) Tokyo, Seoul' },
-    { code: 'Australia/Sydney', name: '(UTC+10:00) Sydney, Brisbane' },
-    { code: 'Pacific/Noumea', name: '(UTC+11:00) Solomon Is.' },
-    { code: 'Pacific/Auckland', name: '(UTC+12:00) Auckland, Wellington' }
-  ];  
+  
+  // Timezone options
+  const timezoneOptions = Intl.supportedValuesOf('timeZone').map(tz => ({
+    code: tz,
+    name: tz.replace(/_/g, ' ')
+  }));
 
   // Fetch tenant config and countries on component mount
   useEffect(() => {
@@ -353,7 +345,10 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
     
   const filterTimezones = (items: TimezoneType[], query: string): TimezoneType[] =>
-    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    query && items ? items.filter(item => 
+      item?.name?.toLowerCase().includes(query.toLowerCase()) || 
+      item?.code?.toLowerCase().includes(query.toLowerCase())
+    ) : items || [];
     
   const filterLanguages = (items: LanguageType[], query: string): LanguageType[] =>
     query ? items.filter(item => 
@@ -367,11 +362,11 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
   const filterCurrencies = (items: CurrencyType[], query: string): CurrencyType[] =>
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase()) || 
                           item.code.toLowerCase().includes(query.toLowerCase())) : items;
-
+  
   const filteredCountries = filterCountries(countries, searchQueries.country);
   const filteredStates = filterStates(states, searchQueries.state);
   const filteredCities = filterCities(cities, searchQueries.city);
-  const filteredTimezones = filterTimezones(timezones, searchQueries.timezone);
+  const filteredTimezones = filterTimezones(timezoneOptions, searchQueries.timezone);
   const filteredLanguages = filterLanguages(languages, searchQueries.language);
   const filteredDateFormats = filterDateFormats(dateFormats, searchQueries.dateFormat);
   const filteredCurrencies = filterCurrencies(currencies, searchQueries.currency);
@@ -911,29 +906,74 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
           <Controller
             name="timezone"
             control={control}
-            render={({ field }) => (
-              <FormControl fullWidth size="small" margin="dense">
-                <InputLabel id="timezone-label">Time Zone</InputLabel>
-                <Select
-                  {...field}
-                  labelId="timezone-label"
-                  id="timezone"
-                  label="Time Zone"
-                  MenuProps={{
-                    PaperProps: {
-                      style: {
-                        maxHeight: 200,
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                options={timezoneOptions}
+                getOptionLabel={(option) => option.name}
+                value={timezoneOptions.find(opt => opt.code === value) || null}
+                onChange={(_, newValue) => {
+                  onChange(newValue?.code || '');
+                }}
+                inputValue={searchQueries.timezone}
+                onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Time Zone"
+                    variant="outlined"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.code}>
+                    {option.name}
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
                       },
-                    },
-                  }}
-                >
-                  {timezones.map((timezone) => (
-                    <MenuItem key={timezone} value={timezone}>
-                      {timezone}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
+              />
             )}
           />
         </Box>
@@ -943,52 +983,155 @@ const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSet
           <Controller
             name="dateFormat"
             control={control}
-            render={({ field }) => (
-              <FormControl fullWidth size="small" margin="dense">
-                <InputLabel id="date-format-label">Date Format</InputLabel>
-                <Select
-                  {...field}
-                  labelId="date-format-label"
-                  id="date-format"
-                  label="Date Format"
-                >
-                  <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
-                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
-                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
-                  <MenuItem value="DD MMM YYYY">DD MMM YYYY</MenuItem>
-                  <MenuItem value="MMM DD, YYYY">MMM DD, YYYY</MenuItem>
-                </Select>
-              </FormControl>
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                open={open.dateFormat}
+                onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
+                onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
+                options={dateFormats}
+                getOptionLabel={(option) => option?.label || ''}
+                value={value ? dateFormats.find(opt => opt.value === value) : dateFormats[0]}
+                onChange={(_, newValue) => {
+                  if (newValue) {
+                    onChange(newValue.value);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Date Format"
+                    variant="outlined"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option?.value}>
+                    {option?.label || 'Select a date format'}
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
+                      },
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
+              />
             )}
           />
         </Box>
-        
+
+
         {/* Column 2 - Row 2 */}
         <Box>
           <Controller
             name="currency"
             control={control}
-            render={({ field }) => (
-              <FormControl fullWidth size="small" margin="dense">
-                <InputLabel id="currency-label">Currency</InputLabel>
-                <Select
-                  {...field}
-                  labelId="currency-label"
-                  id="currency"
-                  label="Currency"
-                >
-                  <MenuItem value="USD">USD - US Dollar ($)</MenuItem>
-                  <MenuItem value="EUR">EUR - Euro (€)</MenuItem>
-                  <MenuItem value="GBP">GBP - British Pound (£)</MenuItem>
-                  <MenuItem value="JPY">JPY - Japanese Yen (¥)</MenuItem>
-                  <MenuItem value="AUD">AUD - Australian Dollar (A$)</MenuItem>
-                  <MenuItem value="CAD">CAD - Canadian Dollar (C$)</MenuItem>
-                  <MenuItem value="CHF">CHF - Swiss Franc (CHF)</MenuItem>
-                  <MenuItem value="CNY">CNY - Chinese Yuan (¥)</MenuItem>
-                  <MenuItem value="INR">INR - Indian Rupee (₹)</MenuItem>
-                  <MenuItem value="BRL">BRL - Brazilian Real (R$)</MenuItem>
-                </Select>
-              </FormControl>
+            render={({ field: { onChange, value, ...field } }) => (
+              <Autocomplete
+                {...field}
+                options={currencies}
+                getOptionLabel={(option) => `${option.code} - ${option.name} (${option.symbol})`}
+                value={currencies.find(curr => curr.code === value) || null}
+                onChange={(_, newValue) => {
+                  onChange(newValue?.code || '');
+                }}
+                inputValue={searchQueries.currency}
+                onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Currency"
+                    variant="outlined"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.code}>
+                    {option.code} - {option.name} ({option.symbol})
+                  </li>
+                )}
+                ListboxComponent={CustomScrollbar}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    paddingRight: '8px',
+                  },
+                }}
+                PaperComponent={({ children }) => (
+                  <Paper 
+                    sx={{ 
+                      width: 'auto',
+                      minWidth: '300px',
+                      boxShadow: 3,
+                      mt: 0.5,
+                      '& .MuiAutocomplete-listbox': {
+                        p: 0,
+                      },
+                      '& .MuiAutocomplete-option': {
+                        minHeight: '40px',
+                        '&[data-focus="true"]': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
+                        '&[aria-selected="true"]': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          '&.Mui-focused': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {children}
+                  </Paper>
+                )}
+                sx={{
+                  '& .MuiAutocomplete-popper': {
+                    minWidth: '300px',
+                  },
+                  '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '8px !important',
+                  },
+                }}
+                noOptionsText={!searchQueries.currency ? 'Type to search for currencies' : 'No currencies found'}
+              />
             )}
           />
         </Box>

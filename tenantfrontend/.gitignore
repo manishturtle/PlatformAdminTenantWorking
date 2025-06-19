@@ -14,7 +14,7 @@
 /coverage
 
 # GCP cred
-/service/gcp-credentials.json
+service/gcp-credentials.json
 
 # next.js
 /.next/

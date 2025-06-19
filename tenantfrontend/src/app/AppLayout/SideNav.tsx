@@ -102,7 +102,8 @@ export default function SideNav({ isOpen, onClose, userType, isAuthenticated, is
                  { text: 'User Management', icon: <PeopleIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/users` },
                  { text: 'Billing & Invoicing', icon: <ReceiptIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/billing-invoicing` },
                  { text: 'Subscription', icon: <ReceiptIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/tenant-subscriptions` },
-                 { text: 'Settings', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/login-config` },
+                //  { text: 'Settings', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/login-config` },
+                 { text: 'Settings', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/setting-config` },
                  { text: 'TenantDashboard', icon: <SettingsIcon />, path: `/${pathname?.split('/')[1]}/tenant-admin/tenant-dashboard` },
                 // { text: 'Theme Configuration', icon: <ColorLens />, path: `/${pathname?.split('/')[1]}/tenant-admin/theme-configuration` },
         ]
