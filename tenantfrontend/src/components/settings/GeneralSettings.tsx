@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -16,7 +16,29 @@ import {
   Button,
   Grid,
   SelectChangeEvent,
+  Autocomplete,
+  CircularProgress,
+  styled,
 } from '@mui/material';
+
+// Custom scrollbar styles
+const CustomScrollbar = styled('div')({
+  '&::-webkit-scrollbar': {
+    width: '6px',
+    height: '6px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: '#f1f1f1',
+    borderRadius: '10px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: '#888',
+    borderRadius: '10px',
+    '&:hover': {
+      background: '#555',
+    },
+  },
+});
 
 type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
@@ -47,8 +69,52 @@ interface FormData {
 const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
 
    const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
-    const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
-    const [activeTab, setActiveTab] = useState('general');
+  const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
+  const [activeTab, setActiveTab] = useState('general');
+  const [countries, setCountries] = useState<Array<{id: string, name: string}>>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'ar', name: 'Arabic' }
+  ];
+
+  // Fetch countries from API
+  useEffect(() => {
+    const fetchCountries = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
+        if (!response.ok) {
+          throw new Error('Failed to fetch countries');
+        }
+        const data = await response.json();
+        setCountries(data);
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+        setError('Failed to load countries. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (open && countries.length === 0) {
+      fetchCountries();
+    }
+  }, [open]);
+
+  // Filter countries based on search query
+  const filteredCountries = countries.filter(country =>
+    country.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   
   
   const [formData, setFormData] = useState<FormData>({
@@ -108,26 +174,26 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   return (
     <Box>
     {/* Company Details Section */}
-    <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-      <Typography variant="h6" fontWeight="medium" gutterBottom>Basic Company Details</Typography>
+    <Paper elevation={0} sx={{ p: 2, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+      <Typography variant="h6" fontWeight="medium" sx={{ mb: 1 }}>Basic Company Details</Typography>
       
-      <Grid container spacing={3} sx={{ mt: 1 }}>
-        <Grid size={6}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
           <TextField
             fullWidth
             label="Company Name"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
           />
         </Grid>
-        <Grid size={6}>
+        <Grid item xs={12} md={6}>
           <TextField
             fullWidth
             label="Primary Contact Email"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
             value="contact@company.com"
             disabled
             sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: 'text.disabled' } }}
@@ -135,45 +201,122 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
         </Grid>
         
         {/* Add more form fields here */}
-        <Grid size={6}>
+        <Grid item xs={12} md={6}>
           <TextField
             fullWidth
             label="Primary Contact Phone"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
             value="+1 (555) 123-4567"
             disabled
             sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: 'text.disabled' } }}
           />
         </Grid>
         
-        <Grid size={6}>
-          <FormControl fullWidth size="small" margin="normal">
-            <InputLabel id="country-label">Country</InputLabel>
-            <Select
-              
-              labelId="country-label"
-              label="Country"
-              value=""
-            >
-              <MenuItem value="">Select a country</MenuItem>
-              {/* Add more countries as needed */}
-            </Select>
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+            <Autocomplete
+              open={open}
+              onOpen={() => setOpen(true)}
+              onClose={() => setOpen(false)}
+              options={filteredCountries}
+              getOptionLabel={(option) => option.name}
+              value={countries.find(country => country.id === formData.country) || null}
+              onChange={(_, newValue) => {
+                setFormData(prev => ({
+                  ...prev,
+                  country: newValue?.id || ''
+                }));
+              }}
+              inputValue={searchQuery}
+              onInputChange={(_, newInputValue) => setSearchQuery(newInputValue)}
+              loading={isLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Country"
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  {option.name}
+                </li>
+              )}
+              ListboxComponent={CustomScrollbar}
+              ListboxProps={{
+                style: {
+                  maxHeight: 200,
+                  paddingRight: '8px',
+                },
+              }}
+              PaperComponent={({ children }) => (
+                <Paper 
+                  sx={{ 
+                    width: 'auto',
+                    minWidth: '300px',
+                    boxShadow: 3,
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': {
+                      p: 0,
+                    },
+                    '& .MuiAutocomplete-option': {
+                      minHeight: '40px',
+                      '&[data-focus="true"]': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  {children}
+                </Paper>
+              )}
+              sx={{
+                '& .MuiAutocomplete-popper': {
+                  minWidth: '300px',
+                },
+                '& .MuiAutocomplete-inputRoot': {
+                  paddingRight: '8px !important',
+                },
+              }}
+              noOptionsText={searchQuery ? 'No countries found' : 'Start typing to search'}
+            />
+            {error && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                {error}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
       </Grid>
       
-      <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 'medium' }}>Address</Typography>
+      <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 'medium' }}>Address</Typography>
       
-      <Grid container spacing={3}>
+      <Grid container spacing={2} sx={{ mt: 0.5 }}>
         <Grid item xs={12}>
           <TextField
             fullWidth
             label="Address Line 1"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
             placeholder="Street address"
           />
         </Grid>
@@ -183,7 +326,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             label="Address Line 2 (Optional)"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
             placeholder="Suite, floor, etc."
           />
         </Grid>
@@ -193,7 +336,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             label="City"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
           />
         </Grid>
         <Grid item xs={12} md={4}>
@@ -202,7 +345,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             label="State/Province"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
           />
         </Grid>
         <Grid item xs={12} md={4}>
@@ -211,7 +354,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             label="ZIP/Postal Code"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
           />
         </Grid>
         <Grid item xs={12} md={6}>
@@ -220,7 +363,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             label="Tax ID/VAT Number"
             variant="outlined"
             size="small"
-            margin="normal"
+            margin="dense"
           />
         </Grid>
       </Grid>
@@ -236,14 +379,21 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Default Language</Typography>
           <FormControl fullWidth variant="outlined" size="small">
             <Select
-              value="english"
+              value={formData.language}
+              onChange={handleSelectChange}
+              name="language"
               displayEmpty
               sx={{ 
                 '.MuiOutlinedInput-input': { py: 1.5 },
                 '.MuiSelect-icon': { color: 'text.secondary' }
               }}
             >
-              <MenuItem value="english">English</MenuItem>
+              <MenuItem value="" disabled>Select a language</MenuItem>
+              {languages.map((lang) => (
+                <MenuItem key={lang.code} value={lang.code}>
+                  {lang.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>

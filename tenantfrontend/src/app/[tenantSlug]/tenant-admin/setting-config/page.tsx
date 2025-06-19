@@ -6,6 +6,7 @@ import Grid from '@mui/material/Grid'; // Import Grid v2
 import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutline as HelpOutlineIcon } from '@mui/icons-material';
 
 import GeneralSettings from '@/components/settings/GeneralSettings';
+import BrandingVisuals from '@/components/settings/BrandingVisuals';
 // Types
 type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
@@ -69,10 +70,14 @@ const SettingsPage = () => {
         </Box>
 
         {activeTab === 'general' && (
-          <GeneralSettings />
+          <GeneralSettings onSave={() => {}} />
+        )}
+
+        {activeTab === 'branding' && (
+          <BrandingVisuals onSave={() => {}} />
         )}
         
-        {/* Add other tab content here */}
+       
       </Box>
     </Box>
   );
