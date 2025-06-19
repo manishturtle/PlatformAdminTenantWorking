@@ -37,7 +37,7 @@ interface TenantConfig {
 export const getTenantConfig = async (): Promise<TenantConfig> => {
   try {
     const tenant = getTenantFromUrl();
-    const response = await axios.get(`${API_BASE_URL}/api/${tenant}/tenant-admin/tenant-config/`);
+    const response = await axios.get(`http://localhost:8000/api/${tenant}/tenant-admin/tenant-config/`);
     return response.data;
   } catch (error) {
     console.error('Error fetching tenant config:', error);
@@ -54,7 +54,7 @@ export const saveTenantConfig = async (config: Partial<TenantConfig>): Promise<T
   try {
     const tenant = getTenantFromUrl();
     const response = await axios.post(
-      `${API_BASE_URL}/api/${tenant}/tenant-admin/tenant-config/`,
+      `http://localhost:8000/api/${tenant}/tenant-admin/tenant-config/`,
       config
     );
     return response.data;

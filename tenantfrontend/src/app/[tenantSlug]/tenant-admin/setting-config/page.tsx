@@ -1,5 +1,7 @@
 'use client';
 
+import { saveTenantConfig, mapToApiFormat } from '@/services/tenantConfigService';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Box, Typography, Container, Button, Paper, TextField, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Radio, RadioGroup, Divider } from '@mui/material';
 import Grid from '@mui/material/Grid'; // Import Grid v2
@@ -14,11 +16,13 @@ type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
 const SettingsPage = () => {
+  const router = useRouter();
   const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
   const [activeTab, setActiveTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [formDirty, setFormDirty] = useState(false);
 
   const handleTimeFormatChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setTimeFormat(event.target.value as TimeFormat);
@@ -32,22 +36,33 @@ const SettingsPage = () => {
     setActiveTab(tab);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (formData: any) => {
     try {
       setIsSaving(true);
-      // Add save logic here if needed
+      
+      // Map form data to API format
+      const apiData = mapToApiFormat(formData);
+      
+      // Save to API
+      await saveTenantConfig(apiData);
+      
+      // Show success message
       setSnackbar({
         open: true,
         message: 'Settings saved successfully',
         severity: 'success'
       });
+      
+      // Refresh the page to get the latest data
+      router.refresh();
     } catch (error) {
       console.error('Error saving settings:', error);
       setSnackbar({
         open: true,
-        message: 'Failed to save settings',
+        message: 'Failed to save settings. Please try again.',
         severity: 'error'
       });
+      throw error; // Re-throw to let the form handle the error
     } finally {
       setIsSaving(false);
     }
@@ -81,10 +96,11 @@ const SettingsPage = () => {
             ))}
           </Box>
           <Button 
+            type="submit"
             variant="contained" 
             color="primary"
-            onClick={handleSave}
-            disabled={isSaving}
+            form={`settings-form-${activeTab}`}
+            disabled={isSaving || !formDirty}
             startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
@@ -92,7 +108,11 @@ const SettingsPage = () => {
         </Box>
 
         {activeTab === 'general' && (
-          <GeneralSettings onSave={handleSave} />
+          <GeneralSettings 
+            onSave={handleSave} 
+            isSaving={isSaving}
+            onDirtyChange={setFormDirty}
+          />
         )}
 
         {activeTab === 'branding' && (

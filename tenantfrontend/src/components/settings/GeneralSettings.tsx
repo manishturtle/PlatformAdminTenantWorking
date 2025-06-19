@@ -49,7 +49,9 @@ type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
 interface GeneralSettingsProps {
-  // Removed onSave prop since we'll handle saving directly
+  onSave: (data: FormData) => Promise<void>;
+  isSaving?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface FormData {
@@ -72,7 +74,7 @@ interface FormData {
   firstDayOfWeek: FirstDayOfWeek;
 }
 
-const GeneralSettings = ({}: GeneralSettingsProps) => {
+const GeneralSettings = ({ onSave, isSaving = false, onDirtyChange }: GeneralSettingsProps) => {
   const { control, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<FormData>({
     defaultValues: {
       companyName: '',
@@ -95,17 +97,15 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     },
   });
 
-  // Watch form values
+  // Watch form values and dirty state
   const watchedValues = watch();
   
-  // UI state
-  const [isSaving, setIsSaving] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ 
-    open: false, 
-    message: '', 
-    severity: 'success' 
-  });
-  const [activeTab, setActiveTab] = useState('general');
+  // Notify parent when dirty state changes
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
   
   // Location data state
   // Define types for consistent use across the component
@@ -121,7 +121,6 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
   const [states, setStates] = useState<Array<{id: string, name: string}>>([]);
   const [cities, setCities] = useState<Array<{id: string, name: string}>>([]);
   
-  
   // UI state for dropdowns
   const [searchQueries, setSearchQueries] = useState({
     country: '',
@@ -132,7 +131,6 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     dateFormat: '', 
     currency: ''
   });
-  
   
   const [open, setOpen] = useState({
     country: false,
@@ -388,36 +386,23 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
     setValue('firstDayOfWeek', newFirstDay);
   };
 
-  const handleSave = async (data: any) => {
+  const onSubmit = async (data: FormData) => {
     try {
-      setIsSaving(true);
-      
-      // Map form data to API format
-      const apiData = mapToApiFormat(data);
-      
-      // Save to API
-      await saveTenantConfig(apiData);
-      
-      // Show success message
-      setSnackbar({
-        open: true,
-        message: 'Settings saved successfully',
-        severity: 'success',
-      });
+      await onSave(data);
     } catch (error) {
-      console.error('Error saving settings:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to save settings. Please try again.',
-        severity: 'error',
-      });
-    } finally {
-      setIsSaving(false);
+      console.error('Error in form submission:', error);
+      // Error handling is done in the parent component
+      throw error;
     }
   };
 
   return (
     <Box sx={{ width: '100%' }}>
+      <form 
+        id="settings-form-general"
+        onSubmit={handleSubmit(onSubmit)} 
+        style={{ width: '100%' }}
+      >
     {/* Company Details Section */}
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Basic Company Details</Typography>
@@ -857,11 +842,8 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
             onClose={() => setOpen(prev => ({ ...prev, language: false }))}
             options={filteredLanguages}
             getOptionLabel={(option) => option.name}
-            onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                language: newValue?.code || ''
-              }));
+            onChange={(_: any, newValue: any) => {
+              setValue('language', newValue?.code || '', { shouldDirty: true });
             }}
             inputValue={searchQueries.language}
             onInputChange={(_, newInputValue) => handleSearchQueryChange('language', newInputValue)}
@@ -1050,18 +1032,7 @@ const GeneralSettings = ({}: GeneralSettingsProps) => {
       
       </Box>
     </Paper>
-    
-    {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, mb: 1 }}>
-      <Button 
-        type="submit"
-        variant="contained" 
-        color="primary"
-        disabled={!isDirty || isSaving}
-        sx={{ px: 3, py: 1, minWidth: 120 }}
-      >
-        {isSaving ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
-      </Button>
-    </Box> */}
+    </form>
   </Box>
   );
 };
