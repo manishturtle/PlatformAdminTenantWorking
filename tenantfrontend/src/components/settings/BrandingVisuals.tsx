@@ -300,87 +300,87 @@
 //         </Box>
 
 //         {/* Brand Colors */}
-//         <Box mb={6}>
-//           <Typography variant="h6" fontWeight={500} mb={1}>Brand Colors</Typography>
-//           <Typography variant="body2" color="text.secondary" mb={3}>
-//             These colors will be used throughout the application
-//           </Typography>
-//           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={3}>
-//             {/* Primary Color Picker */}
-//             <Box>
-//               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-//                 Primary Brand Color
-//               </Typography>
-//               <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
-//                 <Box
-//                   width={48}
-//                   height={40}
-//                   bgcolor={primaryColor}
-//                   borderRadius="4px 0 0 4px"
-//                   border="1px solid"
-//                   borderColor="divider"
-//                   borderRight="none"
-//                   onClick={(e) => handleColorClick(e, 'primary')}
-//                   sx={{ cursor: 'pointer' }}
-//                 />
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   value={primaryColor}
-//                   onChange={(e) => setPrimaryColor(e.target.value)}
-//                   sx={{
-//                     margin: 0,
-//                     '& .MuiOutlinedInput-root': {
-//                       height: '40px',
-//                       borderTopLeftRadius: 0,
-//                       borderBottomLeftRadius: 0
-//                     }
-//                   }}
-//                 />
-//               </Box>
-//               <Typography variant="caption" color="text.secondary">
-//                 Used for buttons, links and primary actions
-//               </Typography>
-//             </Box>
+        // <Box mb={6}>
+        //   <Typography variant="h6" fontWeight={500} mb={1}>Brand Colors</Typography>
+        //   <Typography variant="body2" color="text.secondary" mb={3}>
+        //     These colors will be used throughout the application
+        //   </Typography>
+        //   <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={3}>
+        //     {/* Primary Color Picker */}
+        //     <Box>
+        //       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        //         Primary Brand Color
+        //       </Typography>
+        //       <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
+        //         <Box
+        //           width={48}
+        //           height={40}
+        //           bgcolor={primaryColor}
+        //           borderRadius="4px 0 0 4px"
+        //           border="1px solid"
+        //           borderColor="divider"
+        //           borderRight="none"
+        //           onClick={(e) => handleColorClick(e, 'primary')}
+        //           sx={{ cursor: 'pointer' }}
+        //         />
+        //         <TextField
+        //           fullWidth
+        //           size="small"
+        //           value={primaryColor}
+        //           onChange={(e) => setPrimaryColor(e.target.value)}
+        //           sx={{
+        //             margin: 0,
+        //             '& .MuiOutlinedInput-root': {
+        //               height: '40px',
+        //               borderTopLeftRadius: 0,
+        //               borderBottomLeftRadius: 0
+        //             }
+        //           }}
+        //         />
+        //       </Box>
+        //       <Typography variant="caption" color="text.secondary">
+        //         Used for buttons, links and primary actions
+        //       </Typography>
+        //     </Box>
 
-//             {/* Secondary Color Picker */}
-//             <Box>
-//               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-//                 Secondary Brand Color
-//               </Typography>
-//               <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
-//                 <Box
-//                   width={48}
-//                   height={40}
-//                   bgcolor={secondaryColor}
-//                   borderRadius="4px 0 0 4px"
-//                   border="1px solid"
-//                   borderColor="divider"
-//                   borderRight="none"
-//                   onClick={(e) => handleColorClick(e, 'secondary')}
-//                   sx={{ cursor: 'pointer' }}
-//                 />
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   value={secondaryColor}
-//                   onChange={(e) => setSecondaryColor(e.target.value)}
-//                   sx={{
-//                     margin: 0,
-//                     '& .MuiOutlinedInput-root': {
-//                       height: '40px',
-//                       borderTopLeftRadius: 0,
-//                       borderBottomLeftRadius: 0
-//                     }
-//                   }}
-//                 />
-//               </Box>
-//               <Typography variant="caption" color="text.secondary">
-//                 Used for secondary elements and accents
-//               </Typography>
-//             </Box>
-//           </Box>
-//         </Box>
+        //     {/* Secondary Color Picker */}
+        //     <Box>
+        //       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        //         Secondary Brand Color
+        //       </Typography>
+          //     <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
+          //       <Box
+          //         width={48}
+          //         height={40}
+          //         bgcolor={secondaryColor}
+          //         borderRadius="4px 0 0 4px"
+          //         border="1px solid"
+          //         borderColor="divider"
+          //         borderRight="none"
+          //         onClick={(e) => handleColorClick(e, 'secondary')}
+          //         sx={{ cursor: 'pointer' }}
+          //       />
+          //       <TextField
+          //         fullWidth
+          //         size="small"
+          //         value={secondaryColor}
+          //         onChange={(e) => setSecondaryColor(e.target.value)}
+          //         sx={{
+          //           margin: 0,
+          //           '& .MuiOutlinedInput-root': {
+          //             height: '40px',
+          //             borderTopLeftRadius: 0,
+          //             borderBottomLeftRadius: 0
+          //           }
+          //         }}
+          //       />
+          //     </Box>
+          //     <Typography variant="caption" color="text.secondary">
+          //       Used for secondary elements and accents
+          //     </Typography>
+          //   </Box>
+          // </Box>
+        // </Box>
         
 
 //         {/* Typography & Theme */}
@@ -617,7 +617,7 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       {/* Company Logo - Light Background Card */}
       <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-          <Typography variant="h6" fontWeight={600}>Company Logo (Light Background)</Typography>
+          <Typography variant="h6" fontWeight="bold">Company Logo (Light Background)</Typography>
           <Typography variant="caption" color="error" fontWeight={500}>Required</Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" mb={2}>
@@ -671,7 +671,7 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       {/* Company Logo - Dark Background Card */}
       <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-          <Typography variant="h6" fontWeight={600}>Company Logo (Dark Background)</Typography>
+          <Typography variant="h6" fontWeight="bold">Company Logo (Dark Background)</Typography>
           <Typography variant="caption" color="text.secondary" fontWeight={500}>Optional</Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" mb={2}>
@@ -725,7 +725,7 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
       {/* Favicon Card */}
       <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-          <Typography variant="h6" fontWeight={600}>Favicon</Typography>
+          <Typography variant="h6" fontWeight="bold">Favicon</Typography>
           <Typography variant="caption" color="error" fontWeight={500}>Required</Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" mb={2}>
@@ -787,74 +787,82 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
               Primary Brand Color
             </Typography>
-            <Box display="flex" alignItems="center">
-              <Box
-                width={48}
-                height={40}
-                bgcolor={primaryColor}
-                borderRadius="4px 0 0 4px"
-                border="1px solid"
-                borderColor="divider"
-                onClick={(e) => handleColorClick(e, 'primary')}
-                sx={{ cursor: 'pointer', flexShrink: 0 }}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    height: '40px',
-                    borderTopLeftRadius: 0,
-                    borderBottomLeftRadius: 0,
-                  }
-                }}
-              />
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              Used for buttons, links and primary actions
-            </Typography>
+            <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
+                 <Box
+                  width={48}
+                  height={40}
+                  bgcolor={primaryColor}
+                  borderRadius="4px 0 0 4px"
+                  border="1px solid"
+                  borderColor="divider"
+                  borderRight="none"
+                  onClick={(e) => handleColorClick(e, 'primary')}
+                  sx={{ cursor: 'pointer' }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  sx={{
+                    margin: 0,
+                    '& .MuiOutlinedInput-root': {
+                      height: '40px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0
+                    }
+                  }}
+                />
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Used for buttons, links and primary actions
+              </Typography>
+            
           </Grid>
           <Grid item xs={12} md={6}>
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
               Secondary Brand Color
             </Typography>
-            <Box display="flex" alignItems="center">
-              <Box
-                width={48}
-                height={40}
-                bgcolor={secondaryColor}
-                borderRadius="4px 0 0 4px"
-                border="1px solid"
-                borderColor="divider"
-                onClick={(e) => handleColorClick(e, 'secondary')}
-                sx={{ cursor: 'pointer', flexShrink: 0 }}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                value={secondaryColor}
-                onChange={(e) => setSecondaryColor(e.target.value)}
-                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    height: '40px',
-                    borderTopLeftRadius: 0,
-                    borderBottomLeftRadius: 0,
-                  }
-                }}
-              />
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              Used for secondary elements and accents
-            </Typography>
+            
+            <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
+                <Box
+                  width={48}
+                  height={40}
+                  bgcolor={secondaryColor}
+                  borderRadius="4px 0 0 4px"
+                  border="1px solid"
+                  borderColor="divider"
+                  borderRight="none"
+                  onClick={(e) => handleColorClick(e, 'secondary')}
+                  sx={{ cursor: 'pointer' }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  sx={{
+                    margin: 0,
+                    '& .MuiOutlinedInput-root': {
+                      height: '40px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0
+                    }
+                  }}
+                />
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Used for secondary elements and accents
+              </Typography>
+           
+          
           </Grid>
         </Grid>
       </Paper>
       
       {/* Typography & Theme Card */}
       <Paper elevation={0} sx={{ p: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-        <Typography variant="h6" fontWeight={600} mb={1}>Typography & Theme</Typography>
+        <Typography variant="h6" fontWeight="bold" mb={1}>Typography & Theme</Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>
           Configure the look and feel of your application
         </Typography>

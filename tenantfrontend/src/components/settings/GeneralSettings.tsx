@@ -380,9 +380,9 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     <Box sx={{ width: '100%' }}>
     {/* Company Details Section */}
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-      <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>Basic Company Details</Typography>
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Basic Company Details</Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, rowGap:1, columnGap:2 }}>
         <Box>
           <TextField
             fullWidth
@@ -755,9 +755,9 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
 
     {/* Regional & Display Preferences Section */}
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-      <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>Regional & Display Preferences</Typography>
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Regional & Display Preferences</Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, rowGap:1, columnGap:2 }}>
         {/* Column 1 - Row 1 */}
         <Box>
           <Autocomplete
