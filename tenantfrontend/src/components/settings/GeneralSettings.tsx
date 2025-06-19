@@ -83,9 +83,9 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     taxId: '12-3456789',
     language: 'en',
     timezone: 'America/New_York',
-    dateFormat: 'MM/DD/YYYY',
+    dateFormat: 'MM/dd/yyyy',  // Updated to match dateFormats array value
     timeFormat: '12h',
-    currency: 'USD',
+    currency: 'usd',  // Updated to lowercase to match currency code in the dropdown
     firstDayOfWeek: 'sunday',
   });
 
@@ -95,24 +95,43 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   const [activeTab, setActiveTab] = useState('general');
   
   // Location data state
-  const [countries, setCountries] = useState<Array<{id: string, name: string, code: string}>>([]);
+  // Define types for consistent use across the component
+  type CountryType = {id: string; name: string; code: string};
+  type StateType = {id: string; name: string};
+  type CityType = {id: string; name: string};
+  type TimezoneType = {code: string; name: string};
+  type LanguageType = {code: string; name: string};
+  type DateFormatType = {value: string; label: string};
+  type CurrencyType = {code: string; symbol: string; name: string};
+  
+  const [countries, setCountries] = useState<CountryType[]>([]);
   const [states, setStates] = useState<Array<{id: string, name: string}>>([]);
   const [cities, setCities] = useState<Array<{id: string, name: string}>>([]);
+  
   
   // UI state for dropdowns
   const [searchQueries, setSearchQueries] = useState({
     country: '',
     state: '',
-    city: ''
+    city: '',
+    timezone: '',
+    language: '',
+    dateFormat: '',
+    currency: ''
   });
+  
   
   const [open, setOpen] = useState({
     country: false,
     state: false,
-    city: false
+    city: false,
+    language: false,
+    dateFormat: false,
+    currency: false,
+    timezone: false
   });
   
-  const handleSearchQueryChange = (field: 'country' | 'state' | 'city', value: string) => {
+  const handleSearchQueryChange = (field: 'country' | 'state' | 'city' | 'timezone', value: string) => {
     setSearchQueries(prev => ({
       ...prev,
       [field]: value
@@ -135,16 +154,78 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     state: null,
     city: null
   });
+
+  // Date format options
+  const dateFormats = [
+    { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
+    { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
+    { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
+    { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
+    { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
+    { label: 'YYYY/MM/DD', value: 'yyyy/MM/dd' },
+    { label: 'Do MMM YYYY', value: 'do MMM yyyy' },         // 18th Jun 2025
+    { label: 'MMMM Do, YYYY', value: 'MMMM do, yyyy' },     // June 18th, 2025
+    { label: 'ddd, MMM D YYYY', value: 'EEE, MMM d yyyy' }, // Wed, Jun 18 2025
+    { label: 'Full ISO', value: "yyyy-MM-dd'T'HH:mm:ssxxx" } // 2025-06-18T14:23:00+05:30
+  ];
   
   // Language options
-  const languages = [
+  const languages: LanguageType[] = [
     { code: 'en', name: 'English' },
     { code: 'es', name: 'Spanish' },
     { code: 'fr', name: 'French' },
     { code: 'de', name: 'German' },
     { code: 'hi', name: 'Hindi' },
-    { code: 'ar', name: 'Arabic' }
+    { code: 'ar', name: 'Arabic' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'it', name: 'Italian' }
   ];
+  
+  // Currency options
+  const currencies: CurrencyType[] = [
+    { code: 'usd', symbol: '$', name: 'US Dollar (USD)' },
+    // { code: 'eur', symbol: '€', name: 'Euro (EUR)' },
+    // { code: 'gbp', symbol: '£', name: 'British Pound (GBP)' },
+    // { code: 'jpy', symbol: '¥', name: 'Japanese Yen (JPY)' },
+    { code: 'inr', symbol: '₹', name: 'Indian Rupee (INR)' },
+    // { code: 'cny', symbol: '¥', name: 'Chinese Yuan (CNY)' },
+    // { code: 'cad', symbol: '$', name: 'Canadian Dollar (CAD)' },
+    // { code: 'aud', symbol: '$', name: 'Australian Dollar (AUD)' },
+    // { code: 'chf', symbol: 'Fr', name: 'Swiss Franc (CHF)' },
+    // { code: 'aed', symbol: 'د.إ', name: 'UAE Dirham (AED)' }
+  ];
+
+  const timezones = [
+    { code: 'Pacific/Midway', name: '(UTC-11:00) Midway Island, Samoa' },
+    { code: 'Pacific/Honolulu', name: '(UTC-10:00) Hawaii' },
+    { code: 'America/Anchorage', name: '(UTC-09:00) Alaska' },
+    { code: 'America/Los_Angeles', name: '(UTC-08:00) Pacific Time (US & Canada)' },
+    { code: 'America/Denver', name: '(UTC-07:00) Mountain Time (US & Canada)' },
+    { code: 'America/Chicago', name: '(UTC-06:00) Central Time (US & Canada)' },
+    { code: 'America/New_York', name: '(UTC-05:00) Eastern Time (US & Canada)' },
+    { code: 'America/Halifax', name: '(UTC-04:00) Atlantic Time (Canada)' },
+    { code: 'America/Argentina/Buenos_Aires', name: '(UTC-03:00) Buenos Aires' },
+    { code: 'Atlantic/South_Georgia', name: '(UTC-02:00) Mid-Atlantic' },
+    { code: 'Atlantic/Azores', name: '(UTC-01:00) Azores' },
+    { code: 'UTC', name: '(UTC±00:00) Coordinated Universal Time' },
+    { code: 'Europe/London', name: '(UTC+00:00) London, Edinburgh, Dublin' },
+    { code: 'Europe/Paris', name: '(UTC+01:00) Paris, Amsterdam, Berlin' },
+    { code: 'Europe/Athens', name: '(UTC+02:00) Athens, Istanbul, Helsinki' },
+    { code: 'Asia/Kuwait', name: '(UTC+03:00) Kuwait, Riyadh, Moscow' },
+    { code: 'Asia/Dubai', name: '(UTC+04:00) Dubai, Abu Dhabi' },
+    { code: 'Asia/Karachi', name: '(UTC+05:00) Karachi, Islamabad' },
+    { code: 'Asia/Kolkata', name: '(UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi' },
+    { code: 'Asia/Dhaka', name: '(UTC+06:00) Dhaka, Astana' },
+    { code: 'Asia/Bangkok', name: '(UTC+07:00) Bangkok, Jakarta' },
+    { code: 'Asia/Shanghai', name: '(UTC+08:00) Beijing, Hong Kong, Singapore' },
+    { code: 'Asia/Tokyo', name: '(UTC+09:00) Tokyo, Seoul' },
+    { code: 'Australia/Sydney', name: '(UTC+10:00) Sydney, Brisbane' },
+    { code: 'Pacific/Noumea', name: '(UTC+11:00) Solomon Is.' },
+    { code: 'Pacific/Auckland', name: '(UTC+12:00) Auckland, Wellington' }
+  ];  
 
   // Fetch countries from API
   useEffect(() => {
@@ -231,12 +312,35 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   }, [formData.state]);
 
   // Filter data based on search query
-  const filterItems = (items: Array<{id: string, name: string}>, query: string) => 
+  const filterCountries = (items: CountryType[], query: string): CountryType[] => 
     query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterStates = (items: StateType[], query: string): StateType[] => 
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterCities = (items: CityType[], query: string): CityType[] => 
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterTimezones = (items: TimezoneType[], query: string): TimezoneType[] =>
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterLanguages = (items: LanguageType[], query: string): LanguageType[] =>
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterDateFormats = (items: DateFormatType[], query: string): DateFormatType[] =>
+    query ? items.filter(item => item.label.toLowerCase().includes(query.toLowerCase())) : items;
+    
+  const filterCurrencies = (items: CurrencyType[], query: string): CurrencyType[] =>
+    query ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase()) || 
+                          item.code.toLowerCase().includes(query.toLowerCase())) : items;
 
-  const filteredCountries = filterItems(countries, searchQueries.country);
-  const filteredStates = filterItems(states, searchQueries.state);
-  const filteredCities = filterItems(cities, searchQueries.city);
+  const filteredCountries = filterCountries(countries, searchQueries.country);
+  const filteredStates = filterStates(states, searchQueries.state);
+  const filteredCities = filterCities(cities, searchQueries.city);
+  const filteredTimezones = filterTimezones(timezones, searchQueries.timezone);
+  const filteredLanguages = filterLanguages(languages, searchQueries.language);
+  const filteredDateFormats = filterDateFormats(dateFormats, searchQueries.dateFormat);
+  const filteredCurrencies = filterCurrencies(currencies, searchQueries.currency);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -260,16 +364,20 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   };
 
   const handleTimeFormatChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTimeFormat = event.target.value as TimeFormat;
+    setTimeFormat(newTimeFormat);
     setFormData(prev => ({
       ...prev,
-      timeFormat: event.target.value as TimeFormat
+      timeFormat: newTimeFormat
     }));
   };
 
   const handleFirstDayOfWeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newFirstDay = event.target.value as FirstDayOfWeek;
+    setFirstDayOfWeek(newFirstDay);
     setFormData(prev => ({
       ...prev,
-      firstDayOfWeek: event.target.value as FirstDayOfWeek
+      firstDayOfWeek: newFirstDay
     }));
   };
 
@@ -432,7 +540,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
           />
         </Grid>
         <Grid item xs={12} md={4}>
-          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 260 }}>
             <Autocomplete
               open={open.state}
               onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
@@ -525,7 +633,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
           </FormControl>
         </Grid>
         <Grid item xs={12} md={4}>
-          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 250 }}>
             <Autocomplete
               open={open.city}
               onOpen={() => setOpen(prev => ({ ...prev, city: true }))}
@@ -645,59 +753,150 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
         {/* Column 1 - Row 1 */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Default Language</Typography>
-          <FormControl fullWidth variant="outlined" size="small">
-            <Select
-              value={formData.language}
-              onChange={handleSelectChange}
-              name="language"
-              displayEmpty
-              sx={{ 
-                '.MuiOutlinedInput-input': { py: 1.5 },
-                '.MuiSelect-icon': { color: 'text.secondary' }
-              }}
-            >
-              <MenuItem value="" disabled>Select a language</MenuItem>
-              {languages.map((lang) => (
-                <MenuItem key={lang.code} value={lang.code}>
-                  {lang.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            open={open.language}
+            onOpen={() => setOpen(prev => ({ ...prev, language: true }))}
+            onClose={() => setOpen(prev => ({ ...prev, language: false }))}
+            options={filteredLanguages}
+            getOptionLabel={(option) => option.name}
+            value={languages.find(lang => lang.code === formData.language) || null}
+            onChange={(_, newValue) => {
+              setFormData(prev => ({
+                ...prev,
+                language: newValue?.code || ''
+              }));
+            }}
+            inputValue={searchQueries.language}
+            onInputChange={(_, newInputValue) => handleSearchQueryChange('language', newInputValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="Select language"
+                InputProps={{
+                  ...params.InputProps,
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <MenuItem
+                {...props}
+                component="li"
+                key={option.code}
+              >
+                {option.name}
+              </MenuItem>
+            )}
+            noOptionsText={!searchQueries.language ? 'Type to search for languages' : 'No languages found'}
+            ListboxProps={{
+              style: {
+                maxHeight: '220px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#bdbdbd #f5f5f5',
+              }
+            }}
+          />
         </Box>
         
         {/* Column 2 - Row 1 */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Time Zone</Typography>
-          <FormControl fullWidth variant="outlined" size="small">
-            <Select
-              value="utc"
-              displayEmpty
-              sx={{ 
-                '.MuiOutlinedInput-input': { py: 1.5 },
-                '.MuiSelect-icon': { color: 'text.secondary' }
-              }}
-            >
-              <MenuItem value="utc">UTC (Coordinated Universal Time)</MenuItem>
-            </Select>
-          </FormControl>
+          <Autocomplete
+            open={open.timezone}
+            onOpen={() => setOpen(prev => ({ ...prev, timezone: true }))}
+            onClose={() => setOpen(prev => ({ ...prev, timezone: false }))}
+            options={filteredTimezones}
+            getOptionLabel={(option) => option.name}
+            value={timezones.find(tz => tz.code === formData.timezone) || null}
+            onChange={(_, newValue) => {
+              setFormData(prev => ({
+                ...prev,
+                timezone: newValue?.code || ''
+              }));
+            }}
+            inputValue={searchQueries.timezone}
+            onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="Select timezone"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <MenuItem
+                {...props}
+                component="li"
+                key={option.code}
+              >
+                {option.name}
+              </MenuItem>
+            )}
+            noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
+            ListboxProps={{
+              style: {
+                maxHeight: '220px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#bdbdbd #f5f5f5',
+              }
+            }}
+          />
         </Box>
         
         {/* Column 1 - Row 2 */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Date Format</Typography>
-          <FormControl fullWidth variant="outlined" size="small">
-            <Select
-              value="mm/dd/yyyy"
-              displayEmpty
-              sx={{ 
-                '.MuiOutlinedInput-input': { py: 1.5 },
-                '.MuiSelect-icon': { color: 'text.secondary' }
-              }}
-            >
-              <MenuItem value="mm/dd/yyyy">MM/DD/YYYY</MenuItem>
-            </Select>
-          </FormControl>
+          <Autocomplete
+            open={open.dateFormat}
+            onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
+            onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
+            options={filteredDateFormats}
+            getOptionLabel={(option) => option.label}
+            value={dateFormats.find(format => format.value === formData.dateFormat) || null}
+            onChange={(_, newValue) => {
+              setFormData(prev => ({
+                ...prev,
+                dateFormat: newValue?.value || ''
+              }));
+            }}
+            inputValue={searchQueries.dateFormat}
+            onInputChange={(_, newInputValue) => handleSearchQueryChange('dateFormat', newInputValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="Select date format"
+                InputProps={{
+                  ...params.InputProps,
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <MenuItem
+                {...props}
+                component="li"
+                key={option.value}
+              >
+                {option.label}
+              </MenuItem>
+            )}
+            noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
+            ListboxProps={{
+              style: {
+                maxHeight: '220px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#bdbdbd #f5f5f5',
+              }
+            }}
+          />
         </Box>
         
         {/* Column 2 - Row 2 */}
@@ -725,18 +924,52 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
         {/* Column 1 - Row 3 */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Default Currency</Typography>
-          <FormControl fullWidth variant="outlined" size="small">
-            <Select
-              value="usd"
-              displayEmpty
-              sx={{ 
-                '.MuiOutlinedInput-input': { py: 1.5 },
-                '.MuiSelect-icon': { color: 'text.secondary' }
-              }}
-            >
-              <MenuItem value="usd">USD ($)</MenuItem>
-            </Select>
-          </FormControl>
+          <Autocomplete
+            open={open.currency}
+            onOpen={() => setOpen(prev => ({ ...prev, currency: true }))}
+            onClose={() => setOpen(prev => ({ ...prev, currency: false }))}
+            options={filteredCurrencies}
+            getOptionLabel={(option) => option.name}
+            value={currencies.find(curr => curr.code === formData.currency) || null}
+            onChange={(_, newValue) => {
+              setFormData(prev => ({
+                ...prev,
+                currency: newValue?.code || ''
+              }));
+            }}
+            inputValue={searchQueries.currency}
+            onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="Select currency"
+                InputProps={{
+                  ...params.InputProps,
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <MenuItem
+                {...props}
+                component="li"
+                key={option.code}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography component="span" sx={{ mr: 1 }}>{option.symbol}</Typography>
+                  {option.name}
+                </Box>
+              </MenuItem>
+            )}
+            noOptionsText={!searchQueries.currency ? 'Type to search for currencies' : 'No currencies found'}
+            ListboxProps={{
+              style: {
+                maxHeight: '220px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#bdbdbd #f5f5f5',
+              }
+            }}
+          />
         </Box>
         
         {/* Column 2 - Row 3 */}
