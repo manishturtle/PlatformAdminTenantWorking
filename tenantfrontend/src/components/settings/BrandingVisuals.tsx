@@ -16,6 +16,7 @@ import {
   MenuItem,
   SelectChangeEvent,
   Popover,
+  Autocomplete,
 } from '@mui/material';
 import { CloudUpload, Image as ImageIcon } from '@mui/icons-material';
 import { ChromePicker, type ColorResult } from 'react-color';
@@ -24,11 +25,16 @@ interface BrandingVisualsProps {
   // Add any props if needed
 }
 
+type FontType = {
+  code: string;
+  name: string;
+};
+
 const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
   const [themeMode, setThemeMode] = useState<string>('light');
   const [primaryColor, setPrimaryColor] = useState<string>('#000080');
   const [secondaryColor, setSecondaryColor] = useState<string>('#D3D3D3');
-  const [fontStyle, setFontStyle] = useState<string>('Roboto');
+  const [selectedFont, setSelectedFont] = useState<FontType | null>({ code: 'roboto', name: 'Roboto' });
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<'primary' | 'secondary' | null>(null);
   const [imagePreviews, setImagePreviews] = useState({
@@ -36,14 +42,50 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
     'dark-logo': '',
     'favicon': ''
   });
+  
+  // States for Autocomplete dropdowns
+  const [open, setOpen] = useState({
+    font: false
+  });
+  
+  const [searchQueries, setSearchQueries] = useState({
+    font: ''
+  });
+  
+  // Font data
+  const fonts: FontType[] = [
+    { name: 'Inter', code: 'inter' },
+    { name: 'Roboto', code: 'roboto' },
+    { name: 'Poppins', code: 'poppins' },
+    { name: 'Montserrat', code: 'montserrat' },
+    { name: 'Open Sans', code: 'opensans' },
+    { name: 'Underdog', code: 'underdog' },
+  ];
 
   const handleThemeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setThemeMode(event.target.value);
   };
 
-  const handleFontStyleChange = (event: SelectChangeEvent<string>) => {
-    setFontStyle(event.target.value);
+  // Handle font selection change
+  const handleFontStyleChange = (newValue: FontType | null): void => {
+    setSelectedFont(newValue);
   };
+  
+  const handleSearchQueryChange = (field: string, value: string): void => {
+    setSearchQueries((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  const filterFonts = (items: FontType[], query: string): FontType[] => {
+    return query
+      ? items.filter(item => item.name.toLowerCase().includes(query.toLowerCase()))
+      : items;
+  };
+  
+  // Filter the fonts based on search query
+  const filteredFonts = filterFonts(fonts, searchQueries.font);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = event.target.files?.[0];
@@ -266,12 +308,12 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={3}>
             {/* Primary Color Picker */}
             <Box>
-              <Typography variant="body2" fontWeight={500} gutterBottom>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Primary Brand Color
               </Typography>
-              <Box display="flex" alignItems="center">
+              <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
                 <Box
-                  width={40}
+                  width={48}
                   height={40}
                   bgcolor={primaryColor}
                   borderRadius="4px 0 0 4px"
@@ -283,12 +325,15 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
                 />
                 <TextField
                   fullWidth
+                  size="small"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   sx={{
+                    margin: 0,
                     '& .MuiOutlinedInput-root': {
+                      height: '40px',
                       borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
+                      borderBottomLeftRadius: 0
                     }
                   }}
                 />
@@ -300,12 +345,12 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
 
             {/* Secondary Color Picker */}
             <Box>
-              <Typography variant="body2" fontWeight={500} gutterBottom>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Secondary Brand Color
               </Typography>
-              <Box display="flex" alignItems="center">
+              <Box display="flex" alignItems="center" sx={{ gap: 0 }}>
                 <Box
-                  width={40}
+                  width={48}
                   height={40}
                   bgcolor={secondaryColor}
                   borderRadius="4px 0 0 4px"
@@ -317,14 +362,17 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
                 />
                 <TextField
                   fullWidth
+                  size="small"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
                   sx={{
+                    margin: 0,
                     '& .MuiOutlinedInput-root': {
+                      height: '40px',
                       borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
+                      borderBottomLeftRadius: 0
                     }
-                  }}    
+                  }}
                 />
               </Box>
               <Typography variant="caption" color="text.secondary">
@@ -343,20 +391,40 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = () => {
           </Typography>
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={3}>
             <Box>
-              <Typography variant="body2" fontWeight={500} gutterBottom>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Default Font Style
               </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={fontStyle}
-                  onChange={handleFontStyleChange}
-                  displayEmpty
-                >
-                  <MenuItem value="Roboto">Roboto</MenuItem>
-                  <MenuItem value="Open Sans">Open Sans</MenuItem>
-                  <MenuItem value="Lato">Lato</MenuItem>
-                </Select>
-              </FormControl>
+              <Autocomplete
+                open={open.font}
+                onOpen={() => setOpen(prev => ({ ...prev, font: true }))}
+                onClose={() => setOpen(prev => ({ ...prev, font: false }))}
+                options={filteredFonts}
+                getOptionLabel={(option) => option.name}
+                value={selectedFont}
+                onChange={(_, newValue) => handleFontStyleChange(newValue)}
+                clearOnBlur={false}
+                disableClearable={false}
+                inputValue={searchQueries.font}
+                onInputChange={(_, newInputValue) => handleSearchQueryChange('font', newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select font"
+                    InputProps={{
+                      ...params.InputProps,
+                    }}
+                  />
+                )}
+                noOptionsText={!searchQueries.font ? 'Type to search for fonts' : 'No fonts found'}
+                ListboxProps={{
+                  style: {
+                    maxHeight: '220px',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#bdbdbd #f5f5f5',
+                  }
+                }}
+              />
               <Typography variant="caption" color="text.secondary">
                 This font will be used throughout the application
               </Typography>
