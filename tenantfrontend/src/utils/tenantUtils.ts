@@ -28,5 +28,5 @@ export const getTenantFromUrl = (): string => {
 export const getTenantApiBaseUrl = (): string => {
   const tenant = getTenantFromUrl();
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  return `${baseUrl}/api/${tenant}`;
+  return `http://localhost:8000/api/${tenant}`;
 };

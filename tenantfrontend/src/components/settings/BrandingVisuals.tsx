@@ -1,4 +1,3 @@
-
 //                 noOptionsText={!searchQueries.font ? 'Type to search for fonts' : 'No fonts found'}
 //                 ListboxProps={{
 //                   style: {
@@ -57,10 +56,8 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React, { useState, useEffect, useCallback } from 'react';
+import debounce from 'lodash/debounce';
 import {
   Box,
   Typography,
@@ -71,8 +68,6 @@ import {
   RadioGroup,
   FormControlLabel,
   FormControl,
-  FormLabel,
-  FormHelperText,
   Select,
   styled,
   MenuItem,
@@ -80,37 +75,32 @@ import {
   Popover,
   Autocomplete,
   Grid,
-  InputAdornment,
 } from '@mui/material';
-import { CloudUpload, Image as ImageIcon, Error as ErrorIcon } from '@mui/icons-material';
+import { CloudUpload, Image as ImageIcon } from '@mui/icons-material';
 import { ChromePicker, type ColorResult } from 'react-color';
 
-// Validation schema using Zod
-const brandingSchema = z.object({
-  themeMode: z.enum(['light', 'dark', 'system'], {
-    required_error: 'Theme mode is required',
-  }),
-  primaryColor: z.string()
-    .min(1, 'Primary color is required')
-    .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid color format'),
-  secondaryColor: z.string()
-    .min(1, 'Secondary color is required')
-    .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid color format'),
-  font: z.object({
-    code: z.string().min(1, 'Font is required'),
-    name: z.string().min(1, 'Font is required')
-  }),
-  lightLogo: z.string().optional(),
-  darkLogo: z.string().optional(),
-  favicon: z.string().optional(),
-});
-
-type BrandingFormData = z.infer<typeof brandingSchema>;
+export interface BrandingFormData {
+  company_logo_light?: {
+    url: string;
+    filename: string;
+  } | null;
+  company_logo_dark?: {
+    url: string;
+    filename: string;
+  } | null;
+  favicon?: {
+    url: string;
+    filename: string;
+  } | null;
+  primary_brand_color?: string;
+  secondary_brand_color?: string;
+  default_font_style?: string;
+  default_theme_mode?: string;
+}
 
 interface BrandingVisualsProps {
-  onSave?: (data: BrandingFormData) => Promise<void>;
-  isSaving?: boolean;
-  onDirtyChange?: (isDirty: boolean) => void;
+  onChange?: (data: Partial<BrandingFormData>) => void;
+  initialData?: Partial<BrandingFormData>;
 }
 
 type FontType = {
@@ -118,47 +108,22 @@ type FontType = {
   name: string;
 };
 
-const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
-  onSave,
-  isSaving = false,
-  onDirtyChange
-}) => {
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, isDirty },
-    trigger
-  } = useForm<BrandingFormData>({
-    resolver: zodResolver(brandingSchema),
-    defaultValues: {
-      themeMode: 'light',
-      primaryColor: '#000080',
-      secondaryColor: '#D3D3D3',
-      font: { code: 'roboto', name: 'Roboto' },
-      lightLogo: '',
-      darkLogo: '',
-      favicon: ''
-    }
-  });
-
-  // Watch form values and dirty state
-  const watchedValues = watch();
-  
-  // Notify parent when dirty state changes
-  useEffect(() => {
-    if (onDirtyChange) {
-      onDirtyChange(isDirty);
-    }
-  }, [isDirty, onDirtyChange]);
-
+const BrandingVisuals: React.FC<BrandingVisualsProps> = ({ onChange, initialData = {} }) => {
+  // Initialize state with initialData or defaults
+  const [themeMode, setThemeMode] = useState<string>(initialData.default_theme_mode || 'light');
+  const [primaryColor, setPrimaryColor] = useState<string>(initialData.primary_brand_color || '#000080');
+  const [secondaryColor, setSecondaryColor] = useState<string>(initialData.secondary_brand_color || '#D3D3D3');
+  const [selectedFont, setSelectedFont] = useState<FontType | null>(
+    initialData.default_font_style 
+      ? { code: initialData.default_font_style, name: initialData.default_font_style }
+      : { code: 'roboto', name: 'Roboto' }
+  );
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<'primary' | 'secondary' | null>(null);
   const [imagePreviews, setImagePreviews] = useState({
-    'light-logo': '',
-    'dark-logo': '',
-    'favicon': ''
+    'light-logo': initialData.company_logo_light?.url || '',
+    'dark-logo': initialData.company_logo_dark?.url || '',
+    'favicon': initialData.favicon?.url || ''
   });
 
   // States for Autocomplete dropdowns
@@ -169,11 +134,6 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
   const [searchQueries, setSearchQueries] = useState({
     font: ''
   });
-  
-  const selectedFont = watch('font');
-  const primaryColor = watch('primaryColor');
-  const secondaryColor = watch('secondaryColor');
-  const themeMode = watch('themeMode');
 
   // Font data
   const fonts: FontType[] = [
@@ -203,13 +163,43 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
     },
   });
 
+  // Debounced callback for onChange
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedOnChange = useCallback(
+    debounce((data: Partial<BrandingFormData>) => {
+      if (onChange) {
+        onChange(data);
+      }
+    }, 300),
+    [onChange]
+  );
+
+  // Update parent when form data changes
+  useEffect(() => {
+    const formData: Partial<BrandingFormData> = {
+      default_theme_mode: themeMode,
+      primary_brand_color: primaryColor,
+      secondary_brand_color: secondaryColor,
+      default_font_style: selectedFont?.code,
+      // Note: File uploads need to be handled separately
+    };
+    
+    debouncedOnChange(formData);
+    
+    return () => {
+      debouncedOnChange.cancel();
+    };
+  }, [themeMode, primaryColor, secondaryColor, selectedFont, debouncedOnChange]);
+
+  // Handle theme mode change
   const handleThemeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setValue('themeMode', event.target.value as 'light' | 'dark' | 'system', { shouldDirty: true });
+    const newTheme = event.target.value;
+    setThemeMode(newTheme);
   };
 
   // Handle font selection change
   const handleFontStyleChange = (newValue: FontType | null): void => {
-    setValue('font', newValue || { code: '', name: '' }, { shouldDirty: true });
+    setSelectedFont(newValue);
   };
 
   const handleSearchQueryChange = (field: string, value: string): void => {
@@ -228,43 +218,6 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
   // Filter the fonts based on search query
   const filteredFonts = filterFonts(fonts, searchQueries.font);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'light-logo' | 'dark-logo' | 'favicon') => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-      if (!validTypes.includes(file.type)) {
-        // Handle invalid file type
-        console.error('Invalid file type');
-        return;
-      }
-
-      // Validate file size (2MB max)
-      const maxSize = 2 * 1024 * 1024; // 2MB
-      if (file.size > maxSize) {
-        // Handle file too large
-        console.error('File is too large');
-        return;
-      }
-
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreviews(prev => ({
-          ...prev,
-          [type]: result
-        }));
-        
-        // Update form value
-        const fieldName = type === 'light-logo' ? 'lightLogo' : 
-                         type === 'dark-logo' ? 'darkLogo' : 'favicon';
-        setValue(fieldName as any, result, { shouldDirty: true });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleColorClick = (event: React.MouseEvent<HTMLElement>, type: 'primary' | 'secondary') => {
     setColorPickerFor(type);
     setAnchorEl(event.currentTarget);
@@ -275,30 +228,56 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
     setColorPickerFor(null);
   };
 
-  const handleColorChange = (color: ColorResult) => {
-    if (colorPickerFor === 'primary') {
-      setValue('primaryColor', color.hex, { shouldDirty: true });
-    } else if (colorPickerFor === 'secondary') {
-      setValue('secondaryColor', color.hex, { shouldDirty: true });
+  const handleColorChange = (color: ColorResult, type: 'primary' | 'secondary') => {
+    if (type === 'primary') {
+      setPrimaryColor(color.hex);
+    } else {
+      setSecondaryColor(color.hex);
     }
   };
   
-  const onSubmit = async (data: BrandingFormData) => {
-    try {
-      if (onSave) {
-        await onSave(data);
+  // Handle font selection
+  const handleFontChange = (event: React.SyntheticEvent, value: FontType | null) => {
+    setSelectedFont(value);
+  };
+  
+  // Handle file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'light-logo' | 'dark-logo' | 'favicon') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    
+    // Update previews
+    setImagePreviews(prev => ({
+      ...prev,
+      [type]: previewUrl
+    }));
+    
+    // Prepare file data for upload
+    const fileData = {
+      url: previewUrl, // In a real app, upload to your storage and get the URL
+      filename: file.name
+    };
+    
+    // Update form data
+    if (onChange) {
+      if (type === 'light-logo') {
+        onChange({ company_logo_light: fileData });
+      } else if (type === 'dark-logo') {
+        onChange({ company_logo_dark: fileData });
+      } else if (type === 'favicon') {
+        onChange({ favicon: fileData });
       }
-    } catch (error) {
-      console.error('Error saving branding settings:', error);
     }
+    
+    // In a real app, you would upload the file to your storage here
+    // and then update the form with the actual URL
   };
 
   return (
-    <Box 
-      component="form" 
-      onSubmit={handleSubmit(onSubmit)}
-      sx={{ width: '100%', bgcolor: 'background.default', p: 0 }}
-    >
+    <Box sx={{ width: '100%', bgcolor: 'background.default', p: 0}}>
       {/* Color Picker Popover */}
       <Popover
         open={Boolean(anchorEl)}
@@ -500,34 +479,19 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
                   onClick={(e) => handleColorClick(e, 'primary')}
                   sx={{ cursor: 'pointer' }}
                 />
-                <Controller
-                  name="primaryColor"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth
-                      size="small"
-                      error={!!errors.primaryColor}
-                      helperText={errors.primaryColor?.message}
-                      sx={{
-                        margin: 0,
-                        '& .MuiOutlinedInput-root': {
-                          height: '40px',
-                          borderTopLeftRadius: 0,
-                          borderBottomLeftRadius: 0,
-                          paddingRight: errors.primaryColor ? '8px' : undefined,
-                        },
-                      }}
-                      InputProps={{
-                        endAdornment: errors.primaryColor ? (
-                          <InputAdornment position="end">
-                            <ErrorIcon color="error" fontSize="small" />
-                          </InputAdornment>
-                        ) : undefined,
-                      }}
-                    />
-                  )}
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  sx={{
+                    margin: 0,
+                    '& .MuiOutlinedInput-root': {
+                      height: '40px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0
+                    }
+                  }}
                 />
               </Box>
               <Typography variant="caption" color="text.secondary">
@@ -552,34 +516,19 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
                   onClick={(e) => handleColorClick(e, 'secondary')}
                   sx={{ cursor: 'pointer' }}
                 />
-                <Controller
-                  name="secondaryColor"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth
-                      size="small"
-                      error={!!errors.secondaryColor}
-                      helperText={errors.secondaryColor?.message}
-                      sx={{
-                        margin: 0,
-                        '& .MuiOutlinedInput-root': {
-                          height: '40px',
-                          borderTopLeftRadius: 0,
-                          borderBottomLeftRadius: 0,
-                          paddingRight: errors.secondaryColor ? '8px' : undefined,
-                        },
-                      }}
-                      InputProps={{
-                        endAdornment: errors.secondaryColor ? (
-                          <InputAdornment position="end">
-                            <ErrorIcon color="error" fontSize="small" />
-                          </InputAdornment>
-                        ) : undefined,
-                      }}
-                    />
-                  )}
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  sx={{
+                    margin: 0,
+                    '& .MuiOutlinedInput-root': {
+                      height: '40px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0
+                    }
+                  }}
                 />
               </Box>
               <Typography variant="caption" color="text.secondary">
@@ -599,98 +548,73 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
         </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <Controller
-              name="font"
-              control={control}
-              render={({ field: { onChange, value, ...field } }) => (
-                <Autocomplete
-                  {...field}
-                  open={open.font}
-                  onOpen={() => setOpen(prev => ({ ...prev, font: true }))}
-                  onClose={() => setOpen(prev => ({ ...prev, font: false }))}
-                  options={filteredFonts}
-                  getOptionLabel={(option) => option?.name || ''}
-                  value={value || null}
-                  onChange={(_, newValue) => {
-                    handleFontStyleChange(newValue);
-                    onChange(newValue);
-                  }}
-                  inputValue={searchQueries.font}
-                  onInputChange={(_, newInputValue) => handleSearchQueryChange('font', newInputValue)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      label="Default Font Style"
-                      variant="outlined"
-                      error={!!errors.font}
-                      helperText={errors.font?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: errors.font ? (
-                          <>
-                            {params.InputProps.endAdornment}
-                            <InputAdornment position="end">
-                              <ErrorIcon color="error" fontSize="small" />
-                            </InputAdornment>
-                          </>
-                        ) : (
-                          params.InputProps.endAdornment
-                        ),
-                      }}
-                    />
-                  )}
+            <Autocomplete
+              open={open.font}
+              onOpen={() => setOpen(prev => ({ ...prev, font: true }))}
+              onClose={() => setOpen(prev => ({ ...prev, font: false }))}
+              options={filteredFonts}
+              getOptionLabel={(option) => option.name}
+              value={selectedFont}
+              onChange={(_, newValue) => handleFontStyleChange(newValue)}
+              inputValue={searchQueries.font}
+              onInputChange={(_, newInputValue) => handleSearchQueryChange('font', newInputValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params} 
+                  size="small"
+                  label="Default Font Style"
+                  variant="outlined"
                 />
               )}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option.code}>
-                      {option.name}
-                    </li>
-                  )}
-                  ListboxComponent={CustomScrollbar}
-                  ListboxProps={{
-                    style: {
-                      maxHeight: 200,
-                      paddingRight: '8px',
+              renderOption={(props, option) => (
+                <li {...props} key={option.code}>
+                  {option.name}
+                </li>
+              )}
+              ListboxComponent={CustomScrollbar}
+              ListboxProps={{
+                style: {
+                  maxHeight: 200,
+                  paddingRight: '8px',
+                },
+              }}
+              PaperComponent={({ children }) => (
+                <Paper 
+                  sx={{ 
+                    width: 'auto',
+                    minWidth: '300px',
+                    boxShadow: 3,
+                    mt: 0.5,
+                    '& .MuiAutocomplete-listbox': {
+                      p: 0,
+                    },
+                    '& .MuiAutocomplete-option': {
+                      minHeight: '40px',
+                      '&[data-focus="true"]': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        },
+                      },
                     },
                   }}
-                  PaperComponent={({ children }) => (
-                    <Paper 
-                      sx={{ 
-                        width: 'auto',
-                        minWidth: '300px',
-                        boxShadow: 3,
-                        mt: 0.5,
-                        '& .MuiAutocomplete-listbox': {
-                          p: 0,
-                        },
-                        '& .MuiAutocomplete-option': {
-                          minHeight: '40px',
-                          '&[data-focus="true"]': {
-                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                          },
-                          '&[aria-selected="true"]': {
-                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                            '&.Mui-focused': {
-                              backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                            },
-                          },
-                        },
-                      }}
-                    >
-                      {children}
-                    </Paper>
-                  )}
-                  sx={{
-                    '& .MuiAutocomplete-popper': {
-                      minWidth: '300px',
-                    },
-                    '& .MuiAutocomplete-inputRoot': {
-                      paddingRight: '8px !important',
-                    },
-                  }}
-                  noOptionsText={!searchQueries.font ? 'Type to search for fonts' : 'No fonts found'}
-                />
+                >
+                  {children}
+                </Paper>
+              )}
+              sx={{
+                '& .MuiAutocomplete-popper': {
+                  minWidth: '300px',
+                },
+                '& .MuiAutocomplete-inputRoot': {
+                  paddingRight: '8px !important',
+                },
+              }}
+              noOptionsText={!searchQueries.font ? 'Type to search for fonts' : 'No fonts found'}
+            />
             <Typography variant="caption" color="text.secondary">
               This font will be used throughout the application
             </Typography>
@@ -699,41 +623,28 @@ const BrandingVisuals: React.FC<BrandingVisualsProps> = ({
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
               Default Theme Mode
             </Typography>
-            <FormControl component="fieldset" error={!!errors.themeMode}>
-              <Controller
-                name="themeMode"
-                control={control}
-                render={({ field }) => (
-                  <RadioGroup
-                    row
-                    {...field}
-                    value={field.value}
-                    onChange={(e) => {
-                      handleThemeChange(e);
-                      field.onChange(e);
-                    }}
-                  >
-                    <FormControlLabel
-                      value="light"
-                      control={<Radio size="small" />}
-                      label="Light"
-                    />
-                    <FormControlLabel
-                      value="dark"
-                      control={<Radio size="small" />}
-                      label="Dark"
-                    />
-                    <FormControlLabel
-                      value="system"
-                      control={<Radio size="small" />}
-                      label="System Default"
-                    />
-                  </RadioGroup>
-                )}
-              />
-              {errors.themeMode && (
-                <FormHelperText>{errors.themeMode.message}</FormHelperText>
-              )}
+            <FormControl component="fieldset">
+              <RadioGroup
+                row
+                value={themeMode}
+                onChange={handleThemeChange}
+              >
+                <FormControlLabel
+                  value="light"
+                  control={<Radio size="small" />}
+                  label="Light"
+                />
+                <FormControlLabel
+                  value="dark"
+                  control={<Radio size="small" />}
+                  label="Dark"
+                />
+                <FormControlLabel
+                  value="system"
+                  control={<Radio size="small" />}
+                  label="System Default"
+                />
+              </RadioGroup>
             </FormControl>
             <Typography variant="caption" color="text.secondary" display="block">
               Users can override this setting in their preferences

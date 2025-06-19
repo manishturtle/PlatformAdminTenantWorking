@@ -1,68 +1,93 @@
 'use client';
 
-import { saveTenantConfig, mapToApiFormat } from '@/services/tenantConfigService';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Box, Typography, Container, Button, Paper, TextField, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Radio, RadioGroup, Divider } from '@mui/material';
-import Grid from '@mui/material/Grid'; // Import Grid v2
-import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutline as HelpOutlineIcon, Save as SaveIcon } from '@mui/icons-material';
-import CircularProgress from '@mui/material/CircularProgress';
+import { 
+  Box, 
+  Typography, 
+  Container, 
+  Button, 
+  Paper, 
+  Snackbar, 
+  Alert,
+  CircularProgress
+} from '@mui/material';
+import { Save as SaveIcon } from '@mui/icons-material';
 
-import GeneralSettings from '@/components/settings/GeneralSettings';
-import BrandingVisuals from '@/components/settings/BrandingVisuals';
+import GeneralSettings, { FormData as GeneralFormData } from '@/components/settings/GeneralSettings';
+import BrandingVisuals, { BrandingFormData } from '@/components/settings/BrandingVisuals';
 import SecurityAuthentication from '@/components/settings/SecurityAuthentication';
-// Types
-type TimeFormat = '12h' | '24h';
-type FirstDayOfWeek = 'sunday' | 'monday';
+import { saveTenantConfig } from '@/services/tenantApi';
+type TabType = 'general' | 'branding' | 'security';
+
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error' | 'info' | 'warning';
+}
 
 const SettingsPage = () => {
   const router = useRouter();
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
-  const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isSaving, setIsSaving] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  const [formDirty, setFormDirty] = useState(false);
+  const [snackbar, setSnackbar] = useState<SnackbarState>({ 
+    open: false, 
+    message: '', 
+    severity: 'success' 
+  });
 
-  const handleTimeFormatChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setTimeFormat(event.target.value as TimeFormat);
-  };
+  // Form data states
+  const [generalData, setGeneralData] = useState<Partial<GeneralFormData>>({});
+  const [brandingData, setBrandingData] = useState<Partial<BrandingFormData>>({});
 
-  const handleFirstDayOfWeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFirstDayOfWeek(event.target.value as FirstDayOfWeek);
-  };
-
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
   };
 
-  const handleSave = async (formData: any) => {
+  const handleGeneralChange = useCallback((data: Partial<GeneralFormData>) => {
+    setGeneralData(prev => ({ ...prev, ...data }));
+  }, []);
+
+  const handleBrandingChange = useCallback((data: Partial<BrandingFormData>) => {
+    setBrandingData(prev => ({ ...prev, ...data }));
+  }, []);
+
+  const handleSave = async () => {
     try {
       setIsSaving(true);
       
-      // Map form data to API format
-      const apiData = mapToApiFormat(formData);
+      // Combine form data
+      const dataToSave = {
+        company_info: { ...generalData },
+        branding_config: { ...brandingData },
+        // Add localization config from general data if needed
+        ...(generalData.language || generalData.timezone ? {
+          localization_config: {
+            ...(generalData.language && { default_language: generalData.language }),
+            ...(generalData.timezone && { default_time_zone: generalData.timezone }),
+            // Add other localization fields as needed
+          }
+        } : {})
+      };
+
+      await saveTenantConfig(dataToSave);
       
-      // Save to API
-      await saveTenantConfig(apiData);
-      
-      // Show success message
       setSnackbar({
         open: true,
         message: 'Settings saved successfully',
         severity: 'success'
       });
       
-      // Refresh the page to get the latest data
+      // Refresh the page to reflect changes
       router.refresh();
+      
     } catch (error) {
       console.error('Error saving settings:', error);
       setSnackbar({
         open: true,
-        message: 'Failed to save settings. Please try again.',
+        message: error instanceof Error ? error.message : 'Failed to save settings',
         severity: 'error'
       });
-      throw error; // Re-throw to let the form handle the error
     } finally {
       setIsSaving(false);
     }
@@ -73,21 +98,26 @@ const SettingsPage = () => {
       {/* Main Content */}
       <Box component="main" sx={{ p: 3 }}>
       
-        {/* Header with Tabs and Save Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: 1, borderColor: 'divider', mb: 4, pb: 1 }}>
-          <Box sx={{ display: 'flex', gap: 4 }}>
+       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 2 }}>
             {tabs.map((tab) => (
               <Button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 sx={{
-                  pb: 2,
-                  borderRadius: 0,
                   color: activeTab === tab.id ? 'primary.main' : 'text.secondary',
-                  borderBottom: activeTab === tab.id ? 2 : 'none',
+                  borderBottom: activeTab === tab.id ? '2px solid' : 'none',
                   borderColor: 'primary.main',
+                  borderRadius: 0,
+                  pb: 1.5,
+                  px: 1,
+                  minWidth: 'auto',
+                  textTransform: 'none',
+                  fontWeight: activeTab === tab.id ? 600 : 400,
                   '&:hover': {
-                    bgcolor: 'transparent',
+                    backgroundColor: 'transparent',
+                    color: 'primary.main',
                   },
                 }}
               >
@@ -95,33 +125,46 @@ const SettingsPage = () => {
               </Button>
             ))}
           </Box>
-          <Button 
-            type="submit"
-            variant="contained" 
+          <Button
+            variant="contained"
             color="primary"
-            form={`settings-form-${activeTab}`}
-            disabled={isSaving || !formDirty}
             startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+            onClick={handleSave}
+            disabled={isSaving}
+            sx={{ textTransform: 'none', fontWeight: 500 }}
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
         </Box>
+      </Box>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
-        {activeTab === 'general' && (
-          <GeneralSettings 
-            onSave={handleSave} 
-            isSaving={isSaving}
-            onDirtyChange={setFormDirty}
-          />
-        )}
+      {activeTab === 'general' && (
+        <GeneralSettings onSave={handleGeneralChange} />
+      )}
 
-        {activeTab === 'branding' && (
-          <BrandingVisuals onSave={() => {}} />
-        )}
+      {activeTab === 'branding' && (
+        <BrandingVisuals onSave={handleBrandingChange} />
+      )}
         
-        {activeTab === 'security' && (
-          <SecurityAuthentication onSave={() => {}} />
-        )}
+      {activeTab === 'security' && (
+        <SecurityAuthentication onSave={() => {}} />
+      )}
        
       </Box>
     </Box>
@@ -129,11 +172,10 @@ const SettingsPage = () => {
 };
 
 // Tabs
-const tabs = [
+const tabs: { id: TabType; label: string }[] = [
   { id: 'general', label: 'General Settings' },
   { id: 'branding', label: 'Branding & Visuals' },
-  { id: 'security', label: 'Security & Authentication' }
-  // { id: 'notifications', label: 'Notifications & Channels' },
-];
+  { id: 'security', label: 'Security & Authentication' },
+];  
 
 export default SettingsPage;
