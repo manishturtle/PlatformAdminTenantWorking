@@ -290,7 +290,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
   const handleTenantNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
     const schemaName = value.toLowerCase().replace(/[^a-z0-9]/g, "_");
-    const urlSuffix = value.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const urlSuffix = value.toLowerCase().replace(/[^a-z0-9]/g, "_");
 
     setFormData((prev) => ({
       ...prev,
@@ -328,9 +328,9 @@ const TenantForm: React.FC<TenantFormProps> = ({
 
     if (!formData.url_suffix.trim()) {
       newErrors.url_suffix = "URL suffix is required";
-    } else if (!/^[a-z0-9-]+$/.test(formData.url_suffix)) {
+    } else if (!/^[a-z0-9_-]+$/.test(formData.url_suffix)) {
       newErrors.url_suffix =
-        "URL suffix can only contain lowercase letters, numbers, and hyphens";
+        "URL suffix can only contain lowercase letters, numbers, hyphens, and underscores";
     }
 
     if (!formData.contact_email.trim()) {

@@ -129,28 +129,48 @@ export default function SideNav({ isOpen, onClose, userType, isAuthenticated, is
     // Prevent default anchor behavior
     e.preventDefault();
     
-    // Force active navigation path for visual feedback even if not authenticated
+    // Force active navigation path for visual feedback
     setActiveNavPath(path);
     
-    if (!isAuthenticated && !isLoginPage) {
-      // If not authenticated and not on login page, redirect to login
-      const baseLoginPath = userType === 'platform-admin' 
+    // Debug logging
+    console.log('Navigation triggered:', {
+      path,
+      isAuthenticated,
+      userType,
+      currentPath: pathname,
+      tenantSlug
+    });
+
+    // If not authenticated, redirect to login
+    if (!isAuthenticated) {
+      const loginPath = userType === 'platform-admin' 
         ? '/platform-admin/login' 
         : `/${tenantSlug || 'demo'}/tenant-admin/login`;
       
-      console.log('Not authenticated, redirecting to:', baseLoginPath);
-      router.push(baseLoginPath);
+      console.log('Not authenticated, redirecting to login:', loginPath);
+      router.push(loginPath);
       return;
     }
     
-    // Use router navigation
-    console.log('Navigating to path:', path);
+    // Ensure the path is absolute and handle tenant slug for tenant admin
+    let targetPath = path.startsWith('/') ? path : `/${path}`;
     
-    // Make sure the path is absolute
-    const absolutePath = path.startsWith('/') ? path : `/${path}`;
-    router.push(absolutePath);
+    // For tenant admin, ensure the path includes the tenant slug
+    if (userType === 'tenant-admin' && tenantSlug) {
+      // Check if the path already includes the tenant slug
+      const pathParts = targetPath.split('/').filter(Boolean);
+      if (pathParts[0] !== tenantSlug) {
+        // Prepend tenant slug if not already in path
+        targetPath = `/${tenantSlug}${targetPath}`;
+      }
+    }
     
-    // Only close drawer if it's on mobile
+    console.log('Navigating to:', targetPath);
+    
+    // Perform navigation
+    router.push(targetPath);
+    
+    // Close drawer on mobile after navigation
     if (isMobile) {
       onClose();
     }

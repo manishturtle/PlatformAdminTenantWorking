@@ -36,13 +36,13 @@ class Tenant(TenantMixin):
         null=True,
         validators=[
             RegexValidator(
-                regex=r'^[a-zA-Z0-9-]+$',
-                message='URL suffix can only contain letters, numbers, and hyphens.',
+                regex=r'^[a-zA-Z0-9_-]+$',
+                message='URL suffix can only contain letters, numbers, hyphens, and underscores.',
                 code='invalid_url_suffix'
             ),
         ],
-        help_text='Custom URL suffix for this tenant (e.g., "company-name" for company-name.example.com). '
-                 'Only letters, numbers, and hyphens are allowed.'
+        help_text='Custom URL suffix for this tenant (e.g., "company_name" for company_name.example.com). '
+                 'Only letters, numbers, hyphens, and underscores are allowed.'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -878,7 +878,6 @@ class TenantApplicationsByUrlView(APIView):
 
                 if not app_ids:
                     return Response([], status=status.HTTP_200_OK)
-
                 # Step 4: Fetch application and portal details
                 placeholders = ','.join(['%s'] * len(app_ids))
                 cursor.execute(f"""
@@ -943,6 +942,7 @@ class TenantSubscriptionDetailsView(APIView):
     authentication_classes = [TenantAdminJWTAuthentication]
     def get(self, request, tenant_slug):
         try:
+            print("called....")
             with connection.cursor() as cursor:
                 # Step 1: Fetch tenant info
                 cursor.execute("""
