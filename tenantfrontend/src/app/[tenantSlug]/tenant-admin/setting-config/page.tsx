@@ -109,9 +109,9 @@ const SettingsPage = () => {
           }
         },
         branding_config: {
-          theme_mode: brandingData.default_theme_mode || 'light',
-          primary_color: brandingData.primary_brand_color || '#1976d2',
-          secondary_color: brandingData.secondary_brand_color || '#9c27b0',
+          default_theme_mode: brandingData.default_theme_mode || 'light',
+          primary_brand_color: brandingData.primary_brand_color || '#1976d2',
+          secondary_brand_color: brandingData.secondary_brand_color || '#9c27b0',
           default_font_style: brandingData.default_font_style || 'Roboto',
           company_logo_light: brandingData.company_logo_light ? {
             url: brandingData.company_logo_light,

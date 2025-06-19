@@ -35,7 +35,7 @@ interface BrandingConfig {
 }
 
 interface LocalizationConfig {
-  default_language: string;
+  default_language: string; 
 }
 
 export interface TenantConfigData {
