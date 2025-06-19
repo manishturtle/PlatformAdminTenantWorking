@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# GCP cred
+/service/gcp-credentials.json
+
 # next.js
 /.next/
 /out/

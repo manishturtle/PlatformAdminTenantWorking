@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { 
   Box, 
   Typography, 
@@ -20,7 +21,10 @@ import {
   Autocomplete,
   CircularProgress,
   styled,
+  Snackbar,
+  Alert,
 } from '@mui/material';
+import { getTenantConfig, saveTenantConfig, mapToApiFormat, mapFromApiFormat } from '@/services/tenantConfigService';
 
 // Custom scrollbar styles
 const CustomScrollbar = styled('div')({
@@ -45,7 +49,7 @@ type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
 interface GeneralSettingsProps {
-  onSave: (data: FormData) => void;
+  // Removed onSave prop since we'll handle saving directly
 }
 
 interface FormData {
@@ -68,31 +72,39 @@ interface FormData {
   firstDayOfWeek: FirstDayOfWeek;
 }
 
-const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
-  // Form data state
-  const [formData, setFormData] = useState<FormData>({
-    companyName: '',
-    contactEmail: '',
-    contactPhone: '',
-    country: '',
-    countryCode: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    taxId: '',
-    language: '',
-    timezone: '',
-    dateFormat: '',  // Updated to match dateFormats array value
-    timeFormat: '12h',
-    currency: '',  // Updated to lowercase to match currency code in the dropdown
-    firstDayOfWeek: '',
+const GeneralSettings = ({}: GeneralSettingsProps) => {
+  const { control, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<FormData>({
+    defaultValues: {
+      companyName: '',
+      contactEmail: '',
+      contactPhone: '',
+      country: '',
+      countryCode: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      taxId: '',
+      language: 'en',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      dateFormat: 'yyyy-MM-dd',
+      timeFormat: '12h',
+      currency: 'usd',
+      firstDayOfWeek: 'sunday',
+    },
   });
 
+  // Watch form values
+  const watchedValues = watch();
+  
   // UI state
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>('12h');
-  const [firstDayOfWeek, setFirstDayOfWeek] = useState<FirstDayOfWeek>('sunday');
+  const [isSaving, setIsSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ 
+    open: false, 
+    message: '', 
+    severity: 'success' 
+  });
   const [activeTab, setActiveTab] = useState('general');
   
   // Location data state
@@ -139,11 +151,12 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     }));
   };
   
-  // Loading and error states
+  // Loading states
   const [isLoading, setIsLoading] = useState({
-    country: false,
-    state: false,
-    city: false
+    initial: true,  // For initial page load
+    country: false, // For country loading
+    state: false,   // For state loading
+    city: false     // For city loading
   });
   
   const [error, setError] = useState<{
@@ -219,35 +232,62 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     { code: 'Pacific/Auckland', name: '(UTC+12:00) Auckland, Wellington' }
   ];  
 
-  // Fetch countries from API
+  // Fetch tenant config and countries on component mount
   useEffect(() => {
-    const fetchCountries = async () => {
-      if (countries.length > 0) return; // Don't fetch if we already have countries
-      
-      setIsLoading(prev => ({...prev, country: true}));
-      setError(prev => ({...prev, country: null}));
+    const fetchInitialData = async () => {
       try {
+        setIsLoading(true);
+        
+        // Fetch tenant config
+        const config = await getTenantConfig();
+        const formData = mapFromApiFormat(config);
+        
+        // Reset form with API data
+        reset({
+          ...formData,
+          country: formData.country || '',
+          state: formData.state || '',
+          city: formData.city || '',
+        });
+
+        // Set default values for time format and first day of week
+        setValue('timeFormat', '12h');
+        setValue('firstDayOfWeek', 'sunday');
+        
+        // Fetch countries
         const response = await fetch('https://becockpit.turtleit.in/api/location/v1/countries/');
         if (!response.ok) {
           throw new Error('Failed to fetch countries');
         }
-        const data = await response.json();
-        setCountries(data);
+        const countriesData = await response.json();
+        setCountries(countriesData);
+        
       } catch (err) {
-        console.error('Error fetching countries:', err);
-        setError(prev => ({...prev, country: 'Failed to load countries. Please try again later.'}));
+        console.error('Error fetching initial data:', err);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load settings. Please try again later.',
+          severity: 'error'
+        });
       } finally {
-        setIsLoading(prev => ({...prev, country: false}));
+        setIsLoading(false);
       }
     };
 
-    fetchCountries();
-  }, []); // Empty dependency array to run only once on mount
+    fetchInitialData();
+  }, [reset]);
 
   // Fetch states when country changes
   useEffect(() => {
     const fetchStates = async () => {
-      if (!formData.country) return;
+      const countryCode = watchedValues.countryCode;
+      if (!countryCode) {
+        setStates([]);
+        setCities([]);
+        setValue('state', '');
+        setValue('city', '');
+        return;
+      }
       
       setIsLoading(prev => ({...prev, state: true}));
       setError(prev => ({...prev, state: null}));
@@ -255,7 +295,7 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
       setCities([]);
       
       try {
-        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/states/?countryCode=${formData.countryCode}`);
+        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/states/?countryCode=${countryCode}`);
         if (!response.ok) {
           throw new Error('Failed to fetch states');
         }
@@ -269,22 +309,25 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
       }
     };
 
-    if (formData.country) {
-      fetchStates();
-    }
-  }, [formData.country]);
+    fetchStates();
+  }, [watchedValues.countryCode, setValue]);
 
   // Fetch cities when state changes
   useEffect(() => {
     const fetchCities = async () => {
-      if (!formData.state) return;
+      const stateId = watchedValues.state;
+      if (!stateId) {
+        setCities([]);
+        setValue('city', '');
+        return;
+      }
       
       setIsLoading(prev => ({...prev, city: true}));
       setError(prev => ({...prev, city: null}));
       setCities([]);
       
       try {
-        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/cities/?stateId=${formData.state}`);
+        const response = await fetch(`https://becockpit.turtleit.in/api/location/v1/cities/?stateId=${stateId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch cities');
         }
@@ -298,10 +341,8 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
       }
     };
 
-    if (formData.state) {
-      fetchCities();
-    }
-  }, [formData.state]);
+    fetchCities();
+  }, [watchedValues.state, setValue]);
 
   // Filter data based on search query
   const filterCountries = (items: CountryType[], query: string): CountryType[] => 
@@ -337,43 +378,42 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
   const filteredDateFormats = filterDateFormats(dateFormats, searchQueries.dateFormat);
   const filteredCurrencies = filterCurrencies(currencies, searchQueries.currency);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSelectChange = (e: SelectChangeEvent<string>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
   const handleTimeFormatChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newTimeFormat = event.target.value as TimeFormat;
-    setTimeFormat(newTimeFormat);
-    setFormData(prev => ({
-      ...prev,
-      timeFormat: newTimeFormat
-    }));
+    setValue('timeFormat', newTimeFormat);
   };
 
   const handleFirstDayOfWeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newFirstDay = event.target.value as FirstDayOfWeek;
-    setFirstDayOfWeek(newFirstDay);
-    setFormData(prev => ({
-      ...prev,
-      firstDayOfWeek: newFirstDay
-    }));
+    setValue('firstDayOfWeek', newFirstDay);
+  };
+
+  const handleSave = async (data: any) => {
+    try {
+      setIsSaving(true);
+      
+      // Map form data to API format
+      const apiData = mapToApiFormat(data);
+      
+      // Save to API
+      await saveTenantConfig(apiData);
+      
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Settings saved successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to save settings. Please try again.',
+        severity: 'error',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -382,372 +422,423 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
     <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Basic Company Details</Typography>
       
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, rowGap:1, columnGap:2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, rowGap: 1, columnGap: 2 }}>
         <Box>
-          <TextField
-            fullWidth
-            label="Company Name"
-            variant="outlined"
-            size="small"
-            margin="dense"
+          <Controller
             name="companyName"
-            value={formData.companyName}
-            onChange={handleInputChange}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Company Name"
+                variant="outlined"
+                size="small"
+                margin="dense"
+              />
+            )}
           />
         </Box>
         <Box>
-          <TextField
-            fullWidth
-            label="Primary Contact Email"
-            variant="outlined"
-            size="small"
-            margin="dense"
+          <Controller
             name="contactEmail"
-            value={formData.contactEmail}
-            onChange={handleInputChange}
+            control={control}
+            rules={{
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: 'Invalid email address',
+              },
+            }}
+            render={({ field, fieldState: { error } }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Primary Contact Email"
+                variant="outlined"
+                size="small"
+                margin="dense"
+                error={!!error}
+                helperText={error?.message}
+              />
+            )}
           />
         </Box>
         
         <Box>
-          <TextField
-            fullWidth
-            label="Primary Contact Phone"
-            variant="outlined"
-            size="small"
-            margin="dense"
+          <Controller
             name="contactPhone"
-            value={formData.contactPhone}
-            onChange={handleInputChange}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Primary Contact Phone"
+                variant="outlined"
+                size="small"
+                margin="dense"
+              />
+            )}
           />
         </Box>
 
         <Box>
-          <TextField
-            fullWidth
-            label="Tax ID/VAT Number"
-            variant="outlined"
-            size="small"
-            margin="dense"
+          <Controller
             name="taxId"
-            value={formData.taxId}
-            onChange={handleInputChange}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Tax ID/VAT Number"
+                variant="outlined"
+                size="small"
+                margin="dense"
+              />
+            )}
           />
         </Box>
         
         <Box>
-          <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
-            <Autocomplete
-              open={open.country}
-              onOpen={() => setOpen(prev => ({ ...prev, country: true }))}
-              onClose={() => setOpen(prev => ({ ...prev, country: false }))}
-              options={filteredCountries}
-              getOptionLabel={(option) => option.name}
-              value={countries.find(country => country.id === formData.country) || null}
-              onChange={(_, newValue) => {
-                setFormData(prev => ({
-                  ...prev,
-                  country: newValue?.id || '',
-                  countryCode: newValue?.code || '',
-                  state: '', // Reset state when country changes
-                  city: '' // Reset city when country changes
-                }));
-              }}
-              inputValue={searchQueries.country}
-              onInputChange={(_, newInputValue) => handleSearchQueryChange('country', newInputValue)}
-              loading={isLoading.country}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Country"
-                  variant="outlined"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {isLoading.country ? <CircularProgress color="inherit" size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
+          <Controller
+            name="country"
+            control={control}
+            render={({ field: { onChange, value, ...field } }) => (
+              <FormControl fullWidth size="small" margin="dense" sx={{ minWidth: 300 }}>
+                <Autocomplete
+                  {...field}
+                  open={open.country}
+                  onOpen={() => setOpen(prev => ({ ...prev, country: true }))}
+                  onClose={() => setOpen(prev => ({ ...prev, country: false }))}
+                  options={filteredCountries}
+                  getOptionLabel={(option) => option.name}
+                  value={countries.find(country => country.id === value) || null}
+                  onChange={(_, newValue) => {
+                    onChange(newValue?.id || '');
+                    setValue('countryCode', newValue?.code || '');
+                    setValue('state', '');
+                    setValue('city', '');
                   }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option.name}
-                </li>
-              )}
-              ListboxComponent={CustomScrollbar}
-              ListboxProps={{
-                style: {
-                  maxHeight: 200,
-                  paddingRight: '8px',
-                },
-              }}
-              PaperComponent={({ children }) => (
-                <Paper 
-                  sx={{ 
-                    width: 'auto',
-                    minWidth: '300px',
-                    boxShadow: 3,
-                    mt: 0.5,
-                    '& .MuiAutocomplete-listbox': {
-                      p: 0,
+                  inputValue={searchQueries.country}
+                  onInputChange={(_, newInputValue) => handleSearchQueryChange('country', newInputValue)}
+                  loading={isLoading.country}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Country"
+                      variant="outlined"
+                      size="small"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isLoading.country ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      {option.name}
+                    </li>
+                  )}
+                  ListboxComponent={CustomScrollbar}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      paddingRight: '8px',
                     },
-                    '& .MuiAutocomplete-option': {
-                      minHeight: '40px',
-                      '&[data-focus="true"]': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                      '&[aria-selected="true"]': {
-                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        '&.Mui-focused': {
-                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  }}
+                  PaperComponent={({ children }) => (
+                    <Paper 
+                      sx={{ 
+                        width: 'auto',
+                        minWidth: '300px',
+                        boxShadow: 3,
+                        mt: 0.5,
+                        '& .MuiAutocomplete-listbox': {
+                          p: 0,
                         },
-                      },
+                        '& .MuiAutocomplete-option': {
+                          minHeight: '40px',
+                          '&[data-focus="true"]': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                          },
+                          '&[aria-selected="true"]': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                            '&.Mui-focused': {
+                              backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                            },
+                          },
+                        },
+                      }}
+                    >
+                      {children}
+                    </Paper>
+                  )}
+                  sx={{
+                    '& .MuiAutocomplete-popper': {
+                      minWidth: '300px',
+                    },
+                    '& .MuiAutocomplete-inputRoot': {
+                      paddingRight: '8px !important',
                     },
                   }}
-                >
-                  {children}
-                </Paper>
-              )}
-              sx={{
-                '& .MuiAutocomplete-popper': {
-                  minWidth: '300px',
-                },
-                '& .MuiAutocomplete-inputRoot': {
-                  paddingRight: '8px !important',
-                },
-              }}
-              noOptionsText={searchQueries.country ? 'No countries found' : 'Start typing to search'}
-            />
-            {error.country && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                {String(error.country)}
-              </Typography>
+                  noOptionsText={searchQueries.country ? 'No countries found' : 'Start typing to search'}
+                />
+                {error.country && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    {String(error.country)}
+                  </Typography>
+                )}
+              </FormControl>
             )}
-          </FormControl>
+          />
         </Box>
 
         <Box>
-          <TextField
-            fullWidth
-            label="Address Line 1"
-            variant="outlined"
-            size="small"
-            margin="dense"
-            placeholder="Street address"
+          <Controller
             name="addressLine1"
-            value={formData.addressLine1}
-            onChange={handleInputChange}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Address Line 1"
+                variant="outlined"
+                size="small"
+                margin="dense"
+                placeholder="Street address"
+              />
+            )}
           />
         </Box>
         <Box>
-          <TextField
-            fullWidth
-            label="Address Line 2 (Optional)"
-            variant="outlined"
-            size="small"
-            margin="dense"
-            placeholder="Suite, floor, etc."
+          <Controller
             name="addressLine2"
-            value={formData.addressLine2}
-            onChange={handleInputChange}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Address Line 2 (Optional)"
+                variant="outlined"
+                size="small"
+                margin="dense"
+                placeholder="Suite, floor, etc."
+              />
+            )}
           />
         </Box>
         <Box>
-          <FormControl fullWidth size="small" margin="dense">
-            <Autocomplete
-              open={open.state}
-              onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
-              onClose={() => setOpen(prev => ({ ...prev, state: false }))}
-              options={filteredStates}
-              getOptionLabel={(option) => option.name}
-              value={states.find(state => state.id === formData.state) || null}
-              onChange={(_, newValue) => {
-                setFormData(prev => ({
-                  ...prev,
-                  state: newValue?.id || '',
-                  city: '' // Reset city when state changes
-                }));
-              }}
-              inputValue={searchQueries.state}
-              onInputChange={(_, newInputValue) => handleSearchQueryChange('state', newInputValue)}
-              loading={isLoading.state}
-              disabled={!formData.country}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="State/Province"
-                  variant="outlined"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {isLoading.state ? <CircularProgress color="inherit" size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
+          <Controller
+            name="state"
+            control={control}
+            render={({ field: { onChange, value, ...field } }) => (
+              <FormControl fullWidth size="small" margin="dense">
+                <Autocomplete
+                  {...field}
+                  open={open.state}
+                  onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
+                  onClose={() => setOpen(prev => ({ ...prev, state: false }))}
+                  options={filteredStates}
+                  getOptionLabel={(option) => option.name}
+                  value={states.find(state => state.id === value) || null}
+                  onChange={(_, newValue) => {
+                    onChange(newValue?.id || '');
+                    setValue('city', '');
                   }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option.name}
-                </li>
-              )}
-              ListboxComponent={CustomScrollbar}
-              ListboxProps={{
-                style: {
-                  maxHeight: 200,
-                  paddingRight: '8px',
-                },
-              }}
-              PaperComponent={({ children }) => (
-                <Paper 
-                  sx={{ 
-                    width: 'auto',
-                    minWidth: '300px',
-                    boxShadow: 3,
-                    mt: 0.5,
-                    '& .MuiAutocomplete-listbox': {
-                      p: 0,
+                  inputValue={searchQueries.state}
+                  onInputChange={(_, newInputValue) => handleSearchQueryChange('state', newInputValue)}
+                  loading={isLoading.state}
+                  disabled={!watchedValues.country}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="State/Province"
+                      variant="outlined"
+                      size="small"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isLoading.state ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      {option.name}
+                    </li>
+                  )}
+                  ListboxComponent={CustomScrollbar}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      paddingRight: '8px',
                     },
-                    '& .MuiAutocomplete-option': {
-                      minHeight: '40px',
-                      '&[data-focus="true"]': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                      '&[aria-selected="true"]': {
-                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        '&.Mui-focused': {
-                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  }}
+                  PaperComponent={({ children }) => (
+                    <Paper 
+                      sx={{ 
+                        width: 'auto',
+                        minWidth: '300px',
+                        boxShadow: 3,
+                        mt: 0.5,
+                        '& .MuiAutocomplete-listbox': {
+                          p: 0,
                         },
-                      },
-                    },
-                  }}
-                >
-                  {children}
-                </Paper>
-              )}
-              sx={{
-                '& .MuiAutocomplete-popper': {
-                  minWidth: '300px',
-                },
-                '& .MuiAutocomplete-inputRoot': {
-                  paddingRight: '8px !important',
-                },
-              }}
-              noOptionsText={searchQueries.state ? 'No states found' : 'Start typing to search'}
-            />
-            {error.state && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                {String(error.state)}
-              </Typography>
-            )}
-          </FormControl>
-          </Box>
-          <Box>
-          <FormControl fullWidth size="small" margin="dense">
-            <Autocomplete
-              open={open.city}
-              onOpen={() => setOpen(prev => ({ ...prev, city: true }))}
-              onClose={() => setOpen(prev => ({ ...prev, city: false }))}
-              options={filteredCities}
-              getOptionLabel={(option) => option.name}
-              value={cities.find(city => city.id === formData.city) || null}
-              onChange={(_, newValue) => {
-                setFormData(prev => ({
-                  ...prev,
-                  city: newValue?.id || ''
-                }));
-              }}
-              inputValue={searchQueries.city}
-              onInputChange={(_, newInputValue) => handleSearchQueryChange('city', newInputValue)}
-              loading={isLoading.city}
-              disabled={!formData.state}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="City"
-                  variant="outlined"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {isLoading.city ? <CircularProgress color="inherit" size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option.name}
-                </li>
-              )}
-              ListboxComponent={CustomScrollbar}
-              ListboxProps={{
-                style: {
-                  maxHeight: 200,
-                  paddingRight: '8px',
-                },
-              }}
-              PaperComponent={({ children }) => (
-                <Paper 
-                  sx={{ 
-                    width: 'auto',
-                    minWidth: '300px',
-                    boxShadow: 3,
-                    mt: 0.5,
-                    '& .MuiAutocomplete-listbox': {
-                      p: 0,
-                    },
-                    '& .MuiAutocomplete-option': {
-                      minHeight: '40px',
-                      '&[data-focus="true"]': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                      '&[aria-selected="true"]': {
-                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        '&.Mui-focused': {
-                          backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        '& .MuiAutocomplete-option': {
+                          minHeight: '40px',
+                          '&[data-focus="true"]': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                          },
+                          '&[aria-selected="true"]': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                            '&.Mui-focused': {
+                              backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                            },
+                          },
                         },
-                      },
+                      }}
+                    >
+                      {children}
+                    </Paper>
+                  )}
+                  sx={{
+                    '& .MuiAutocomplete-popper': {
+                      minWidth: '300px',
+                    },
+                    '& .MuiAutocomplete-inputRoot': {
+                      paddingRight: '8px !important',
                     },
                   }}
-                >
-                  {children}
-                </Paper>
-              )}
-              sx={{
-                '& .MuiAutocomplete-popper': {
-                  minWidth: '300px',
-                },
-                '& .MuiAutocomplete-inputRoot': {
-                  paddingRight: '8px !important',
-                },
-              }}
-              noOptionsText={searchQueries.city ? 'No cities found' : 'Start typing to search'}
-            />
-            {error.city && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                {String(error.city)}
-              </Typography>
+                  noOptionsText={searchQueries.state ? 'No states found' : 'Start typing to search'}
+                />
+                {error.state && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    {String(error.state)}
+                  </Typography>
+                )}
+              </FormControl>
             )}
-          </FormControl>
-          </Box>
-          <Box>
-          <TextField
-            fullWidth
-            label="ZIP/Postal Code"
-            variant="outlined"
-            size="small"
-            margin="dense"
           />
+        </Box>
+          <Box>
+            <Controller
+              name="city"
+              control={control}
+              render={({ field: { onChange, value, ...field } }) => (
+                <FormControl fullWidth size="small" margin="dense">
+                  <Autocomplete
+                    {...field}
+                    open={open.city}
+                    onOpen={() => setOpen(prev => ({ ...prev, city: true }))}
+                    onClose={() => setOpen(prev => ({ ...prev, city: false }))}
+                    options={filteredCities}
+                    getOptionLabel={(option) => option.name}
+                    value={cities.find(city => city.id === value) || null}
+                    onChange={(_, newValue) => {
+                      onChange(newValue?.id || '');
+                    }}
+                    inputValue={searchQueries.city}
+                    onInputChange={(_, newInputValue) => handleSearchQueryChange('city', newInputValue)}
+                    loading={isLoading.city}
+                    disabled={!watchedValues.state}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="City"
+                        variant="outlined"
+                        size="small"
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {isLoading.city ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.id}>
+                        {option.name}
+                      </li>
+                    )}
+                    ListboxComponent={CustomScrollbar}
+                    ListboxProps={{
+                      style: {
+                        maxHeight: 200,
+                        paddingRight: '8px',
+                      },
+                    }}
+                    PaperComponent={({ children }) => (
+                      <Paper 
+                        sx={{ 
+                          width: 'auto',
+                          minWidth: '300px',
+                          boxShadow: 3,
+                          mt: 0.5,
+                          '& .MuiAutocomplete-listbox': {
+                            p: 0,
+                          },
+                          '& .MuiAutocomplete-option': {
+                            minHeight: '40px',
+                            '&[data-focus="true"]': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                            },
+                            '&[aria-selected="true"]': {
+                              backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                              '&.Mui-focused': {
+                                backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {children}
+                      </Paper>
+                    )}
+                    sx={{
+                      '& .MuiAutocomplete-popper': {
+                        minWidth: '300px',
+                      },
+                      '& .MuiAutocomplete-inputRoot': {
+                        paddingRight: '8px !important',
+                      },
+                    }}
+                    noOptionsText={searchQueries.city ? 'No cities found' : 'Start typing to search'}
+                  />
+                  {error.city && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {String(error.city)}
+                    </Typography>
+                  )}
+                </FormControl>
+              )}
+            />
+          </Box>
+          <Box>
+            <Controller
+              name="postalCode"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="ZIP/Postal Code"
+                  variant="outlined"
+                  size="small"
+                  margin="dense"
+                />
+              )}
+            />
           </Box>
       
       </Box>
@@ -835,206 +926,92 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
         
         {/* Column 2 - Row 1 */}
         <Box>
-          <Autocomplete
-            open={open.timezone}
-            onOpen={() => setOpen(prev => ({ ...prev, timezone: true }))}
-            onClose={() => setOpen(prev => ({ ...prev, timezone: false }))}
-            options={filteredTimezones}
-            getOptionLabel={(option) => option.name}
-            onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                timezone: newValue?.code || ''
-              }));
-            }}
-            inputValue={searchQueries.timezone}
-            onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                label="Time Zone"
-                variant="outlined"
-              />
-            )}
-            renderOption={(props, option) => (
-              <li {...props} key={option.code}>
-                {option.name}
-              </li>
-            )}
-            ListboxComponent={CustomScrollbar}
-            ListboxProps={{
-              style: {
-                maxHeight: 200,
-                paddingRight: '8px',
-              },
-            }}
-            PaperComponent={({ children }) => (
-              <Paper 
-                sx={{ 
-                  width: 'auto',
-                  minWidth: '300px',
-                  boxShadow: 3,
-                  mt: 0.5,
-                  '& .MuiAutocomplete-listbox': {
-                    p: 0,
-                  },
-                  '& .MuiAutocomplete-option': {
-                    minHeight: '40px',
-                    '&[data-focus="true"]': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    },
-                    '&[aria-selected="true"]': {
-                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+          <Controller
+            name="timezone"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth size="small" margin="dense">
+                <InputLabel id="timezone-label">Time Zone</InputLabel>
+                <Select
+                  {...field}
+                  labelId="timezone-label"
+                  id="timezone"
+                  label="Time Zone"
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 200,
                       },
                     },
-                  },
-                }}
-              >
-                {children}
-              </Paper>
+                  }}
+                >
+                  {timezones.map((timezone) => (
+                    <MenuItem key={timezone} value={timezone}>
+                      {timezone}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             )}
-            sx={{
-              '& .MuiAutocomplete-popper': {
-                minWidth: '300px',
-              },
-              '& .MuiAutocomplete-inputRoot': {
-                paddingRight: '8px !important',
-              },
-            }}
-            noOptionsText={!searchQueries.timezone ? 'Type to search for timezones' : 'No timezones found'}
           />
         </Box>
         
         {/* Column 1 - Row 2 */}
         <Box>
-          <Autocomplete
-            open={open.dateFormat}
-            onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
-            onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
-            options={filteredDateFormats}
-            getOptionLabel={(option) => option.label}
-            onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                dateFormat: newValue?.value || ''
-              }));
-            }}
-            inputValue={searchQueries.dateFormat}
-            onInputChange={(_, newInputValue) => handleSearchQueryChange('dateFormat', newInputValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                label="Date Format"
-                variant="outlined"
-              />
+          <Controller
+            name="dateFormat"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth size="small" margin="dense">
+                <InputLabel id="date-format-label">Date Format</InputLabel>
+                <Select
+                  {...field}
+                  labelId="date-format-label"
+                  id="date-format"
+                  label="Date Format"
+                >
+                  <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                  <MenuItem value="DD MMM YYYY">DD MMM YYYY</MenuItem>
+                  <MenuItem value="MMM DD, YYYY">MMM DD, YYYY</MenuItem>
+                </Select>
+              </FormControl>
             )}
-            renderOption={(props, option) => (
-              <li {...props} key={option.value}>
-                {option.label}
-              </li>
-            )}
-            ListboxComponent={CustomScrollbar}
-            ListboxProps={{
-              style: {
-                maxHeight: 200,
-                paddingRight: '8px',
-              },
-            }}
-            PaperComponent={({ children }) => (
-              <Paper 
-                sx={{ 
-                  width: 'auto',
-                  minWidth: '300px',
-                  boxShadow: 3,
-                  mt: 0.5,
-                  '& .MuiAutocomplete-listbox': {
-                    p: 0,
-                  },
-                  '& .MuiAutocomplete-option': {
-                    minHeight: '40px',
-                    '&[data-focus="true"]': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    },
-                    '&[aria-selected="true"]': {
-                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                      },
-                    },
-                  },
-                }}
-              >
-                {children}
-              </Paper>
-            )}
-            sx={{
-              '& .MuiAutocomplete-popper': {
-                minWidth: '300px',
-              },
-              '& .MuiAutocomplete-inputRoot': {
-                paddingRight: '8px !important',
-              },
-            }}
-            noOptionsText={!searchQueries.dateFormat ? 'Type to search for date formats' : 'No date formats found'}
           />
         </Box>
         
         {/* Column 2 - Row 2 */}
-       
-        
-        {/* Column 1 - Row 3 */}
         <Box>
-          <Autocomplete
-            open={open.currency}
-            onOpen={() => setOpen(prev => ({ ...prev, currency: true }))}
-            onClose={() => setOpen(prev => ({ ...prev, currency: false }))}
-            options={filteredCurrencies}
-            getOptionLabel={(option) => option.name}
-            onChange={(_, newValue) => {
-              setFormData(prev => ({
-                ...prev,
-                currency: newValue?.code || ''
-              }));
-            }}
-            inputValue={searchQueries.currency}
-            onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                label="Default Currency"
-                variant="outlined"
-                InputProps={{
-                  ...params.InputProps,
-                }}
-              />
+          <Controller
+            name="currency"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth size="small" margin="dense">
+                <InputLabel id="currency-label">Currency</InputLabel>
+                <Select
+                  {...field}
+                  labelId="currency-label"
+                  id="currency"
+                  label="Currency"
+                >
+                  <MenuItem value="USD">USD - US Dollar ($)</MenuItem>
+                  <MenuItem value="EUR">EUR - Euro (€)</MenuItem>
+                  <MenuItem value="GBP">GBP - British Pound (£)</MenuItem>
+                  <MenuItem value="JPY">JPY - Japanese Yen (¥)</MenuItem>
+                  <MenuItem value="AUD">AUD - Australian Dollar (A$)</MenuItem>
+                  <MenuItem value="CAD">CAD - Canadian Dollar (C$)</MenuItem>
+                  <MenuItem value="CHF">CHF - Swiss Franc (CHF)</MenuItem>
+                  <MenuItem value="CNY">CNY - Chinese Yuan (¥)</MenuItem>
+                  <MenuItem value="INR">INR - Indian Rupee (₹)</MenuItem>
+                  <MenuItem value="BRL">BRL - Brazilian Real (R$)</MenuItem>
+                </Select>
+              </FormControl>
             )}
-            renderOption={(props, option) => (
-              <MenuItem
-                {...props}
-                component="li"
-                key={option.code}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography component="span" sx={{ mr: 1 }}>{option.symbol}</Typography>
-                  {option.name}
-                </Box>
-              </MenuItem>
-            )}
-            noOptionsText={!searchQueries.currency ? 'Type to search for currencies' : 'No currencies found'}
-            ListboxProps={{
-              style: {
-                maxHeight: '220px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#bdbdbd #f5f5f5',
-              }
-            }}
           />
         </Box>
+        
+        {/* Column 1 - Row 3 */}
         <Box>
           <FormControl component="fieldset">
             <FormLabel component="legend" sx={{ 
@@ -1045,40 +1022,46 @@ const GeneralSettings = ({ onSave }: GeneralSettingsProps) => {
             }}>
               Time Format
             </FormLabel>
-            <RadioGroup
-              row
-              value={timeFormat}
-              onChange={handleTimeFormatChange}
-              sx={{ mt: 0.5 }}
-            >
-              <FormControlLabel 
-                value="12h" 
-                control={<Radio size="small" />} 
-                label="12-hour (AM/PM)" 
-                sx={{ mr: 4 }}
-              />
-              <FormControlLabel 
-                value="24h" 
-                control={<Radio size="small" />} 
-                label="24-hour" 
-              />
-            </RadioGroup>
+            <Controller
+              name="timeFormat"
+              control={control}
+              render={({ field }) => (
+                <RadioGroup
+                  row
+                  {...field}
+                  sx={{ mt: 0.5 }}
+                >
+                  <FormControlLabel 
+                    value="12h" 
+                    control={<Radio size="small" />} 
+                    label="12-hour (AM/PM)" 
+                    sx={{ mr: 4 }}
+                  />
+                  <FormControlLabel 
+                    value="24h" 
+                    control={<Radio size="small" />} 
+                    label="24-hour" 
+                  />
+                </RadioGroup>
+              )}
+            />
           </FormControl>
         </Box>
       
       </Box>
     </Paper>
     
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, mb: 1 }}>
+    {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, mb: 1 }}>
       <Button 
+        type="submit"
         variant="contained" 
-        color="primary" 
-        onClick={handleSubmit}
-        sx={{ px: 3, py: 1 }}
+        color="primary"
+        disabled={!isDirty || isSaving}
+        sx={{ px: 3, py: 1, minWidth: 120 }}
       >
-        Save Changes
+        {isSaving ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
       </Button>
-    </Box>
+    </Box> */}
   </Box>
   );
 };
