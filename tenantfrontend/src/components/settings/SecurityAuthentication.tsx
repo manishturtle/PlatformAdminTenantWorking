@@ -103,7 +103,9 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               value={sessionTimeout}
               onChange={(e) => setSessionTimeout(Number(e.target.value))}
               inputProps={{ min: 1 }}
-              disabled={readOnly}
+              // disabled={readOnly}
+              disabled={true}
+
             />
           </Box>
           <Box>
@@ -117,7 +119,8 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               value={maxSessionDuration}
               onChange={(e) => setMaxSessionDuration(Number(e.target.value))}
               inputProps={{ min: 1 }}
-              disabled={readOnly}
+              disabled={true}
+
             />
           </Box>
         </Box>
@@ -140,7 +143,8 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               value={minPasswordLength}
               onChange={(e) => setMinPasswordLength(Number(e.target.value))}
               inputProps={{ min: 6 }}
-              disabled={readOnly}
+              // disabled={readOnly}
+              disabled={true}
             />
           </Box>
           <Box>
@@ -152,9 +156,11 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               type="number"
               size="small"
               value={passwordHistory}
-              disabled={readOnly}
+              // disabled={readOnly}
               onChange={(e) => setPasswordHistory(Number(e.target.value))}
               inputProps={{ min: 0 }}
+              disabled={true}
+
             />
           </Box>
         </Box>
@@ -167,7 +173,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox 
                     checked={passwordRequirements.uppercase}
                     onChange={(e) => setPasswordRequirements({...passwordRequirements, uppercase: e.target.checked})}
-                    disabled={readOnly}
+                    disabled={true}
                   />
                 }
                 label="Require uppercase letters"
@@ -177,7 +183,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox 
                     checked={passwordRequirements.numbers}
                     onChange={(e) => setPasswordRequirements({...passwordRequirements, numbers: e.target.checked})}
-                    disabled={readOnly}
+                    disabled={true}
                   />
                 }
                 label="Require Numbers"
@@ -191,7 +197,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={passwordRequirements.lowercase}
                     onChange={handlePasswordRequirementChange('lowercase')}
-                    disabled={readOnly}
+                    disabled={true}
                   />
                 }
                 label="Require Lowercase Letters"
@@ -201,7 +207,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={passwordRequirements.specialSymbols}
                     onChange={handlePasswordRequirementChange('specialSymbols')}
-                    disabled={readOnly}
+                    disabled={true}
                   />
                 }
                 label="Require Special Symbols"
@@ -228,6 +234,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               value={failedAttempts}
               onChange={(e) => setFailedAttempts(Number(e.target.value))}
               inputProps={{ min: 1 }}
+              disabled={true}
             />
           </Box>
           <Box>
@@ -241,6 +248,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
               value={lockoutDuration}
               onChange={(e) => setLockoutDuration(Number(e.target.value))}
               inputProps={{ min: 1 }}
+              disabled={true}
             />
           </Box>
         </Box>
@@ -257,13 +265,13 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
         </Typography>
         <RadioGroup
           value={mfaPolicy}
-          onChange={(e) => setMfaPolicy(e.target.value)}
+          onChange={(e) => !readOnly && setMfaPolicy(e.target.value)}
           sx={{ mb: 3 }}
         >
-          <FormControlLabel value="disabled" control={<Radio />} label="Disabled" />
-          <FormControlLabel value="optional" control={<Radio />} label="Optional for Users" />
-          <FormControlLabel value="required-all" control={<Radio />} label="Required for All Users" />
-          <FormControlLabel value="required-admin" control={<Radio />} label="Required for Admins Only" />
+          <FormControlLabel value="disabled" control={<Radio disabled={true} />} label="Disabled" />
+          <FormControlLabel value="optional" control={<Radio disabled={true} />} label="Optional for Users" />
+          <FormControlLabel value="required-all" control={<Radio disabled={true} />} label="Required for All Users" />
+          <FormControlLabel value="required-admin" control={<Radio disabled={true} />} label="Required for Admins Only" />
         </RadioGroup>
 
         <Typography variant="body2" color="text.secondary" mb={1}>
@@ -277,6 +285,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={mfaFactors.sms}
                     onChange={handleMfaFactorChange('sms')}
+                    disabled={true}
                   />
                 }
                 label="SMS Text Message"
@@ -286,6 +295,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={mfaFactors.email}
                     onChange={handleMfaFactorChange('email')}
+                    disabled={true}
                   />
                 }
                 label="Email Verification"
@@ -299,6 +309,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={mfaFactors.authenticatorApp}
                     onChange={handleMfaFactorChange('authenticatorApp')}
+                    disabled={true}
                   />
                 }
                 label="Authenticator App"
@@ -308,6 +319,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
                   <Checkbox
                     checked={mfaFactors.hardwareKey}
                     onChange={handleMfaFactorChange('hardwareKey')}
+                    disabled={true}
                   />
                 }
                 label="Hardware Security Key"
@@ -331,7 +343,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
             Allow users to sign in with their Google accounts.
           </Typography>
           <FormControlLabel
-            control={<Checkbox />}
+            control={<Checkbox disabled={true} />}
             label="Enable Google SSO"
           />
         </Box>
@@ -343,7 +355,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave,
           <Typography variant="caption" color="text.secondary" display="block" mb={1}>
             Configure single sign-on integration with your identity provider.
           </Typography>
-          <Button variant="outlined" size="small">
+          <Button variant="outlined" size="small" disabled={true}>
             Configure Enterprise SSO
           </Button>
         </Box>
