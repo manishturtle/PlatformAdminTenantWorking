@@ -268,14 +268,7 @@ export default function TenantDashboardPage() {
                         assigned={app.users_count_current || 0}
                         total={app.users_assigned || 0}
                         status={app.subscription.license_status}
-                        // onGoToApp={() => {
-                        //   // Navigate to the application
-                        //   if (app.default_url) {
-                        //     window.open(app.default_url, '_blank');
-                        //   } else {
-                        //     console.log('No default URL for', app.name);
-                        //   }
-                        // }}
+                        appUrl={app.app_default_url}
                       />
                     );
                   })}

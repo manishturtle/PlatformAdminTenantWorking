@@ -1,6 +1,7 @@
 'use client';
 
 import { Box, Typography, Card, CardContent, LinearProgress, Button, useTheme } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
@@ -50,6 +51,7 @@ interface DashboardSubscriptionCardProps {
   assigned?: number;
   total?: number;
   status?: string;
+  appUrl?: string;
 }
 
 export const DashbaordSubscriptionCard = ({
@@ -60,6 +62,7 @@ export const DashbaordSubscriptionCard = ({
   assigned,
   total,
   status,
+  appUrl,
 }: DashboardSubscriptionCardProps) => {
   const theme = useTheme();
   const router = useRouter();
@@ -72,6 +75,8 @@ export const DashbaordSubscriptionCard = ({
   const assignedUsers = application?.user_count || application?.users_count_current || assigned || 0;
   const licenseStatus = application?.subscription?.license_status || status || 'inactive';
   const licenseId = application?.subscription?.license_id;
+  const url = application?.app_default_url || appUrl; // Use either from application or direct prop
+  
   
   const usagePercentage = maxUsers > 0 ? Math.round((assignedUsers / maxUsers) * 100) : 0;
 
@@ -134,26 +139,41 @@ export const DashbaordSubscriptionCard = ({
             >
               {licenseStatus}
             </Box>
-            <Button 
-              size="small" 
-              onClick={handleViewUsage}
-              disabled={!licenseId}
-              sx={{ 
-                textTransform: 'none',
-                color: 'primary.main',
-                fontSize: '0.75rem',
-                '&:hover': {
-                  backgroundColor: 'transparent',
-                  textDecoration: 'underline',
-                },
-                '&:disabled': {
-                  color: 'text.disabled',
-                  textDecoration: 'none',
+            <Box
+              component="a"
+              href={url || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (!url) {
+                  e.preventDefault();
+                  console.log('No URL provided for', appName);
+                } else {
+                  console.log('Navigating to:', url);
                 }
               }}
+              sx={{
+                color: url ? 'primary.main' : 'text.disabled',
+                textDecoration: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                cursor: url ? 'pointer' : 'default',
+                '&:hover': {
+                  textDecoration: url ? 'underline' : 'none',
+                  '& .MuiSvgIcon-root': {
+                    transform: url ? 'translateX(2px)' : 'none'
+                  }
+                },
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                transition: 'all 0.2s ease-in-out',
+                pointerEvents: url ? 'auto' : 'none'
+              }}
             >
-              {t('dashboard.viewUsageAnalytics')} ›
-            </Button>
+              {t('Go to app')}
+              <OpenInNewIcon sx={{ fontSize: '0.9rem', transition: 'transform 0.2s ease-in-out' }} />
+            </Box>
           </Box>
         </Box>
         
