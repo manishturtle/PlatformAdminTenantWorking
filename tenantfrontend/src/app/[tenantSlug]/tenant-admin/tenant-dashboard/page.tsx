@@ -124,10 +124,12 @@ export default function TenantDashboardPage() {
   const isLoading = loading.subscriptions;
   const hasError = Boolean(error.subscriptions);
   
-  // Calculate total active users from applications subscriptions if available
+  // Calculate totals from subscriptions data
   const totalActiveUsers = subscriptions?.applications?.reduce(
-    (total: number, app) => total + (app.subscription?.subscription_plan?.max_users || 0), 0
+    (total: number, app) => total + (app.user_count || 0), 0
   ) || 0;
+  
+  const totalSubscriptions = subscriptions?.applications?.length || 0;
 
   return (
     <Box sx={{ p: 3, maxWidth: 1440, mx: 'auto' }}>
@@ -144,23 +146,25 @@ export default function TenantDashboardPage() {
           <Card sx={{ height: '100%', borderRadius: 2, boxShadow: 1 }}>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Total Active Users</Typography>
-              <Typography variant="h4" sx={{ mt: 1, mb: 1.5, fontWeight: 600 }}>52</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-                <ArrowUpwardIcon fontSize="small" sx={{ mr: 0.5 }} />
-                <Typography variant="caption">4% from last month</Typography>
-              </Box>
+              <Typography variant="h4" sx={{ mt: 1, mb: 1.5, fontWeight: 600 }}>
+                {isLoading ? <CircularProgress size={24} /> : totalActiveUsers}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Across all applications
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{ height: '100%', borderRadius: 2, boxShadow: 1 }}>
             <CardContent>
-              <Typography variant="body2" color="text.secondary">Total Subscriptions</Typography>
-              <Typography variant="h4" sx={{ mt: 1, mb: 1.5, fontWeight: 600 }}>4</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-                <AddCircleOutlineIcon fontSize="small" sx={{ mr: 0.5 }} />
-                <Typography variant="caption">1 new subscription this month</Typography>
-              </Box>
+              <Typography variant="body2" color="text.secondary">Active Subscriptions</Typography>
+              <Typography variant="h4" sx={{ mt: 1, mb: 1.5, fontWeight: 600 }}>
+                {isLoading ? <CircularProgress size={24} /> : totalSubscriptions}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Active application subscriptions
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
