@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.contrib.auth import authenticate, login, get_user_model
 from django.db import connection
 from django.db import transaction
+import datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
@@ -91,10 +92,206 @@ class PlatformAdminTenantView(APIView):
             logger.error(f"Error creating portal entries for tenant {tenant_id}: {str(e)}", exc_info=True)
             raise
 
-    def get(self, request, format=None):
+    def get(self, request, tenant_id=None, format=None):
         """
-        List all tenants directly from the database.
+        List all tenants or get a specific tenant by ID.
         """
+        # If tenant_id is provided, return a single tenant with detailed information
+        if tenant_id is not None:
+            try:
+                with connection.cursor() as cursor:
+                    # Get basic tenant info
+                    cursor.execute("""
+                        SELECT 
+                            t.id, t.schema_name, t.name, t.url_suffix, t.status, 
+                            t.environment,
+                            t.created_at, t.updated_at, t.client_id,
+                            c.client_name, c.contact_person_email
+                        FROM ecomm_superadmin_tenants t
+                        LEFT JOIN ecomm_superadmin_crmclients c ON t.client_id = c.id
+                        WHERE t.id = %s
+                    """, [tenant_id])
+                    
+                    tenant_data = cursor.fetchone()
+                    if not tenant_data:
+                        return Response(
+                            {"error": f"Tenant with id {tenant_id} does not exist"}, 
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                    
+                    # Get column names
+                    columns = [col[0] for col in cursor.description]
+                    tenant_dict = dict(zip(columns, tenant_data))
+                    
+                    # Get admin user details from ecomm_tenant_admins_tenantuser table (TenantUser model)
+                    try:
+                        # First check if the table exists
+                        cursor.execute("""
+                            SELECT EXISTS (
+                                SELECT 1 
+                                FROM information_schema.tables 
+                                WHERE table_schema = %s 
+                                AND table_name = 'ecomm_tenant_admins_tenantuser'
+                            )
+                        """, [tenant_dict['schema_name']])
+                        tenant_user_table_exists = cursor.fetchone()[0]
+                        print("kk:")
+                        if tenant_user_table_exists:
+                            # First, let's check what users exist in the tenant's schema
+                            cursor.execute(f"""
+                                SELECT EXISTS (
+                                    SELECT 1 
+                                    FROM information_schema.tables 
+                                    WHERE table_schema = %s 
+                                    AND table_name = 'ecomm_tenant_admins_tenantuser'
+                                )
+                            """, [tenant_dict['schema_name']])
+                            table_exists = cursor.fetchone()[0]
+                            
+                            if not table_exists:
+                                logger.warning(f"Table ecomm_tenant_admins_tenantuser does not exist in schema {tenant_dict['schema_name']}")
+                                tenant_dict['admin_user'] = None
+                                return Response(tenant_dict)
+                            
+                            # Log all users in the tenant's schema for debugging
+                            cursor.execute(f"""
+                                SELECT 
+                                    id, email, first_name, last_name, is_staff, is_active, is_superuser, date_joined
+                                FROM "{tenant_dict['schema_name']}".ecomm_tenant_admins_tenantuser
+                                WHERE is_superuser = true
+                                ORDER BY date_joined ASC
+                            """)
+                            admin_data = cursor.fetchone()
+                            print("admin_data:", admin_data)
+                            if admin_data:
+                                # Get column names
+                                admin_columns = [col[0] for col in cursor.description] if cursor.description else []
+                                # Convert the row to a dictionary
+                                admin_dict = dict(zip(admin_columns, admin_data))
+                                
+                                # Try to get user roles if role tables exist
+                                try:
+                                    cursor.execute(f"""
+                                        SELECT EXISTS (
+                                            SELECT 1 
+                                            FROM information_schema.tables 
+                                            WHERE table_schema = %s 
+                                            AND table_name = 'role_controles_userrole'
+                                        )
+                                    """, [tenant_dict['schema_name']])
+                                    roles_table_exists = cursor.fetchone()[0]
+                                    
+                                    if roles_table_exists:
+                                        cursor.execute(f"""
+                                            SELECT r.name 
+                                            FROM "{tenant_dict['schema_name']}".role_controles_role r
+                                            JOIN "{tenant_dict['schema_name']}".role_controles_userrole ur ON r.id = ur.role_id
+                                            WHERE ur.user_id = %s
+                                        """, [admin_dict['id']])
+                                        admin_dict['roles'] = [row[0] for row in cursor.fetchall()]
+                                    else:
+                                        admin_dict['roles'] = []
+                                        logger.info(f"Role tables not found in schema {tenant_dict['schema_name']}")
+                                except Exception as e:
+                                    logger.warning(f"Error fetching roles for user {admin_dict.get('id')}: {str(e)}")
+                                    admin_dict['roles'] = []
+                                
+                                tenant_dict['admin_user'] = admin_dict
+                            else:
+                                tenant_dict['admin_user'] = None
+                                logger.warning(f"No staff user found for tenant {tenant_dict['id']}")
+                        else:
+                            tenant_dict['admin_user'] = None
+                            logger.warning(f"Table ecomm_tenant_admins_tenantuser not found in schema {tenant_dict['schema_name']}")
+                                
+                    except Exception as e:
+                        import traceback
+                        logger.error(f"Error fetching admin user for tenant {tenant_dict.get('id', 'unknown')}: {str(e)}\n{traceback.format_exc()}")
+                        tenant_dict['admin_user'] = None
+                    
+                    # Get all subscription details for the tenant
+                    cursor.execute("""
+                        SELECT 
+                            tsl.id as license_id,
+                            tsl.subscription_plan_id,
+                            tsl.license_key,
+                            tsl.valid_from,
+                            tsl.valid_until,
+                            tsl.license_status,
+                            tsl.subscription_plan_snapshot::TEXT as plan_snapshot,
+                            tsl.features_snapshot::TEXT as features_snapshot,
+                            sp.name as plan_name,
+                            sp.description as plan_description,
+                            tsl.created_at,
+                            tsl.updated_at
+                        FROM ecomm_superadmin_tenant_subscriptions_licenses tsl
+                        LEFT JOIN subscription_plans sp ON tsl.subscription_plan_id = sp.id
+                        WHERE tsl.tenant_id = %s
+                        ORDER BY 
+                            CASE 
+                                WHEN tsl.valid_until > CURRENT_TIMESTAMP THEN 0  -- Active subscriptions first
+                                ELSE 1  -- Expired subscriptions last
+                            END,
+                            tsl.valid_until DESC,  -- Most recent first within each group
+                            tsl.created_at DESC  -- Fallback to creation date
+                    """, [tenant_id])
+                    
+                    subscription_columns = [col[0] for col in cursor.description]
+                    subscription_rows = cursor.fetchall()
+                    
+                    # Process all subscriptions
+                    subscriptions = []
+                    for row in subscription_rows:
+                        subscription_dict = dict(zip(subscription_columns, row))
+                        # Parse JSON snapshots
+                        if subscription_dict.get('plan_snapshot'):
+                            subscription_dict['plan_snapshot'] = json.loads(subscription_dict['plan_snapshot'])
+                        if subscription_dict.get('features_snapshot'):
+                            subscription_dict['features_snapshot'] = json.loads(subscription_dict['features_snapshot'])
+                        # Convert datetime objects to strings for JSON serialization
+                        for date_field in ['valid_from', 'valid_until', 'created_at', 'updated_at']:
+                            if subscription_dict.get(date_field) and isinstance(subscription_dict[date_field], (datetime.date, datetime.datetime)):
+                                subscription_dict[date_field] = subscription_dict[date_field].isoformat()
+                        subscriptions.append(subscription_dict)
+                    
+                    # Add all subscriptions to the response
+                    tenant_dict['subscriptions'] = subscriptions
+                    # For backward compatibility, include the first subscription as 'subscription'
+                    if subscriptions:
+                        tenant_dict['subscription'] = subscriptions[0]
+                    
+                    # Get assigned applications
+                    cursor.execute("""
+                        SELECT 
+                            a.app_id, a.application_name, a.description, 
+                            a.app_default_url, a.is_active
+                        FROM ecomm_superadmin_tenantapplication ta
+                        JOIN application a ON ta.application_id = a.app_id
+                        WHERE ta.tenant_id = %s AND ta.is_active = true
+                    """, [tenant_id])
+                    
+                    app_columns = [col[0] for col in cursor.description]
+                    app_rows = cursor.fetchall()
+                    tenant_dict['assigned_applications'] = [
+                        dict(zip(app_columns, row)) for row in app_rows
+                    ]
+                    
+                    # Convert datetime objects to ISO format
+                    for field in ['created_at', 'updated_at', 'last_login', 'date_joined', 'valid_from', 'valid_until']:
+                        if field in tenant_dict and tenant_dict[field]:
+                            tenant_dict[field] = tenant_dict[field].isoformat()
+                    
+                    return Response(tenant_dict)
+                    
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return Response(
+                    {"error": f"Error retrieving tenant: {str(e)}"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        # Otherwise, return all tenants
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
@@ -544,8 +741,8 @@ class PlatformAdminTenantView(APIView):
             # Send the welcome email with enhanced application data
             if email_subscriptions:  # Only send email if we have subscriptions
                 send_email(
-                    # to_emails="manish@turtlesoftware.co",
-                    to_emails=user_email,
+                    to_emails="manish@turtlesoftware.co",
+                    # to_emails=user_email,
                     subject=f"Welcome to Our Platform, {user_name}!",
                     template_name="subscription_welcome",
                     template_context={
@@ -565,68 +762,106 @@ class PlatformAdminTenantView(APIView):
         finally:
             connection.set_schema_to_public()
 
+    def put(self, request, tenant_id=None, format=None):
+        """
+        Update a tenant's information.
+        """
+        if not tenant_id:
+            return Response(
+                {"error": "Tenant ID is required for update"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+            serializer = TenantSerializer(tenant, data=request.data, partial=True)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+            serializer.save()
+            return Response(serializer.data)
+            
+        except Tenant.DoesNotExist:
+            return Response(
+                {"error": f"Tenant with id {tenant_id} does not exist"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error updating tenant: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to update tenant"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-def delete(self, request, tenant_id, format=None):
-    """Delete a tenant by ID.
+    def delete(self, request, tenant_id=None, format=None):
+        """Delete a tenant by ID.
 
-    This will follow the specific deletion flow:
-    1. Delete entry from ecomm_superadmin_domain
-    2. Delete entry from ecomm_superadmin_tenants
-    3. Drop the schema with CASCADE
-    """
-    authentication_classes = [PlatformAdminJWTAuthentication]
-    try:
-        import traceback
-        from django.db import connection
+        This will follow the specific deletion flow:
+        1. Delete entry from ecomm_superadmin_domain
+        2. Delete entry from ecomm_superadmin_tenants
+        3. Drop the schema with CASCADE
+        """
+        if not tenant_id:
+            return Response(
+                {"error": "Tenant ID is required for deletion"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            import traceback
+            from django.db import connection
 
-        # Use a transaction to ensure atomicity
-        with transaction.atomic():
-            # First, check if the tenant exists using raw SQL
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT id, schema_name FROM tenants WHERE id = %s""",
-                    [tenant_id]
-                )
-                result = cursor.fetchone()
-                if not result:
-                    return Response(
-                        {"error": f"Tenant with ID {tenant_id} not found"},
-                        status=status.HTTP_404_NOT_FOUND
+            # Use a transaction to ensure atomicity
+            with transaction.atomic():
+                # First, check if the tenant exists using raw SQL
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """SELECT id, schema_name FROM tenants WHERE id = %s""",
+                        [tenant_id]
                     )
+                    result = cursor.fetchone()
+                    if not result:
+                        return Response(
+                            {"error": f"Tenant with ID {tenant_id} not found"},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
 
-                tenant_id, schema_name = result
+                    tenant_id, schema_name = result
 
-                # 1. First delete entries from ecomm_superadmin_domain
-                try:
-                    cursor.execute("""
-                        DELETE FROM domains 
-                        WHERE tenant_id = %s
-                    """, [tenant_id])
-                    print(f"Deleted domain entries for tenant ID {tenant_id}")
-                except Exception as domain_e:
-                    print(f"Error deleting from domain table: {str(domain_e)}")
-                    traceback.print_exc()
-                    raise
+                    # 1. First delete entries from ecomm_superadmin_domain
+                    try:
+                        cursor.execute("""
+                            DELETE FROM domains 
+                            WHERE tenant_id = %s
+                        """, [tenant_id])
+                        logger.info(f"Deleted domain entries for tenant ID {tenant_id}")
+                    except Exception as domain_e:
+                        logger.error(f"Error deleting from domain table: {str(domain_e)}")
+                        traceback.print_exc()
+                        raise
 
-                # 2. Then delete the tenant record from ecomm_superadmin_tenants
-                cursor.execute("DELETE FROM tenants WHERE id = %s", [tenant_id])
-                print(f"Deleted tenant with ID {tenant_id}")
+                    # 2. Then delete the tenant record from ecomm_superadmin_tenants
+                    cursor.execute("DELETE FROM tenants WHERE id = %s", [tenant_id])
+                    logger.info(f"Deleted tenant with ID {tenant_id}")
 
-                # 3. Finally drop the schema
-                try:
-                    cursor.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-                    print(f"Dropped schema {schema_name}")
-                except Exception as schema_e:
-                    print(f"Error dropping schema: {str(schema_e)}")
-                    traceback.print_exc()
-                    raise
+                    # 3. Finally drop the schema
+                    try:
+                        cursor.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
+                        logger.info(f"Dropped schema {schema_name}")
+                    except Exception as schema_e:
+                        logger.error(f"Error dropping schema: {str(schema_e)}")
+                        traceback.print_exc()
+                        raise
 
-                return Response(status=status.HTTP_204_NO_CONTENT)
+                    return Response(status=status.HTTP_204_NO_CONTENT)
 
-    except Exception as e:
-        print(f"Error deleting tenant: {str(e)}")
-        traceback.print_exc()
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Error deleting tenant: {str(e)}")
+            traceback.print_exc()
+            return Response(
+                {"error": "An error occurred while deleting the tenant"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PlatformAdminLoginView(APIView):

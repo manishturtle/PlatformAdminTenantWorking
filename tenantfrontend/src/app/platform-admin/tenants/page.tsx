@@ -127,7 +127,7 @@ export default function TenantsPage() {
   };
 
   const handleEditTenant = (id: number) => {
-    router.push(`/platform-admin/tenants/edit/${id}`);
+    router.push(`/platform-admin/tenants/${id}`);
   };
 
   const handleDeleteTenant = async (id: number) => {
