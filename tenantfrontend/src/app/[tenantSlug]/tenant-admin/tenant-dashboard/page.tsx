@@ -131,14 +131,39 @@ export default function TenantDashboardPage() {
   
   const totalSubscriptions = subscriptions?.applications?.length || 0;
 
+  // Get tenant info from subscriptions
+  const tenantName = subscriptions?.tenant_name || 'Tenant';
+  const tenantStatus = subscriptions?.tenant_status || 'active';
+  
+  // Format status for display
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  // Get current time for greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const timeGreeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    return `${timeGreeting}${isLoading ? '' : `, ${tenantName}`}`;
+  };
+
   return (
     <Box sx={{ p: 3, maxWidth: 1440, mx: 'auto' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Tenant Dashboard
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Welcome back, Alex. Here's an overview of your tenant account.
-      </Typography>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ 
+          fontWeight: 600, 
+          lineHeight: 1.2,
+          mb: 1
+        }}>
+          {isLoading ? 'Loading...' : getGreeting()}
+        </Typography>
+        <Typography variant="h6" color="text.secondary" sx={{ 
+          fontWeight: 400, 
+          opacity: 0.9,
+          lineHeight: 1.4
+        }}>
+        </Typography>
+      </Box>
 
       {/* Stats Cards */}
       <Grid container spacing={3} mb={4}>
