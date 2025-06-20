@@ -475,6 +475,24 @@ const TenantForm: React.FC<TenantFormProps> = ({
       
       const method = tenant?.id ? "PATCH" : "POST";
 
+      // Ensure all subscriptions have complete data before submission
+      const completeSubscriptions = formData.subscriptions.map(subscription => {
+        // If it's an existing subscription, keep its ID
+        const existingSubscription = tenant?.subscriptions?.find(
+          (sub: any) => sub.subscription_plan_id === subscription.subscription_plan_id
+        );
+        
+        return {
+          // Keep existing ID if available
+          ...(existingSubscription?.id ? { id: existingSubscription.id } : {}),
+          // Ensure all required fields are present
+          subscription_plan_id: subscription.subscription_plan_id,
+          license_status: subscription.license_status || 'active',
+          valid_from: subscription.valid_from || new Date().toISOString(),
+          valid_until: subscription.valid_until || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        };
+      });
+
       // Prepare the data to be sent
       const requestData = {
         ...formData,
@@ -482,12 +500,30 @@ const TenantForm: React.FC<TenantFormProps> = ({
         ...(tenant?.id ? {} : { admin_password: formData.admin_password }),
         // For existing tenants, include the admin user ID if available
         ...(tenant?.admin_user?.id ? { admin_user_id: tenant.admin_user.id } : {}),
-        // Include all subscriptions
-        subscriptions: formData.subscriptions,
+        // Include all subscriptions with complete data
+        subscriptions: completeSubscriptions,
       };
 
-      // Create a new object without the subscription_plan field to avoid mutation
-      const { subscription_plan, ...cleanedData } = requestData;
+      // Extract subscription plan IDs for backward compatibility and filter out duplicates
+      const uniqueSubscriptionPlanIds = Array.from(new Set(
+        formData.subscriptions.map(sub => sub.subscription_plan_id)
+      ));
+      
+      // Ensure subscriptions array also has no duplicates
+      const uniqueSubscriptions = completeSubscriptions.filter(
+        (sub, index, self) =>
+          index === self.findIndex(s => s.subscription_plan_id === sub.subscription_plan_id)
+      );
+      
+      // Only include subscription_plan IDs array in the request, not the full subscriptions
+      // First remove subscriptions from requestData
+      const { subscriptions, ...dataWithoutSubscriptions } = requestData;
+      
+      // Create the final data with only subscription_plan IDs
+      const finalData = {
+        ...dataWithoutSubscriptions,
+        subscription_plan: uniqueSubscriptionPlanIds,
+      };
 
       const response = await fetch(url, {
         method,
@@ -495,7 +531,7 @@ const TenantForm: React.FC<TenantFormProps> = ({
           ...getAuthHeader(),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(cleanedData),
+        body: JSON.stringify(finalData),
       });
 
       if (!response.ok) {

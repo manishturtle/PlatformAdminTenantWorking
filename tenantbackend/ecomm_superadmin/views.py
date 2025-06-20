@@ -764,23 +764,54 @@ class PlatformAdminTenantView(APIView):
 
     def put(self, request, tenant_id=None, format=None):
         """
-        Update a tenant's information.
+        Update a tenant's information (full update).
         """
         if not tenant_id:
             return Response(
                 {"error": "Tenant ID is required for update"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+            serializer = TenantSerializer(tenant, data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
+            serializer.save(updated_by=request.user.username if request.user.is_authenticated else None)
+            return Response(serializer.data)
+        
+        except Tenant.DoesNotExist:
+            return Response(
+                {"error": f"Tenant with id {tenant_id} does not exist"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error updating tenant: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to update tenant"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def patch(self, request, tenant_id=None, format=None):
+        """
+        Partially update a tenant's information.
+        """
+        if not tenant_id:
+            return Response(
+                {"error": "Tenant ID is required for update"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         try:
             tenant = Tenant.objects.get(id=tenant_id)
             serializer = TenantSerializer(tenant, data=request.data, partial=True)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
-            serializer.save()
-            return Response(serializer.data)
             
+            serializer.save(updated_by=request.user.username if request.user.is_authenticated else None)
+            return Response(serializer.data)
+        
         except Tenant.DoesNotExist:
             return Response(
                 {"error": f"Tenant with id {tenant_id} does not exist"}, 
