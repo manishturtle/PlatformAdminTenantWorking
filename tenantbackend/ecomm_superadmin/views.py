@@ -830,25 +830,49 @@ class PlatformAdminTenantView(APIView):
                     # Use separate connections for each step to avoid transaction issues
                     # Delete operations are executed within their own transactions
                     
-                    # 1. Delete subscription licenses for this tenant
-                    with transaction.atomic():
-                        with connection.cursor() as cursor1:
-                            cursor1.execute("""
-                                DELETE FROM ecomm_superadmin_tenant_subscriptions_licenses 
-                                WHERE tenant_id = %s
-                            """, [tenant_id])
-                            logger.info(f"Deleted subscription licenses for tenant ID {tenant_id}")
-
-                    # 2. Delete entries from ecomm_superadmin_domain
-                    with transaction.atomic():
-                        with connection.cursor() as cursor2:
-                            cursor2.execute("""
-                                DELETE FROM ecomm_superadmin_domain 
-                                WHERE tenant_id = %s
-                            """, [tenant_id])
-                            logger.info(f"Deleted domain entries for tenant ID {tenant_id}")
+                    # 1. Delete app portals for this tenant (added as per new requirement)
+                    try:
+                        with transaction.atomic():
+                            with connection.cursor() as cursor0:
+                                cursor0.execute("""
+                                    DELETE FROM ecomm_superadmin_tenant_app_portals 
+                                    WHERE tenant_id = %s
+                                """, [tenant_id])
+                                rows_deleted = cursor0.rowcount
+                                logger.info(f"Deleted {rows_deleted} app portal entries for tenant ID {tenant_id}")
+                    except Exception as app_e:
+                        logger.error(f"Error deleting tenant app portals: {str(app_e)}")
+                        # Continue with deletion even if this step fails
                     
-                    # 3. Check for any other foreign key references and delete them
+                    # 2. Delete subscription licenses for this tenant
+                    try:
+                        with transaction.atomic():
+                            with connection.cursor() as cursor1:
+                                cursor1.execute("""
+                                    DELETE FROM ecomm_superadmin_tenant_subscriptions_licenses 
+                                    WHERE tenant_id = %s
+                                """, [tenant_id])
+                                rows_deleted = cursor1.rowcount
+                                logger.info(f"Deleted {rows_deleted} subscription licenses for tenant ID {tenant_id}")
+                    except Exception as sub_e:
+                        logger.error(f"Error deleting subscription licenses: {str(sub_e)}")
+                        # Continue with deletion even if this step fails
+
+                    # 3. Delete entries from ecomm_superadmin_domain
+                    try:
+                        with transaction.atomic():
+                            with connection.cursor() as cursor2:
+                                cursor2.execute("""
+                                    DELETE FROM ecomm_superadmin_domain 
+                                    WHERE tenant_id = %s
+                                """, [tenant_id])
+                                rows_deleted = cursor2.rowcount
+                                logger.info(f"Deleted {rows_deleted} domain entries for tenant ID {tenant_id}")
+                    except Exception as domain_e:
+                        logger.error(f"Error deleting domain entries: {str(domain_e)}")
+                        # Continue with deletion even if this step fails
+                    
+                    # 4. Check for any other foreign key references and delete them
                     try:
                         with transaction.atomic():
                             with connection.cursor() as cursor3:
@@ -856,19 +880,21 @@ class PlatformAdminTenantView(APIView):
                                     DELETE FROM ecomm_superadmin_tenant_settings
                                     WHERE tenant_id = %s
                                 """, [tenant_id])
-                                logger.info(f"Deleted tenant settings for tenant ID {tenant_id}")
+                                rows_deleted = cursor3.rowcount
+                                logger.info(f"Deleted {rows_deleted} tenant settings for tenant ID {tenant_id}")
                     except Exception as settings_e:
                         # This might fail if the table doesn't exist, which is fine
                         logger.info(f"No tenant settings to delete or table doesn't exist: {str(settings_e)}")
                         # If this failed, it won't affect the other transactions
 
-                    # 4. Then delete the tenant record from ecomm_superadmin_tenants
+                    # 5. Then delete the tenant record from ecomm_superadmin_tenants
                     with transaction.atomic():
                         with connection.cursor() as cursor4:
                             cursor4.execute("DELETE FROM ecomm_superadmin_tenants WHERE id = %s", [tenant_id])
-                            logger.info(f"Deleted tenant with ID {tenant_id}")
+                            rows_deleted = cursor4.rowcount
+                            logger.info(f"Deleted tenant with ID {tenant_id} ({rows_deleted} record)")
 
-                    # 5. Finally drop the schema
+                    # 6. Finally drop the schema
                     try:
                         with transaction.atomic():
                             with connection.cursor() as cursor5:
