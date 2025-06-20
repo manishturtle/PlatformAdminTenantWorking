@@ -341,14 +341,14 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
       </Paper>
 
       {/* Save button */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+      {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
         <Button
           variant="contained"
           onClick={handleSubmit}
         >
           Save Changes
         </Button>
-      </Box>
+      </Box> */}
     </Box>
   );
 };

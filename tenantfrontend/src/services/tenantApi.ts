@@ -3,16 +3,16 @@ import { getTenantApiBaseUrl } from '@/utils/tenantUtils';
 interface CompanyInfo {
   company_name: string;
   registered_address: {
-    street: string;
+    address_line_1: string;
+    address_line_2?: string;
     city: string;
     state: string;
     postal_code: string;
-    country: string;
+    country: string | number;
   };
   primary_contact_email: string;
   primary_contact_phone: string;
-  gstin?: string;
-  tax_id?: string; // Alias for gstin for form compatibility
+  tax_id?: string;
 }
 
 interface BrandingConfig {
@@ -31,11 +31,16 @@ interface BrandingConfig {
   primary_brand_color?: string;
   secondary_brand_color?: string;
   default_font_style?: string;
-  default_theme_mode?: string;
+  default_theme_mode?: 'light' | 'dark' | 'system';
+  custom_css?: string;
 }
 
 interface LocalizationConfig {
-  default_language: string; 
+  default_language: string;
+  default_timezone?: string;
+  date_format?: string;
+  time_format?: string;
+  currency?: string;
 }
 
 export interface TenantConfigData {
@@ -44,31 +49,45 @@ export interface TenantConfigData {
   localization_config?: Partial<LocalizationConfig>;
 }
 
+export const getTenantConfig = async (): Promise<TenantConfigData> => {
+  const url = `${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken') || '',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch tenant configuration');
+    }
+
+    const responseData = await response.json();
+    console.log('Tenant config fetched:', responseData);
+    return responseData;
+  } catch (error) {
+    console.error('Error fetching tenant config:', error);
+    throw error;
+  }
+};
+
 export const saveTenantConfig = async (data: Partial<TenantConfigData>): Promise<void> => {
   const url = `${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`;
   
   // Transform data to match API format
   const requestData: any = { ...data };
   
-  // Map form fields to API fields
+  // For consistency and to avoid errors, we now directly use the API format
+  // rather than trying to transform form fields
   if (data.company_info) {
-    // Ensure registered_address exists
     requestData.company_info = {
-      ...data.company_info,
-      registered_address: data.company_info.registered_address || {
-        street: data.company_info.addressLine1 || '',
-        city: data.company_info.city || '',
-        state: data.company_info.state || '',
-        postal_code: data.company_info.postalCode || '',
-        country: data.company_info.country || '',
-      },
-      // Map taxId to gstin if provided
-      ...(data.company_info.taxId && { gstin: data.company_info.taxId })
+      ...data.company_info
     };
-    
-    // Remove form-specific fields
-    const { addressLine1, addressLine2, postalCode, taxId, ...restCompanyInfo } = requestData.company_info;
-    requestData.company_info = restCompanyInfo;
   }
 
   try {

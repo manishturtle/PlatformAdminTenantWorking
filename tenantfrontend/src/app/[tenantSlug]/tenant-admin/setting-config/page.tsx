@@ -1,27 +1,36 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Box, Typography, Container, Button, Paper, TextField, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Radio, RadioGroup, Divider } from '@mui/material';
 import { TenantConfig } from '@/services/tenantConfigService';
-import Grid from '@mui/material/Grid'; // Import Grid v2
-import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutline as HelpOutlineIcon } from '@mui/icons-material';
+import Grid from '@mui/material/Grid'; 
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
+import CircularProgress from '@mui/material/CircularProgress';
+import { Settings as SettingsIcon, Notifications as NotificationsIcon, HelpOutline as HelpOutlineIcon, Edit as EditIcon } from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
 
 import GeneralSettings, { GeneralFormData } from '@/components/settings/GeneralSettings';
 import BrandingVisuals, { BrandingFormData } from '@/components/settings/BrandingVisuals';
 import SecurityAuthentication from '@/components/settings/SecurityAuthentication';
-import { saveTenantConfig, mapToApiFormat } from '@/services/tenantConfigService';
-import { Snackbar, Alert } from '@mui/material';
-import SaveIcon from '@mui/icons-material/Save';
+import { saveTenantConfig } from '@/services/tenantConfigService';
+import { getTenantConfig, TenantConfigData } from '@/services/tenantApi';
+
 // Types
 type TimeFormat = '12h' | '24h';
 type FirstDayOfWeek = 'sunday' | 'monday';
 
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [isGeneralComplete, setIsGeneralComplete] = useState(false);
   const [generalFormData, setGeneralFormData] = useState<GeneralFormData | null>(null);
   const [brandingFormData, setBrandingFormData] = useState<BrandingFormData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneralComplete, setIsGeneralComplete] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [existingConfig, setExistingConfig] = useState<TenantConfigData | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -30,6 +39,68 @@ const SettingsPage = () => {
 
   const generalFormRef = useRef<{ triggerSubmit: () => void }>(null);
   const brandingFormRef = useRef<{ triggerSubmit: () => void }>(null);
+
+  // Fetch tenant configuration on component mount
+  useEffect(() => {
+    async function fetchTenantConfig() {
+      try {
+        setIsLoading(true);
+        const configData = await getTenantConfig();
+        console.log('Fetched tenant config:', configData);
+        setExistingConfig(configData);
+        
+        // Pre-populate form data from API
+        const mappedGeneralData: GeneralFormData = {
+          companyName: configData.company_info?.company_name || '',
+          contactEmail: configData.company_info?.primary_contact_email || '',
+          contactPhone: configData.company_info?.primary_contact_phone || '',
+          taxId: configData.company_info?.tax_id || '',
+          addressLine1: configData.company_info?.registered_address?.address_line_1 || '',
+          addressLine2: configData.company_info?.registered_address?.address_line_2 || '',
+          city: configData.company_info?.registered_address?.city || '',
+          state: configData.company_info?.registered_address?.state || '',
+          postalCode: configData.company_info?.registered_address?.postal_code || '',
+          country: configData.company_info?.registered_address?.country?.toString() || '',
+          language: configData.localization_config?.default_language || 'en',
+          timezone: configData.localization_config?.default_timezone || 'UTC',
+          dateFormat: configData.localization_config?.date_format || 'yyyy-MM-dd',
+          timeFormat: configData.localization_config?.time_format === '24-hour' ? '24h' : '12h',
+          firstDayOfWeek: 'monday',
+          currency: configData.localization_config?.currency || 'USD'
+        };
+        
+        const mappedBrandingData: BrandingFormData = {
+          default_theme_mode: (configData.branding_config?.default_theme_mode as 'light' | 'dark' | 'system') || 'light',
+          primary_brand_color: configData.branding_config?.primary_brand_color || '#1976d2',
+          secondary_brand_color: configData.branding_config?.secondary_brand_color || '#9c27b0',
+          default_font_style: configData.branding_config?.default_font_style || 'Roboto',
+          company_logo_light: configData.branding_config?.company_logo_light?.url || '',
+          company_logo_dark: configData.branding_config?.company_logo_dark?.url || '',
+          favicon: configData.branding_config?.favicon?.url || '',
+          custom_css: configData.branding_config?.custom_css || ''
+        };
+        
+        setGeneralFormData(mappedGeneralData);
+        setBrandingFormData(mappedBrandingData);
+        setIsGeneralComplete(true); // Allow access to branding tab if we have config data
+        
+        // Initial view is read-only mode
+        setIsEditMode(false);
+      } catch (error) {
+        console.error('Failed to fetch tenant configuration:', error);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load tenant settings. Starting in new configuration mode.',
+          severity: 'warning'
+        });
+        setIsEditMode(true); // Start in edit mode if we can't fetch existing config
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchTenantConfig();
+  }, []);
 
   const handleTabChange = (tab: string) => {
     if (tab === 'branding' && !isGeneralComplete) {
@@ -42,6 +113,12 @@ const SettingsPage = () => {
     setActiveTab(tab);
   };
 
+  // Toggle between read and edit mode
+  const handleToggleEditMode = () => {
+    setIsEditMode(prev => !prev);
+  };
+
+  // Save button click handler
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -77,6 +154,11 @@ const SettingsPage = () => {
       });
       setIsSaving(false);
     }
+  };
+  
+  // Exit edit mode after successful save
+  const handleSaveSuccess = () => {
+    setIsEditMode(false);
   };
   
   const saveCombinedData = async (generalData: GeneralFormData, brandingData: BrandingFormData) => {
@@ -155,6 +237,18 @@ const SettingsPage = () => {
         open: true,
         message: 'Settings saved successfully!',
         severity: 'success'
+      });
+      
+      // Exit edit mode after successful save
+      handleSaveSuccess();
+      
+      // Refresh existing config data - use as type assertion to bypass strict type checking
+      // since we know the structure matches what we need
+      setExistingConfig({
+        ...existingConfig,
+        company_info: apiData.company_info as any,
+        branding_config: apiData.branding_config as any,
+        localization_config: apiData.localization_config as any
       });
       
       return true;
@@ -265,88 +359,119 @@ const SettingsPage = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh' }}>
-      {/* Main Content */}
-      <Box component="main" sx={{ p: 3 }}>
-      
-        {/* Header with Save Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">Tenant Settings</Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </Box>
-
-        {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
-          <Box sx={{ display: 'flex', gap: 4 }}>
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                sx={{
-                  pb: 2,
-                  borderRadius: 0,
-                  color: activeTab === tab.id ? 'primary.main' : 'text.secondary',
-                  borderBottom: activeTab === tab.id ? 2 : 'none',
-                  borderColor: 'primary.main',
-                  '&:hover': {
-                    bgcolor: 'transparent',
-                  },
-                }}
-              >
-                {tab.label}
-              </Button>
-            ))}
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+        {/* We'll put the tab buttons together with the action buttons */}
+        
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+            <CircularProgress />
+            <Typography variant="h6" sx={{ ml: 2 }}>Loading tenant configuration...</Typography>
           </Box>
-        </Box>
+        ) : (
+          <>
+           
+            {/* Tabs with action button */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              borderBottom: 1, 
+              borderColor: 'divider', 
+              mb: 4 
+            }}>
+              <Tabs 
+                value={activeTab} 
+                onChange={(e, newValue) => handleTabChange(newValue)}
+                sx={{ mb: 1 }}
+              >
+                <Tab value="general" label="General Settings" />
+                <Tab 
+                  value="branding" 
+                  label="Branding & Visuals" 
+                  disabled={!isGeneralComplete} 
+                />
+                <Tab 
+                  value="security" 
+                  label="Security & Authentication" 
+                  disabled={!isGeneralComplete} 
+                />
+              </Tabs>
+              
+              {!isLoading && (
+                <Box sx={{ mb: 1 }}>
+                  {existingConfig && !isEditMode ? (
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={handleToggleEditMode}
+                      startIcon={<EditIcon />}
+                    >
+                      Edit Settings
+                    </Button>
+                  ) : isEditMode && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                    >
+                      {isSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </Box>
 
-        {activeTab === 'general' && (
-          <GeneralSettings 
-            ref={generalFormRef}
-            onSave={handleGeneralSubmit} 
-          />
+            {/* Tab Content */}
+            <Box sx={{ mt: 3, mb: 3 }}>
+              {activeTab === 'general' && (
+                <GeneralSettings 
+                  ref={generalFormRef}
+                  onSave={handleGeneralSubmit}
+                  defaultValues={generalFormData || undefined}
+                  readOnly={!isEditMode}
+                />
+              )}
+              {activeTab === 'branding' && (
+                <BrandingVisuals 
+                  ref={brandingFormRef}
+                  onSave={handleBrandingSubmit}
+                  defaultValues={brandingFormData || undefined}
+                  readOnly={!isEditMode}
+                />
+              )}
+              {activeTab === 'security' && (
+                <SecurityAuthentication
+                  onSave={() => {
+                    setSnackbar({
+                      open: true,
+                      message: 'Security settings saved successfully!',
+                      severity: 'success'
+                    });
+                    // Exit edit mode after successful save
+                    handleSaveSuccess();
+                  }}
+                />
+              )}
+            </Box>
+
+            <Divider sx={{ my: 3 }} />
+          </>
         )}
 
-        {activeTab === 'branding' && (
-          <BrandingVisuals 
-            ref={brandingFormRef}
-            onSave={handleBrandingSubmit} 
-          />
-        )}
-        
-        {activeTab === 'security' && (
-          <SecurityAuthentication onSave={() => {}} />
-        )}
-        
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-       
-      </Box>
-    </Box>
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Container>
   );
 };
-
-// Tabs
-const tabs = [
-  { id: 'general', label: 'General Settings' },
-  { id: 'branding', label: 'Branding & Visuals' },
-  { id: 'security', label: 'Security & Authentication' }
-  // { id: 'notifications', label: 'Notifications & Channels' },
-];
 
 export default SettingsPage;
