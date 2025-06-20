@@ -1038,8 +1038,15 @@ class TenantSubscriptionDetailsView(APIView):
                     
                     tenant_schema = schema_result[0]
                     
-                    # Query without relying on the tenant's user application table
+                    # Query to get application details with user count from UserApplication model
                     cursor.execute(f"""
+                        WITH app_user_counts AS (
+                            SELECT 
+                                application_id,
+                                COUNT(DISTINCT user_id) as user_count
+                            FROM {tenant_schema}.ecomm_tenant_admins_userapplication
+                            GROUP BY application_id
+                        )
                         SELECT 
                             a.app_id, 
                             a.application_name, 
@@ -1049,10 +1056,12 @@ class TenantSubscriptionDetailsView(APIView):
                             a.created_at,
                             p.default_url AS portal_default_url,
                             p.redirect_url AS portal_redirect_url,
-                            p.custom_redirect_url AS portal_custom_redirect_url
+                            p.custom_redirect_url AS portal_custom_redirect_url,
+                            COALESCE(auc.user_count, 0) as user_count
                         FROM public.application a
                         LEFT JOIN public.ecomm_superadmin_tenant_app_portals p
                             ON a.app_id = p.app_id AND p.tenant_id = %s
+                        LEFT JOIN app_user_counts auc ON a.app_id = auc.application_id
                         WHERE a.app_id IN ({placeholders})
                     """, [tenant_id] + app_ids)
                     
@@ -1070,7 +1079,7 @@ class TenantSubscriptionDetailsView(APIView):
                                 'is_active': app_data.get('is_active', False),
                                 'app_default_url': redirect_url or app_data.get('app_default_url', ''),
                                 'created_at': app_data.get('created_at'),
-                                'user_count': 0  # Default to 0 since we're not querying user count
+                                'user_count': app_data.get('user_count', 0)
                             })
 
                 # Build a better structured response with applications as main entities
