@@ -22,13 +22,14 @@ import {
 
 interface SecurityAuthenticationProps {
   onSave?: () => void;
+  readOnly?: boolean;
 }
 
 /**
  * Security & Authentication settings component 
  * Allows configuration of session management, password policy, account lockout, MFA, and SSO
  */
-const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave }) => {
+const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave, readOnly = false }) => {
   // Session Management state
   const [sessionTimeout, setSessionTimeout] = useState<number>(30);
   const [maxSessionDuration, setMaxSessionDuration] = useState<number>(8);
@@ -102,6 +103,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
               value={sessionTimeout}
               onChange={(e) => setSessionTimeout(Number(e.target.value))}
               inputProps={{ min: 1 }}
+              disabled={readOnly}
             />
           </Box>
           <Box>
@@ -115,6 +117,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
               value={maxSessionDuration}
               onChange={(e) => setMaxSessionDuration(Number(e.target.value))}
               inputProps={{ min: 1 }}
+              disabled={readOnly}
             />
           </Box>
         </Box>
@@ -137,6 +140,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
               value={minPasswordLength}
               onChange={(e) => setMinPasswordLength(Number(e.target.value))}
               inputProps={{ min: 6 }}
+              disabled={readOnly}
             />
           </Box>
           <Box>
@@ -148,6 +152,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
               type="number"
               size="small"
               value={passwordHistory}
+              disabled={readOnly}
               onChange={(e) => setPasswordHistory(Number(e.target.value))}
               inputProps={{ min: 0 }}
             />
@@ -159,18 +164,20 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
             <FormGroup>
               <FormControlLabel
                 control={
-                  <Checkbox
+                  <Checkbox 
                     checked={passwordRequirements.uppercase}
-                    onChange={handlePasswordRequirementChange('uppercase')}
+                    onChange={(e) => setPasswordRequirements({...passwordRequirements, uppercase: e.target.checked})}
+                    disabled={readOnly}
                   />
                 }
-                label="Require Uppercase Letters"
+                label="Require uppercase letters"
               />
               <FormControlLabel
                 control={
-                  <Checkbox
+                  <Checkbox 
                     checked={passwordRequirements.numbers}
-                    onChange={handlePasswordRequirementChange('numbers')}
+                    onChange={(e) => setPasswordRequirements({...passwordRequirements, numbers: e.target.checked})}
+                    disabled={readOnly}
                   />
                 }
                 label="Require Numbers"
@@ -184,6 +191,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
                   <Checkbox
                     checked={passwordRequirements.lowercase}
                     onChange={handlePasswordRequirementChange('lowercase')}
+                    disabled={readOnly}
                   />
                 }
                 label="Require Lowercase Letters"
@@ -193,6 +201,7 @@ const SecurityAuthentication: React.FC<SecurityAuthenticationProps> = ({ onSave 
                   <Checkbox
                     checked={passwordRequirements.specialSymbols}
                     onChange={handlePasswordRequirementChange('specialSymbols')}
+                    disabled={readOnly}
                   />
                 }
                 label="Require Special Symbols"

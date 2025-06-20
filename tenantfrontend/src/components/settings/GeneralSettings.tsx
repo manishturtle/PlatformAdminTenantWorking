@@ -69,6 +69,8 @@ export interface GeneralFormData {
 
 interface GeneralSettingsProps {
   onSave: (data: GeneralFormData) => void;
+  readOnly?: boolean;
+  defaultValues?: GeneralFormData;
 }
 
 interface FormData {
@@ -91,7 +93,7 @@ interface FormData {
   firstDayOfWeek: FirstDayOfWeek;
 }
 
-const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref) => {
+const GeneralSettings = React.forwardRef(({ onSave, readOnly = false, defaultValues }: GeneralSettingsProps, ref) => {
   // Expose the triggerSubmit method to parent
   React.useImperativeHandle(ref, () => ({
     triggerSubmit: () => {
@@ -468,6 +470,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 variant="outlined"
                 size="small"
                 margin="dense"
+                InputProps={{ readOnly }}
+                disabled={readOnly}
               />
             )}
           />
@@ -490,6 +494,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 variant="outlined"
                 size="small"
                 margin="dense"
+                InputProps={{ readOnly }}
+                disabled={readOnly}
                 error={!!error}
                 helperText={error?.message}
               />
@@ -509,6 +515,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 variant="outlined"
                 size="small"
                 margin="dense"
+                InputProps={{ readOnly }}
+                disabled={readOnly}
               />
             )}
           />
@@ -526,6 +534,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 variant="outlined"
                 size="small"
                 margin="dense"
+                InputProps={{ readOnly }}
+                disabled={readOnly}
               />
             )}
           />
@@ -627,6 +637,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 )}
               </FormControl>
             )}
+            InputProps={{ readOnly }}
+            disabled={readOnly}
           />
         </Box>
 
@@ -634,6 +646,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
           <Controller
             name="addressLine1"
             control={control}
+            InputProps={{ readOnly }}
+            disabled={readOnly}
             render={({ field }) => (
               <TextField
                 {...field}
@@ -651,6 +665,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
           <Controller
             name="addressLine2"
             control={control}
+            InputProps={{ readOnly }}
+            disabled={readOnly}
             render={({ field }) => (
               <TextField
                 {...field}
@@ -682,10 +698,13 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                     onChange(newValue?.id || '');
                     setValue('city', '');
                   }}
+                  
                   inputValue={searchQueries.state}
                   onInputChange={(_, newInputValue) => handleSearchQueryChange('state', newInputValue)}
                   loading={isLoading.state}
                   disabled={!watchedValues.country}
+                  InputProps={{ readOnly }}
+                  disabled={readOnly}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -782,6 +801,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                     onInputChange={(_, newInputValue) => handleSearchQueryChange('city', newInputValue)}
                     loading={isLoading.city}
                     disabled={!watchedValues.state}
+                    InputProps={{ readOnly }}
+                    disabled={readOnly}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -861,6 +882,7 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
             <Controller
               name="postalCode"
               control={control}
+              
               render={({ field }) => (
                 <TextField
                   {...field}
@@ -869,6 +891,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                   variant="outlined"
                   size="small"
                   margin="dense"
+                  InputProps={{ readOnly }}
+                  disabled={readOnly}
                 />
               )}
             />
@@ -890,6 +914,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
             onClose={() => setOpen(prev => ({ ...prev, language: false }))}
             options={filteredLanguages}
             getOptionLabel={(option) => option.name}
+            InputProps={{ readOnly }}
+            disabled={readOnly}
             onChange={(_, newValue) => {
               setValue('language', newValue?.code || '');
             }}
@@ -901,6 +927,7 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                 size="small"
                 label="Default Language"
                 variant="outlined"
+                
               />
             )}
             renderOption={(props, option) => (
@@ -968,6 +995,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                         onChange={(_, newValue) => {
                           onChange(newValue?.code || '');
                         }}
+                        InputProps={{ readOnly }}
+                        disabled={readOnly}
                         inputValue={searchQueries.timezone}
                         onInputChange={(_, newInputValue) => handleSearchQueryChange('timezone', newInputValue)}
                         renderInput={(params) => (
@@ -1044,6 +1073,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                         onOpen={() => setOpen(prev => ({ ...prev, dateFormat: true }))}
                         onClose={() => setOpen(prev => ({ ...prev, dateFormat: false }))}
                         options={dateFormats}
+                        InputProps={{ readOnly }}
+                        disabled={readOnly}
                         getOptionLabel={(option) => option?.label || ''}
                         value={value ? dateFormats.find(opt => opt.value === value) : dateFormats[0]}
                         onChange={(_, newValue) => {
@@ -1127,6 +1158,8 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
                         onChange={(_, newValue) => {
                           onChange(newValue?.code || '');
                         }}
+                        InputProps={{ readOnly }}
+                        disabled={readOnly}
                         inputValue={searchQueries.currency}
                         onInputChange={(_, newInputValue) => handleSearchQueryChange('currency', newInputValue)}
                         renderInput={(params) => (
@@ -1203,11 +1236,13 @@ const GeneralSettings = React.forwardRef(({ onSave }: GeneralSettingsProps, ref)
             <Controller
               name="timeFormat"
               control={control}
+             
               render={({ field }) => (
                 <RadioGroup
                   row
                   {...field}
                   sx={{ mt: 0.5 }}
+                  
                 >
                   <FormControlLabel 
                     value="12h" 

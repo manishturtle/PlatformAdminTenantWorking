@@ -93,6 +93,8 @@ interface BrandingVisualsProps {
   onSave: (data: BrandingFormData) => void;
 }
 
+
+
 type FontType = {
   code: string;
   name: string;
@@ -283,6 +285,7 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
               variant="outlined"
               startIcon={<CloudUpload />}
               sx={{ mb: 1 }}
+              
             >
               Upload Logo
               <input

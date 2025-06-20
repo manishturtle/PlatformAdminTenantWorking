@@ -84,8 +84,13 @@ const SettingsPage = () => {
         setBrandingFormData(mappedBrandingData);
         setIsGeneralComplete(true); // Allow access to branding tab if we have config data
         
-        // Initial view is read-only mode
-        setIsEditMode(false);
+        // If we have existing config data, initial view is read-only mode
+        // Otherwise, start in edit mode
+        const hasData = configData && 
+          (configData.company_info?.company_name || 
+           configData.branding_config?.primary_brand_color);
+           
+        setIsEditMode(!hasData); // Only set to edit mode if there's no data
       } catch (error) {
         console.error('Failed to fetch tenant configuration:', error);
         setSnackbar({
@@ -408,7 +413,7 @@ const SettingsPage = () => {
                     >
                       Edit Settings
                     </Button>
-                  ) : isEditMode && (
+                  ) : (
                     <Button
                       variant="contained"
                       color="primary"
