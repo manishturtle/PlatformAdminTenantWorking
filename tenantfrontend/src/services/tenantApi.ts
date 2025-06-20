@@ -49,6 +49,147 @@ export interface TenantConfigData {
   localization_config?: Partial<LocalizationConfig>;
 }
 
+export interface SubscriptionPlan {
+  id: number;
+  name: string;
+  price: string;
+  max_users: number;
+  description: string;
+  session_type: string;
+  billing_cycle?: string;
+  storage_limit: number;
+  support_level: string;
+  api_call_limit: number;
+  transaction_limit: number;
+}
+
+export interface FeatureSubfeature {
+  id: number;
+  key: string;
+  name: string;
+  settings?: Record<string, any>;
+  description: string;
+  enabled?: boolean;
+}
+
+export interface Feature {
+  id: number;
+  key: string;
+  name: string;
+  app_id: string | number;
+  is_active: boolean;
+  description: string;
+  subfeatures?: FeatureSubfeature[];
+  license_id: number;
+  plan_name: string;
+  license_status: string;
+}
+
+export interface ApplicationSubscription {
+  license_id: number;
+  plan_id: number;
+  plan_name: string;
+  plan_description: string;
+  valid_from: string;
+  valid_until: string | null;
+  license_status: string;
+  subscription_plan: SubscriptionPlan;
+}
+
+export interface TenantApplication {
+  app_id: string | number;
+  name: string;
+  description: string;
+  is_active: boolean;
+  app_default_url: string;
+  application_name?: string;
+  created_at?: string;
+  user_count: number;
+  features: Feature[];
+  subscription: ApplicationSubscription;
+}
+
+export interface TenantSubscription {
+  tenant_id: number;
+  tenant_name: string;
+  tenant_status: string;
+  default_url: string | null;
+  paid_until: string | null;
+  applications: TenantApplication[];
+}
+
+/**
+ * Fetches tenant subscriptions
+ * @param tenantSlug - The tenant slug/identifier
+ * @returns Promise with tenant subscriptions data
+ */
+export const fetchTenantSubscriptions = async (tenantSlug: string): Promise<TenantSubscription> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication token not found');
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/platform-admin/api/tenant-subscription/${tenantSlug}/`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to fetch tenant subscriptions');
+  }
+
+  return response.json();
+};
+
+/**
+ * Fetches tenant applications
+ * @param tenantSlug - The tenant slug/identifier
+ * @returns Promise with tenant applications data
+ * @deprecated This function is deprecated. Use fetchTenantSubscriptions instead which now includes applications.
+ */
+export const fetchTenantApplications = async (tenantSlug: string): Promise<TenantApplication[]> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Authentication token not found');
+  }
+
+  // First try to get from the combined endpoint
+  try {
+    const subscriptionData = await fetchTenantSubscriptions(tenantSlug);
+    if (subscriptionData.applications) {
+      return subscriptionData.applications;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch applications from subscription endpoint, falling back to dedicated endpoint');
+  }
+
+  // Fallback to old endpoint
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/platform-admin/api/tenant-applications/${tenantSlug}/`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to fetch tenant applications');
+  }
+
+  return response.json();
+};
+
 export const getTenantConfig = async (): Promise<TenantConfigData> => {
   const url = `${getTenantApiBaseUrl()}/tenant-admin/tenant-config/`;
   

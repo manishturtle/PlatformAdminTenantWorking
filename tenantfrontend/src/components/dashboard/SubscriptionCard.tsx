@@ -1,76 +1,61 @@
-import { Box, Typography, Button, Card, CardContent, Chip, Grid } from '@mui/material';
+import { Box, Typography, Button, Card, CardContent, Chip, Divider } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-const StyledCard = styled(Card)(({ theme }) => ({
+interface Metric {
+  label: string;
+  value: string | number;
+}
+
+interface UsersInfo {
+  current: number;
+  total: number;
+}
+
+interface SubscriptionCardProps {
+  icon: React.ReactNode;
+  iconBgColor?: string;
+  iconColor?: string;
+  title: string;
+  plan: string;
+  description?: string;
+  status: 'active' | 'inactive' | 'trial' | 'suspended' | 'pending' | 'cancelled' | 'pending upgrade';
+  metrics?: Metric[];
+  users?: UsersInfo;
+  appUrl?: string;
+}
+
+const StyledCard = styled(Card)({
   borderRadius: '8px',
   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
   transition: 'box-shadow 0.3s ease',
   '&:hover': {
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
   },
-}));
-
-const IconWrapper = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1.5),
-  borderRadius: '8px',
-  width: 'fit-content',
-  height: 'fit-content',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: theme.spacing(2),
-  '& .MuiSvgIcon-root': {
-    fontSize: 24,
-  },
-}));
+});
 
 const StatusChip = styled(Chip)(({ theme }) => ({
   height: 20,
   fontSize: '0.65rem',
   fontWeight: 500,
-  marginLeft: theme.spacing(1),
+  marginLeft: theme.spacing(1.5),
+  '& .MuiChip-label': {
+    paddingLeft: 8,
+    paddingRight: 8,
+  },
 }));
 
-type SubscriptionCardProps = {
-  icon: React.ReactNode;
-  iconBgColor?: string;
-  iconColor?: string;
-  title: string;
-  plan: string;
-  status: 'active' | 'inactive' | 'trial' | 'suspended' | 'pending' | 'cancelled' | 'pending upgrade';
-  metrics?: Array<{
-    label: string;
-    value: string;
-  }>;
-  // For backwards compatibility with dashboard page
-  users?: {
-    current: number;
-    total: number;
-  };
-  color?: string; // For backwards compatibility
-  renewInfo?: string;
-  cost?: string;
-  upgradeInfo?: {
-    effective: string;
-    cost: string;
-  };
-};
-
-export const SubscriptionCard = ({
+export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   icon,
-  iconBgColor = '#e3f2fd', // default blue light background
-  iconColor = '#1976d2',   // default blue color
+  iconBgColor = '#e3f2fd',
+  iconColor = '#1976d2',
   title,
   plan,
+  description,
   status,
-  metrics,
+  metrics = [],
   users,
-  color,
-  upgradeInfo,
-  renewInfo,
-  cost,
-}: SubscriptionCardProps) => {
-  // Generate status colors based on status
+  appUrl,
+}) => {
   const getStatusInfo = () => {
     switch (status.toLowerCase()) {
       case 'active':
@@ -82,7 +67,11 @@ export const SubscriptionCard = ({
       case 'cancelled':
         return { bg: '#f5f5f5', text: '#616161', label: 'Cancelled' };
       default:
-        return { bg: '#f5f5f5', text: '#616161', label: status.charAt(0).toUpperCase() + status.slice(1) };
+        return { 
+          bg: '#f5f5f5', 
+          text: '#616161', 
+          label: status.charAt(0).toUpperCase() + status.slice(1) 
+        };
     }
   };
 
@@ -90,131 +79,225 @@ export const SubscriptionCard = ({
 
   return (
     <StyledCard>
-      <CardContent sx={{ p: 6 }}>
-        {/* Header Section */}
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
-          {/* Left: Icon and Title */}
-          <Box display="flex" alignItems="center" mb={1}>
-            <IconWrapper sx={{ backgroundColor: iconBgColor }}>
-              <Box sx={{ color: iconColor }}>{icon}</Box>
-            </IconWrapper>
-            <Box>
-              <Typography variant="h6" fontWeight={600} color="text.primary">
-                {title}
+      <CardContent sx={{ p: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+          <Box>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ 
+                mb: 0.5, 
+                fontSize: '0.75rem', 
+                fontWeight: 500, 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.5px' 
+              }}
+            >
+              APPLICATION
+            </Typography>
+            <Typography 
+              variant="h6" 
+              component="div" 
+              fontWeight={600} 
+              sx={{ 
+                mb: 1.5, 
+                fontSize: '1.125rem' 
+              }}
+            >
+              {title}
+            </Typography>
+            <Box display="flex" alignItems="center" sx={{ mb: 1.5 }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mr: 1, 
+                  fontSize: '0.875rem' 
+                }}
+              >
+                Plan:
               </Typography>
-              <Box display="flex" alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  {plan}
-                </Typography>
-                <StatusChip 
-                  label={statusInfo.label}
-                  size="small"
-                  sx={{
-                    backgroundColor: statusInfo.bg,
-                    color: statusInfo.text,
-                    '& .MuiChip-label': {
-                      px: 1,
-                      py: 0.25,
-                    },
-                  }}
-                />
-              </Box>
+              <Typography 
+                variant="body2" 
+                fontWeight={500} 
+                sx={{ 
+                  fontSize: '0.875rem' 
+                }}
+              >
+                {plan}
+              </Typography>
+              <StatusChip
+                label={statusInfo.label}
+                size="small"
+                sx={{
+                  backgroundColor: statusInfo.bg,
+                  color: statusInfo.text,
+                }}
+              />
             </Box>
+            {description && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  fontSize: '0.875rem', 
+                  lineHeight: 1.5 
+                }}
+              >
+                {description}
+              </Typography>
+            )}
           </Box>
-
-          {/* Right: Action Buttons */}
-          <Box display="flex" gap={1}>
+          
+          <Box 
+            sx={{ 
+              backgroundColor: iconBgColor, 
+              borderRadius: '8px',
+              p: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              color: iconColor,
+              flexShrink: 0,
+              '& .MuiSvgIcon-root': {
+                fontSize: '1.5rem',
+              }
+            }}
+          >
+            {icon}
+          </Box>
+        </Box>
+        
+        <Divider sx={{ my: 2 }} />
+        
+        <Box mt={3}>
+          <Box 
+            display="grid" 
+            gridTemplateColumns={{ 
+              xs: '1fr', 
+              sm: 'repeat(3, 1fr)' 
+            }} 
+            gap={3}
+          >
+            {metrics.map((metric: Metric, index: number) => (
+              <Box key={index}>
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary" 
+                  display="block" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontSize: '0.75rem' 
+                  }}
+                >
+                  {metric.label}
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  fontWeight={500} 
+                  sx={{ 
+                    fontSize: '0.9375rem' 
+                  }}
+                >
+                  {metric.value}
+                </Typography>
+              </Box>
+            ))}
+            {users && (
+              <Box>
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary" 
+                  display="block" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontSize: '0.75rem' 
+                  }}
+                >
+                  Users
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  fontWeight={500} 
+                  sx={{ 
+                    fontSize: '0.9375rem' 
+                  }}
+                >
+                  {users.current} / {users.total}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+        
+        <Box mt={3} display="flex" gap={2} flexWrap="wrap">
+          {appUrl && (
             <Button
               variant="contained"
               color="primary"
               size="small"
+              href={appUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               sx={{ 
                 textTransform: 'none',
-                borderRadius: 1,
+                borderRadius: '4px',
                 px: 2,
-                py: 1,
-                fontSize: '0.875rem',
-                fontWeight: 500
-              }}
-            >
-              Manage Users
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              sx={{ 
-                textTransform: 'none',
-                borderRadius: 1,
-                px: 2,
-                py: 1,
-                fontSize: '0.875rem',
+                py: 0.75,
+                fontSize: '0.8125rem',
                 fontWeight: 500,
-                borderColor: 'rgba(0, 0, 0, 0.23)'
+                boxShadow: 'none',
+                backgroundColor: iconColor,
+                '&:hover': {
+                  boxShadow: 'none',
+                  backgroundColor: iconColor ? `${iconColor}dd` : undefined,
+                }
               }}
             >
-              Change Plan
+              GO_TO_APP
             </Button>
-            <Button
-              variant="text"
-              color="error"
-              size="small"
-              sx={{ 
-                textTransform: 'none',
-                px: 2,
-                py: 1,
-                fontSize: '0.875rem',
-                fontWeight: 500
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
+          )}
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ 
+              textTransform: 'none',
+              borderRadius: '4px',
+              px: 2,
+              py: 0.75,
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              borderColor: 'rgba(0, 0, 0, 0.23)',
+              '&:hover': {
+                borderColor: 'rgba(0, 0, 0, 0.5)',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+              }
+            }}
+          >
+            Manage Users
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ 
+              textTransform: 'none',
+              borderRadius: '4px',
+              px: 2,
+              py: 0.75,
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              borderColor: 'rgba(0, 0, 0, 0.23)',
+              '&:hover': {
+                borderColor: 'rgba(0, 0, 0, 0.5)',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+              }
+            }}
+          >
+            Change Plan
+          </Button>
         </Box>
-        
-        {/* Metrics Grid */}
-        <Grid container spacing={4} sx={{ mb: 4 }}>
-          {metrics && metrics.map((metric, index) => (
-            <Grid key={index.toString()} sx={{ gridColumn: { xs: '1 / span 12', sm: '1 / span 6', md: '1 / span 4' } }}>
-              <Typography variant="body2" color="text.secondary" fontWeight={500} mb={0.5}>
-                {metric.label}
-              </Typography>
-              <Typography variant="body1" color="text.primary">
-                {metric.value}
-              </Typography>
-            </Grid>
-          ))}
-          {users && (
-            <Grid sx={{ gridColumn: { xs: '1 / span 12', sm: '1 / span 6', md: '1 / span 4' } }}>
-              <Typography variant="body2" color="text.secondary" fontWeight={500} mb={0.5}>
-                Users Assigned
-              </Typography>
-              <Typography variant="body1" color="text.primary">
-                {users.current}/{users.total}
-              </Typography>
-            </Grid>
-          )}
-        </Grid>
-        
-        {/* Footer Information */}
-        <Typography variant="body2" color="text.secondary" fontSize="0.75rem">
-          {upgradeInfo ? (
-            <>
-              Upgrade effective: {upgradeInfo.effective} 
-              <span style={{ margin: '0 8px' }}>|</span> 
-              New cost: {upgradeInfo.cost}
-            </>
-          ) : (
-            <>
-              {renewInfo} 
-              {cost && (
-                <>
-                  <span style={{ margin: '0 8px' }}>|</span> 
-                  Cost: {cost}
-                </>
-              )}
-            </>
-          )}
-        </Typography>
       </CardContent>
     </StyledCard>
   );

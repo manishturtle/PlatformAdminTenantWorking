@@ -684,12 +684,14 @@ const GeneralSettings = React.forwardRef(({ onSave, readOnly = false, defaultVal
           <Controller
             name="state"
             control={control}
+            InputProps={{ readOnly }}
+            disabled={readOnly}
             render={({ field: { onChange, value, ...field } }) => (
               <FormControl fullWidth size="small" margin="dense">
                 <Autocomplete
                   {...field}
                   open={open.state}
-                  onOpen={() => setOpen(prev => ({ ...prev, state: true }))}
+                  onOpen={() => !readOnly && setOpen(prev => ({ ...prev, state: true }))}
                   onClose={() => setOpen(prev => ({ ...prev, state: false }))}
                   options={filteredStates}
                   getOptionLabel={(option) => option.name}
@@ -698,13 +700,10 @@ const GeneralSettings = React.forwardRef(({ onSave, readOnly = false, defaultVal
                     onChange(newValue?.id || '');
                     setValue('city', '');
                   }}
-                  
                   inputValue={searchQueries.state}
                   onInputChange={(_, newInputValue) => handleSearchQueryChange('state', newInputValue)}
                   loading={isLoading.state}
-                  disabled={!watchedValues.country}
-                  InputProps={{ readOnly }}
-                  disabled={readOnly}
+                  disabled={readOnly || !watchedValues.country}
                   renderInput={(params) => (
                     <TextField
                       {...params}

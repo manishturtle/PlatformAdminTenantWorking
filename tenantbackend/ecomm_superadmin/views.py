@@ -937,12 +937,12 @@ class TenantApplicationsByUrlView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class TenantSubscriptionDetailsView(APIView):
     """
-    API endpoint to get all subscription licenses for a specific tenant.
+    API endpoint to get all subscription licenses and applications for a specific tenant.
     """
     authentication_classes = [TenantAdminJWTAuthentication]
+    
     def get(self, request, tenant_slug):
         try:
-            print("called....")
             with connection.cursor() as cursor:
                 # Step 1: Fetch tenant info
                 cursor.execute("""
@@ -967,40 +967,167 @@ class TenantSubscriptionDetailsView(APIView):
                 # Step 2: Fetch ALL licenses for the tenant
                 cursor.execute("""
                     SELECT 
-                        subscription_plan_id, 
-                        valid_from, 
-                        valid_until, 
-                        license_status, 
-                        subscription_plan_snapshot::TEXT, 
-                        features_snapshot::TEXT
-                    FROM ecomm_superadmin_tenant_subscriptions_licenses
-                    WHERE tenant_id = %s
-                    ORDER BY valid_from DESC
+                        tsl.id as license_id,
+                        tsl.subscription_plan_id, 
+                        tsl.valid_from, 
+                        tsl.valid_until, 
+                        tsl.license_status, 
+                        tsl.subscription_plan_snapshot::TEXT, 
+                        tsl.features_snapshot::TEXT,
+                        tsp.name as plan_name,
+                        tsp.description as plan_description
+                    FROM ecomm_superadmin_tenant_subscriptions_licenses tsl
+                    LEFT JOIN subscription_plans tsp ON tsl.subscription_plan_id = tsp.id
+                    WHERE tsl.tenant_id = %s
+                    ORDER BY tsl.valid_from DESC
                 """, [tenant_id])
 
                 license_rows = cursor.fetchall()
                 licenses = []
+                all_applications = set()
+                applications_map = {}
 
                 for row in license_rows:
                     try:
-                        plan_id, valid_from, valid_until, license_status, plan_snapshot_json, features_snapshot_json = row
-                        subscription_plan = json.loads(plan_snapshot_json)
-                        # features_snapshot = json.loads(features_snapshot_json)
+                        (license_id, plan_id, valid_from, valid_until, license_status, 
+                         plan_snapshot_json, features_snapshot_json, plan_name, plan_description) = row
+                        
+                        subscription_plan = json.loads(plan_snapshot_json) if plan_snapshot_json else {}
+                        features_snapshot = json.loads(features_snapshot_json) if features_snapshot_json else {}
 
-                        licenses.append({
+                        # Get applications from features snapshot
+                        if features_snapshot:
+                            for feature_id, feature_data in features_snapshot.items():
+                                if 'app_id' in feature_data and feature_data['app_id']:
+                                    all_applications.add(feature_data['app_id'])
+                                    applications_map[feature_data['app_id']] = {
+                                        'app_id': feature_data['app_id'],
+                                        'name': feature_data.get('application_name', feature_data['app_id']),
+                                        'description': feature_data.get('description', '')
+                                    }
+
+                        license_data = {
+                            "license_id": license_id,
                             "subscription_plan_id": plan_id,
+                            "plan_name": plan_name,
+                            "plan_description": plan_description,
                             "valid_from": valid_from,
                             "valid_until": valid_until,
                             "license_status": license_status,
                             "subscription_plan": subscription_plan,
-                            # "features_snapshot": features_snapshot
-                        })
+                            "features_snapshot": features_snapshot
+                        }
+                        licenses.append(license_data)
                     except json.JSONDecodeError as decode_err:
                         logger.warning(f"Skipping license due to JSON decode error: {decode_err}")
                         continue
 
-                tenant_dict['licenses'] = licenses
-                return Response(tenant_dict)
+                # Get additional application details from public.application if available
+                if all_applications:
+                    app_ids = list(all_applications)
+                    placeholders = ','.join(['%s'] * len(app_ids))
+                    # Get tenant schema name from tenant_slug
+                    cursor.execute("""
+                        SELECT schema_name FROM public.ecomm_superadmin_tenants 
+                        WHERE url_suffix = %s
+                    """, [tenant_slug])
+                    
+                    schema_result = cursor.fetchone()
+                    if not schema_result:
+                        return Response({"error": "Tenant schema not found"}, status=status.HTTP_404_NOT_FOUND)
+                    
+                    tenant_schema = schema_result[0]
+                    
+                    # Query without relying on the tenant's user application table
+                    cursor.execute(f"""
+                        SELECT 
+                            a.app_id, 
+                            a.application_name, 
+                            a.app_default_url,
+                            a.description, 
+                            a.is_active,
+                            a.created_at,
+                            p.default_url AS portal_default_url,
+                            p.redirect_url AS portal_redirect_url,
+                            p.custom_redirect_url AS portal_custom_redirect_url
+                        FROM public.application a
+                        LEFT JOIN public.ecomm_superadmin_tenant_app_portals p
+                            ON a.app_id = p.app_id AND p.tenant_id = %s
+                        WHERE a.app_id IN ({placeholders})
+                    """, [tenant_id] + app_ids)
+                    
+                    columns = [col[0] for col in cursor.description]
+                    app_rows = cursor.fetchall()
+                    
+                    for app_row in app_rows:
+                        app_data = dict(zip(columns, app_row))
+                        app_id = app_data['app_id']
+                        if app_id in applications_map:
+                            redirect_url = app_data.get('portal_custom_redirect_url') or app_data.get('portal_redirect_url')
+                            applications_map[app_id].update({
+                                'name': app_data.get('application_name') or applications_map[app_id]['name'],
+                                'description': app_data.get('description') or applications_map[app_id]['description'],
+                                'is_active': app_data.get('is_active', False),
+                                'app_default_url': redirect_url or app_data.get('app_default_url', ''),
+                                'created_at': app_data.get('created_at'),
+                                'user_count': 0  # Default to 0 since we're not querying user count
+                            })
+
+                # Build a better structured response with applications as main entities
+                applications = []
+                app_features_map = {}
+                
+                # Map each application to its features from all licenses
+                for license_data in licenses:
+                    features_snapshot = license_data.get('features_snapshot', {})
+                    if isinstance(features_snapshot, dict):
+                        for feature_id, feature_data in features_snapshot.items():
+                            if 'app_id' in feature_data:
+                                app_id = feature_data['app_id']
+                                if app_id not in app_features_map:
+                                    app_features_map[app_id] = []
+                                
+                                # Add feature data with license information
+                                feature_with_license = {
+                                    **feature_data,
+                                    'license_id': license_data['license_id'],
+                                    'plan_name': license_data['plan_name'],
+                                    'license_status': license_data['license_status']
+                                }
+                                app_features_map[app_id].append(feature_with_license)
+                
+                # Build the final applications list with features and subscription data
+                for app_id, app_data in applications_map.items():
+                    app_with_features = {
+                        **app_data,
+                        'features': app_features_map.get(app_id, []),
+                        'subscription': next(
+                            ({
+                                'license_id': license['license_id'],
+                                'plan_id': license['subscription_plan_id'],
+                                'plan_name': license['plan_name'],
+                                'plan_description': license['plan_description'],
+                                'valid_from': license['valid_from'],
+                                'valid_until': license['valid_until'],
+                                'license_status': license['license_status'],
+                                'subscription_plan': license['subscription_plan']
+                            } for license in licenses if any(
+                                feature.get('app_id') == app_id 
+                                for feature in license.get('features_snapshot', {}).values() 
+                                if isinstance(license.get('features_snapshot'), dict)
+                            )
+                            ), None)
+                    }
+                    applications.append(app_with_features)
+                
+                # Keep backward compatibility
+                response_data = {
+                    **tenant_dict,
+                    'applications': applications,
+                    # 'licenses': licenses
+                }
+                
+                return Response(response_data)
 
         except Exception as e:
             logger.error(f"Error in TenantSubscriptionDetailsView: {str(e)}", exc_info=True)
