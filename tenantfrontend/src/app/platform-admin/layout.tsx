@@ -51,6 +51,8 @@
 import React from 'react';
 import AppLayout from '../AppLayout';
 import { ThemeProvider } from '../../theme/ThemeContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function PlatformAdminLayout({
   children,
@@ -60,6 +62,17 @@ export default function PlatformAdminLayout({
   return (
     <ThemeProvider>
       <AppLayout userType="platform-admin">
+        <ToastContainer 
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
         {children}
       </AppLayout>
     </ThemeProvider>

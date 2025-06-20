@@ -27,6 +27,7 @@ import {
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { getAuthHeader } from "../../../utils/authUtils";
+import { toast } from "react-toastify";
 
 interface Plan {
   id: string;
@@ -141,9 +142,10 @@ export default function TenantsPage() {
 
     try {
       const authHeader = getAuthHeader();
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
       const response = await fetch(
-        `http://localhost:8000/platform-admin/api/tenants/${id}/`,
+        `${baseUrl}/platform-admin/api/tenants/${id}/`,
         {
           method: "DELETE",
           headers: {
@@ -159,9 +161,20 @@ export default function TenantsPage() {
 
       // Remove the deleted tenant from the list
       setTenants(tenants.filter((tenant) => tenant.id !== id));
+      
+      // Show success message
+      toast.success("Tenant deleted successfully", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } catch (err: any) {
       console.error("Error deleting tenant:", err);
       setError(err.message || "Failed to delete tenant");
+      toast.error(err.message || "Failed to delete tenant");
     }
   };
 
