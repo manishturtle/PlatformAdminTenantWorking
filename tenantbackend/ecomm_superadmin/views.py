@@ -816,7 +816,7 @@ class PlatformAdminTenantView(APIView):
                 # First, check if the tenant exists using raw SQL
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        """SELECT id, schema_name FROM tenants WHERE id = %s""",
+                        """SELECT id, schema_name FROM ecomm_superadmin_tenants WHERE id = %s""",
                         [tenant_id]
                     )
                     result = cursor.fetchone()
@@ -827,37 +827,72 @@ class PlatformAdminTenantView(APIView):
                         )
 
                     tenant_id, schema_name = result
+                    # Use separate connections for each step to avoid transaction issues
+                    # Delete operations are executed within their own transactions
+                    
+                    # 1. Delete subscription licenses for this tenant
+                    with transaction.atomic():
+                        with connection.cursor() as cursor1:
+                            cursor1.execute("""
+                                DELETE FROM ecomm_superadmin_tenant_subscriptions_licenses 
+                                WHERE tenant_id = %s
+                            """, [tenant_id])
+                            logger.info(f"Deleted subscription licenses for tenant ID {tenant_id}")
 
-                    # 1. First delete entries from ecomm_superadmin_domain
+                    # 2. Delete entries from ecomm_superadmin_domain
+                    with transaction.atomic():
+                        with connection.cursor() as cursor2:
+                            cursor2.execute("""
+                                DELETE FROM ecomm_superadmin_domain 
+                                WHERE tenant_id = %s
+                            """, [tenant_id])
+                            logger.info(f"Deleted domain entries for tenant ID {tenant_id}")
+                    
+                    # 3. Check for any other foreign key references and delete them
                     try:
-                        cursor.execute("""
-                            DELETE FROM domains 
-                            WHERE tenant_id = %s
-                        """, [tenant_id])
-                        logger.info(f"Deleted domain entries for tenant ID {tenant_id}")
-                    except Exception as domain_e:
-                        logger.error(f"Error deleting from domain table: {str(domain_e)}")
-                        traceback.print_exc()
-                        raise
+                        with transaction.atomic():
+                            with connection.cursor() as cursor3:
+                                cursor3.execute("""
+                                    DELETE FROM ecomm_superadmin_tenant_settings
+                                    WHERE tenant_id = %s
+                                """, [tenant_id])
+                                logger.info(f"Deleted tenant settings for tenant ID {tenant_id}")
+                    except Exception as settings_e:
+                        # This might fail if the table doesn't exist, which is fine
+                        logger.info(f"No tenant settings to delete or table doesn't exist: {str(settings_e)}")
+                        # If this failed, it won't affect the other transactions
 
-                    # 2. Then delete the tenant record from ecomm_superadmin_tenants
-                    cursor.execute("DELETE FROM tenants WHERE id = %s", [tenant_id])
-                    logger.info(f"Deleted tenant with ID {tenant_id}")
+                    # 4. Then delete the tenant record from ecomm_superadmin_tenants
+                    with transaction.atomic():
+                        with connection.cursor() as cursor4:
+                            cursor4.execute("DELETE FROM ecomm_superadmin_tenants WHERE id = %s", [tenant_id])
+                            logger.info(f"Deleted tenant with ID {tenant_id}")
 
-                    # 3. Finally drop the schema
+                    # 5. Finally drop the schema
                     try:
-                        cursor.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-                        logger.info(f"Dropped schema {schema_name}")
+                        with transaction.atomic():
+                            with connection.cursor() as cursor5:
+                                cursor5.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
+                                logger.info(f"Dropped schema {schema_name}")
                     except Exception as schema_e:
                         logger.error(f"Error dropping schema: {str(schema_e)}")
                         traceback.print_exc()
-                        raise
+                        # Even if schema drop fails, we don't want to raise an exception here
+                        # as the tenant record is already deleted
 
                     return Response(status=status.HTTP_204_NO_CONTENT)
 
         except Exception as e:
             logger.error(f"Error deleting tenant: {str(e)}")
             traceback.print_exc()
+            
+            # Make sure any open transaction is rolled back
+            try:
+                connection.rollback()
+                logger.info("Rolled back transaction after error")
+            except Exception as rollback_e:
+                logger.error(f"Error rolling back transaction: {str(rollback_e)}")
+                
             return Response(
                 {"error": "An error occurred while deleting the tenant"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
