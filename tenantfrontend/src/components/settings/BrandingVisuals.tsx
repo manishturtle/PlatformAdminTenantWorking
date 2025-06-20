@@ -17,18 +17,24 @@
 //                 Default Theme Mode
 //               </Typography>
 //               <FormControl component="fieldset">
-//                 <RadioGroup
-//                   row
+//                 <ToggleButtonGroup
 //                   value={themeMode}
+//                   exclusive
 //                   onChange={handleThemeChange}
+//                   aria-label="text alignment"
+//                   sx={{ display: 'flex', width: '100%', mt: 1 }}
+//                   disabled={readOnly}
 //                 >
-//                   <FormControlLabel
-//                     value="light"
-//                     control={<Radio size="small" />}
-//                     label="Light"
-//                   />
-//                   <FormControlLabel
-//                     value="dark"
+//                   <ToggleButton value="light" aria-label="left aligned">
+//                     <Typography variant="body2">Light</Typography>
+//                   </ToggleButton>
+//                   <ToggleButton value="dark" aria-label="centered">
+//                     <Typography variant="body2">Dark</Typography>
+//                   </ToggleButton>
+//                   <ToggleButton value="system" aria-label="right aligned">
+//                     <Typography variant="body2">System Default</Typography>
+//                   </ToggleButton>
+//                 </ToggleButtonGroup>
 //                     control={<Radio size="small" />}
 //                     label="Dark"
 //                     sx={{ ml: 3 }}
@@ -91,6 +97,8 @@ export interface BrandingFormData {
 
 interface BrandingVisualsProps {
   onSave: (data: BrandingFormData) => void;
+  readOnly?: boolean;
+  defaultValues?: BrandingFormData;
 }
 
 
@@ -100,7 +108,7 @@ type FontType = {
   name: string;
 };
 
-const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, BrandingVisualsProps>(({ onSave }, ref) => {
+const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, BrandingVisualsProps>(({ onSave, readOnly = false, defaultValues }, ref) => {
   // Handle save functionality
   const handleSave = () => {
     const formData: BrandingFormData = {
@@ -285,7 +293,7 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
               variant="outlined"
               startIcon={<CloudUpload />}
               sx={{ mb: 1 }}
-              
+              disabled={readOnly}
             >
               Upload Logo
               <input
@@ -340,6 +348,7 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
               variant="outlined"
               startIcon={<CloudUpload />}
               sx={{ mb: 1 }}
+              disabled={readOnly}
             >
               Upload Logo
               <input
@@ -394,6 +403,7 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
               variant="outlined"
               startIcon={<CloudUpload />}
               sx={{ mb: 1 }}
+              disabled={readOnly}
             >
               Upload Favicon
               <input
@@ -430,14 +440,16 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
                   border="1px solid"
                   borderColor="divider"
                   borderRight="none"
-                  onClick={(e) => handleColorClick(e, 'primary')}
-                  sx={{ cursor: 'pointer' }}
+                  onClick={(e) => !readOnly && handleColorClick(e, 'primary')}
+                  sx={{ cursor: readOnly ? 'default' : 'pointer' }}
                 />
                 <TextField
                   fullWidth
                   size="small"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
+                  disabled={readOnly}
+                  InputProps={{ readOnly }}
                   sx={{
                     margin: 0,
                     '& .MuiOutlinedInput-root': {
@@ -467,14 +479,16 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
                   border="1px solid"
                   borderColor="divider"
                   borderRight="none"
-                  onClick={(e) => handleColorClick(e, 'secondary')}
-                  sx={{ cursor: 'pointer' }}
+                  onClick={(e) => !readOnly && handleColorClick(e, 'secondary')}
+                  sx={{ cursor: readOnly ? 'default' : 'pointer' }}
                 />
                 <TextField
                   fullWidth
                   size="small"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
+                  disabled={readOnly}
+                  InputProps={{ readOnly }}
                   sx={{
                     margin: 0,
                     '& .MuiOutlinedInput-root': {
@@ -504,9 +518,10 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
           <Grid item xs={12} md={6}>
             <Autocomplete
               open={open.font}
-              onOpen={() => setOpen(prev => ({ ...prev, font: true }))}
+              onOpen={() => !readOnly && setOpen(prev => ({ ...prev, font: true }))}
               onClose={() => setOpen(prev => ({ ...prev, font: false }))}
               options={filteredFonts}
+              disabled={readOnly}
               getOptionLabel={(option) => option.name}
               value={selectedFont}
               onChange={(_, newValue) => handleFontStyleChange(newValue)}
@@ -581,22 +596,26 @@ const BrandingVisuals = React.forwardRef<{ triggerSubmit: () => void }, Branding
               <RadioGroup
                 row
                 value={themeMode}
+                
                 onChange={handleThemeChange}
               >
                 <FormControlLabel
                   value="light"
                   control={<Radio size="small" />}
                   label="Light"
+                  disabled={readOnly}
                 />
                 <FormControlLabel
                   value="dark"
                   control={<Radio size="small" />}
                   label="Dark"
+                  disabled={readOnly}
                 />
                 <FormControlLabel
                   value="system"
                   control={<Radio size="small" />}
                   label="System Default"
+                  disabled={readOnly}
                 />
               </RadioGroup>
             </FormControl>

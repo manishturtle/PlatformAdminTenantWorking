@@ -1249,11 +1249,13 @@ const GeneralSettings = React.forwardRef(({ onSave, readOnly = false, defaultVal
                     control={<Radio size="small" />} 
                     label="12-hour (AM/PM)" 
                     sx={{ mr: 4 }}
+                    disabled={readOnly}
                   />
                   <FormControlLabel 
                     value="24h" 
                     control={<Radio size="small" />} 
                     label="24-hour" 
+                    disabled={readOnly}
                   />
                 </RadioGroup>
               )}
