@@ -36,7 +36,7 @@ import {
 } from '@/services/tenantApi';
 
 // Import components
-import { SubscriptionCard } from '@/components/dashboard/SubscriptionCard';
+import { DashbaordSubscriptionCard } from '@/components/dashboard/DashbaordSubscriptionCard';
 import { UserManagementCard } from '@/components/dashboard/UserManagementCard';
 import { SecurityAuditCard } from '@/components/dashboard/SecurityAuditCard';
 import { AnnouncementsCard } from '@/components/dashboard/AnnouncementsCard';
@@ -242,30 +242,40 @@ export default function TenantDashboardPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {subscriptions.applications.map((app, index) => {
                     const plan = app.subscription.subscription_plan;
-                    const status = app.subscription.license_status === 'active' ? 'active' : 'inactive';
-                    const appUrl = app.app_default_url || '';
+                    const status = app.subscription.license_status as 'active' | 'inactive' | 'trial' | 'suspended' | 'pending' | 'cancelled' | 'pending upgrade';
                     
-                    const billingCycle = plan.billing_cycle || 'Monthly';
+                    // Prepare metrics data
+                    const metrics = [
+                      {
+                        label: 'API Calls',
+                        value: 1200000, // Example value - replace with actual data
+                        max: 2000000,    // Example value - replace with actual data
+                        color: 'primary' as const
+                      },
+                      {
+                        label: 'Processing Credits',
+                        value: 7500,     // Example value - replace with actual data
+                        max: 10000,      // Example value - replace with actual data
+                        color: 'secondary' as const
+                      }
+                    ];
                     
                     return (
-                      <SubscriptionCard
+                      <DashbaordSubscriptionCard
                         key={`${app.app_id}-${index}`}
-                        icon={getSubscriptionIcon(app.name)}
                         title={app.name}
-                        plan={`${billingCycle} ($${plan.price})`}
-                        status={status}
-                        users={{
-                          current: app.user_count || 0,
-                          total: plan.max_users
-                        }}
-                        iconColor={getSubscriptionColor(app.name, theme)}
-                        description={`${plan.description || 'No description'} \u2022 ${plan.support_level || 'No support level specified'}`}
-                        metrics={[
-                          { label: 'Storage Usage', value: `${Math.floor(Math.random() * 100)}% of ${plan.storage_limit || 0} GB` },
-                          { label: 'API Calls', value: `${plan.api_call_limit || 0}/mo` },
-                          { label: 'Cost', value: `$${plan.price}/month` },
-                        ]}
-                        appUrl={appUrl}
+                        plan={app.subscription.plan_name}
+                        assigned={app.users_count_current || 0}
+                        total={app.users_assigned || 0}
+                        status={app.subscription.license_status}
+                        // onGoToApp={() => {
+                        //   // Navigate to the application
+                        //   if (app.default_url) {
+                        //     window.open(app.default_url, '_blank');
+                        //   } else {
+                        //     console.log('No default URL for', app.name);
+                        //   }
+                        // }}
                       />
                     );
                   })}
